@@ -12,7 +12,7 @@ namespace PacketParser
         {
             //Console.WriteLine(" Login success!");
             //Console.WriteLine(creds);
-            CharacterService.SelectCharacter(ip, creds, 0, FSharpFunc<Structure.SpawnZoneInfo, Unit>.FromConverter(CharacterSelected));
+            Handshake.CharacterService.SelectCharacter(ip, creds, 0, FSharpFunc<Structure.SpawnZoneInfo, Unit>.FromConverter(CharacterSelected));
             return null;
         }
 
@@ -20,7 +20,7 @@ namespace PacketParser
         {
             Console.WriteLine("Character selected!");
             //Console.WriteLine(zoneInfo);
-            ZoneService.Connect(zoneInfo);
+            Handshake.ZoneService.Connect(zoneInfo);
             return null;
         }
 
@@ -28,7 +28,7 @@ namespace PacketParser
         {
             //Logging.ConfigureLogger();
             var loginServer = new IPEndPoint(IPAddress.Parse("10.20.11.41"), 6900);
-            LoginService.Authenticate(loginServer, "roboco", "111111", FSharpFunc<Tuple<IPEndPoint, Structure.Credentials>, Unit>.FromConverter(
+            Handshake.LoginService.Authenticate(loginServer, "roboco", "111111", FSharpFunc<Tuple<IPEndPoint, Structure.Credentials>, Unit>.FromConverter(
                 t =>
                  LoginSuccess(t.Item1, t.Item2)
                 ));

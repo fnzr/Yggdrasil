@@ -5,15 +5,22 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="StreamIO.fs" />
-        <Compile Include="Messages.fs" />
-        <Compile Include="ZonePackets.fs" />
+        <Compile Include="Structure.fs" />
         <Compile Include="Utils.fs" />
+        <Compile Include="Logging.fs" />
+        <Compile Include="StreamIO.fs" />        
         <Compile Include="Robot.fs" />
-        <Compile Include="LoginService.fs" />
-        <Compile Include="CharacterService.fs" />
-        <Compile Include="ZoneService.fs" />        
-        <Compile Include="ZoneFunctions.fs" />            
+        <Compile Include="ZoneHelpers.fs" />
+        <Compile Include="ZonePacketHandler.fs" />        
+        <Compile Include="Handshake.fs" />
+        <Content Include="PacketMap.txt">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>                
+           
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="NLog" Version="4.7.5" />
     </ItemGroup>
 
 </Project>

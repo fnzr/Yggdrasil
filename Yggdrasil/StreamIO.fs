@@ -3,18 +3,22 @@ module Yggdrasil.StreamIO
 open System
 open System.IO
 open System.Net.Sockets
+open Yggdrasil.Utils
 
 type OnReceiveCallback = uint16 -> byte[] -> unit
 type PacketMap = Map<uint16, int>
 
 [<Literal>]
 let MAX_BUFFER_SIZE = 2056
-let ToUInt16 data = BitConverter.ToUInt16(data, 0)
-let ToUInt32 data = BitConverter.ToUInt32(data, 0)
 
-let ToInt32 data = BitConverter.ToInt32(data, 0)
+let PacketLengthMap =
+    let list = File.ReadLines ("PacketMap.txt") |> List.ofSeq
+            |> List.map (fun i ->
+                 let parts = i.Split(' ')
+                 ToUInt16 (Hex.decode (parts.[0]) |> Array.rev) , Convert.ToInt32(parts.[1]))
+    AggregatePacketMap Map.empty list
 
-let Reader (queue: byte[]) (packetMap: PacketMap) (callback: OnReceiveCallback) =    
+let Reader (queue: byte[]) (callback: OnReceiveCallback) =    
     if queue.Length >= 2 then
         let packetType = ToUInt16 queue
         if queue.Length > MAX_BUFFER_SIZE then
@@ -22,18 +26,21 @@ let Reader (queue: byte[]) (packetMap: PacketMap) (callback: OnReceiveCallback) 
                                          sprintf "Queue length exceeded MAX_BUFFER_SIZE (%d) with packet type %X. Exiting." MAX_BUFFER_SIZE packetType
                                      ))
         else
-            let packetLength = if packetMap.ContainsKey packetType
-                               then packetMap.[packetType]
-                               else if queue.Length >= 4
-                                    then int (ToUInt16 queue.[2..])
-                                    else Int32.MaxValue
+            let packetLength = if PacketLengthMap.ContainsKey packetType
+                               then
+                                   match PacketLengthMap.[packetType] with
+                                   | -1 -> if queue.Length >= 4
+                                            then int (ToUInt16 queue.[2..])
+                                            else Int32.MaxValue
+                                   | len -> len
+                               else raise (ArgumentException (sprintf "Unmapped packet %X" packetType))
             if queue.Length >= packetLength
             then callback packetType queue.[..(packetLength - 1)]
                  queue.[packetLength..]
             else queue
     else queue
     
-let GetReader (stream: NetworkStream) (packetMap: PacketMap) (callback: OnReceiveCallback) =
+let GetReader (stream: NetworkStream) (callback: OnReceiveCallback) =
     let buffer = Array.zeroCreate 256
     let rec loop queue =
         let newQueue =
@@ -44,7 +51,7 @@ let GetReader (stream: NetworkStream) (packetMap: PacketMap) (callback: OnReceiv
                         let bytesRead = stream.Read(buffer, 0, buffer.Length) 
                         Array.concat [| queue; buffer.[.. (bytesRead - 1)] |]
                     else queue)
-                    packetMap callback)
+                    callback)
             with
             | :? IOException | :? ObjectDisposedException | :? IndexOutOfRangeException -> None        
             | :? ArgumentException as e -> printfn "%s" e.Message; None
