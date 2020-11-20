@@ -9,4 +9,14 @@
       <ProjectReference Include="..\Yggdrasil\Yggdrasil.fsproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Content Include="NLog.config">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="NLog" Version="4.7.5" />
+    </ItemGroup>
+
 </Project>
