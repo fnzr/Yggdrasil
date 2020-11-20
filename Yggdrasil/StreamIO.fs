@@ -8,8 +8,11 @@ type OnReceiveCallback = uint16 -> byte[] -> unit
 type PacketMap = Map<uint16, int>
 
 [<Literal>]
-let MAX_BUFFER_SIZE = 512
+let MAX_BUFFER_SIZE = 2056
 let ToUInt16 data = BitConverter.ToUInt16(data, 0)
+let ToUInt32 data = BitConverter.ToUInt32(data, 0)
+
+let ToInt32 data = BitConverter.ToInt32(data, 0)
 
 let Reader (queue: byte[]) (packetMap: PacketMap) (callback: OnReceiveCallback) =    
     if queue.Length >= 2 then

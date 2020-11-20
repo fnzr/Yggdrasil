@@ -11,7 +11,7 @@ namespace PacketParser
         static Unit LoginSuccess(IPEndPoint ip, Messages.Credentials creds)
         {
             //Console.WriteLine(" Login success!");
-            Console.WriteLine(creds);
+            //Console.WriteLine(creds);
             CharacterService.SelectCharacter(ip, creds, 0, FSharpFunc<Messages.SpawnZoneInfo, Unit>.FromConverter(CharacterSelected));
             return null;
         }
@@ -19,7 +19,7 @@ namespace PacketParser
         static Unit CharacterSelected(Messages.SpawnZoneInfo zoneInfo)
         {
             Console.WriteLine("Character selected!");
-            Console.WriteLine(zoneInfo);
+            //Console.WriteLine(zoneInfo);
             ZoneService.Connect(zoneInfo);
             return null;
         }

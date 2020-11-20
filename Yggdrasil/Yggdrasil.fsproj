@@ -9,11 +9,11 @@
         <Compile Include="Messages.fs" />
         <Compile Include="ZonePackets.fs" />
         <Compile Include="Utils.fs" />
-        <Compile Include="PacketTypeCodes.fs" />
+        <Compile Include="Robot.fs" />
         <Compile Include="LoginService.fs" />
         <Compile Include="CharacterService.fs" />
-        <Compile Include="ZoneService.fs" />
-        <Compile Include="Robot.fs" />            
+        <Compile Include="ZoneService.fs" />        
+        <Compile Include="ZoneFunctions.fs" />            
     </ItemGroup>
 
 </Project>

@@ -21,7 +21,14 @@ type SpawnZoneInfo = {
     ZoneServer: IPEndPoint
 }
 
+type Attribute =
+    | MaxWeight
+    | Unknown    
 
-type RobotMessage = Disconnected
+type Message =
+    | Disconnected
+    | AttributeChange of Attribute * uint32
+    | WeightSoftCap of int32
+    | Debug
 
-type Agent<'T> = MailboxProcessor<'T>
+type Agent = MailboxProcessor<Message>
