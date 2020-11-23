@@ -4,9 +4,12 @@ open System
 open System.Net
 open System.Net.Sockets
 open System.Threading
+open NLog
 open Yggdrasil.Utils
 open Yggdrasil.Structure
 open Yggdrasil.StreamIO
+
+let Logger = LogManager.GetCurrentClassLogger()
 
 module LoginService =
     let private OtpTokenLogin: byte[] = Array.concat([|BitConverter.GetBytes(0xacfus); (Array.zeroCreate 66)|])
@@ -43,27 +46,23 @@ module LoginService =
         let writer = GetWriter stream
         writer(OtpTokenLogin)
         
-        let cancelSource = new CancellationTokenSource()    
         Async.Start (async {
-            let shutdown = CreateShutdownFunction client cancelSource
-            let packetHandler = GetPacketHandler writer shutdown loginServer username password onLoginSuccess
-            (GetReader stream packetHandler) Array.empty
-        }, cancelSource.Token)
+            let packetHandler = GetPacketHandler writer loginServer username password onLoginSuccess
+            return! (GetReader stream packetHandler) Array.empty
+        })
 
-    and GetPacketHandler writer shutdown loginServer username password onLoginSuccess =
+    and GetPacketHandler writer loginServer username password onLoginSuccess =
         fun (packetType: uint16) (data: byte[]) ->
             match packetType with
             | 0x81us ->
                 match data.[2] with
-                | 8uy -> printfn "Already logged in. Retrying."
-                         shutdown()
+                | 8uy -> Logger.Info("Already logged in. Retrying.")
                          Authenticate loginServer username password onLoginSuccess
-                | _ -> printfn "Login refused. Code: %d" data.[2]
+                | _ -> Logger.Error("Login refused. Code: {errorCode:d}", data.[2]) 
             | 0xae3us -> writer(LoginPacket username password)
             | 0xac4us ->
-                shutdown()
                 onLoginSuccess (LoginSuccessParser data)
-            | unknown -> printfn "Unknown packet %d. Length %d!" unknown data.Length
+            | unknown -> Logger.Error("Unknown LoginServer packet {packetType:X}", unknown)
 
 module CharacterService =
     open System.Text
@@ -96,15 +95,14 @@ module CharacterService =
             )
         }
 
-    let GetPacketHandler writer shutdown accountId loginId1 gender characterSlot onCharacterSelected =
+    let GetPacketHandler writer accountId loginId1 gender characterSlot onCharacterSelected =
         fun (packetType: uint16) (data: byte[]) ->
             match packetType with
             | 0x82dus | 0x9a0us | 0x20dus | 0x8b9us -> ()
-            | 0x6bus -> writer(CharSelect characterSlot)
-            | 0xac5us ->
-                shutdown()
-                onCharacterSelected (ZoneInfoParser data accountId loginId1 gender)            
-            | unknown -> printfn "Unknown packet %X. Length %d!" unknown data.Length
+            | 0x6bus -> writer(CharSelect characterSlot)            
+            | 0xac5us -> onCharacterSelected (ZoneInfoParser data accountId loginId1 gender)
+            | 0x840us -> Logger.Error("Map server unavailable")
+            | unknown -> Logger.Error("Unknown CharServer packet {packetType:X}", unknown)
         
     let SelectCharacter charServer (credentials: Credentials) characterSlot onCharacterSelected =
         let client = new TcpClient()
@@ -117,12 +115,10 @@ module CharacterService =
         //account_id feedback
         ReadBytes stream 4 |> ignore
         
-        let cancelSource = new CancellationTokenSource()
         Async.Start (async {
-            let shutdown = CreateShutdownFunction client cancelSource
-            let packetHandler = GetPacketHandler writer shutdown credentials.AccountId credentials.LoginId1 credentials.Gender characterSlot onCharacterSelected
-            (GetReader stream packetHandler) Array.empty
-    }, cancelSource.Token)
+            let packetHandler = GetPacketHandler writer credentials.AccountId credentials.LoginId1 credentials.Gender characterSlot onCharacterSelected
+            return! (GetReader stream packetHandler) Array.empty
+    })
         
 module ZoneService =
     
@@ -147,13 +143,9 @@ module ZoneService =
         let writer = GetWriter stream
         writer (WantToConnect zoneInfo.AccountId zoneInfo.CharId zoneInfo.LoginId1 zoneInfo.Gender)
         
-        let cancelSource = new CancellationTokenSource()
-        let shutdown = CreateShutdownFunction client cancelSource
+        let robot = Robot(zoneInfo.AccountId)
         
-        let robot = Robot(zoneInfo.AccountId, writer, shutdown)
-        
-        Async.Start (async {
-            
-            let packetHandler = ZonePacketHandler robot writer shutdown
-            (GetReader stream packetHandler) Array.empty
-        }, cancelSource.Token)
+        Async.Start (async {            
+            let packetHandler = ZonePacketHandler robot writer
+            return! (GetReader stream packetHandler) Array.empty
+        })

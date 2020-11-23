@@ -1,14 +1,62 @@
-module Yggdrasil.ZonePacketHandler
+module Yggdrasil.ZoneHelper
 
+open System
+open System.Collections.Generic
+open System.Reflection
+open System.Runtime.InteropServices
+open System.Text
+open Microsoft.FSharp.Reflection
 open Yggdrasil.Structure
+open Yggdrasil.Utils
 
-let ParameterChange (agent: Agent) (parameter: uint16) (value:uint32) =
-    let attribute = match parameter with
-                            | 25us -> CharacterAttribute.MaxWeight
-                            | x -> raise (System.ArgumentException (sprintf "Unknown attribute: %d" x))
-    agent.Post(AttributeChange (attribute, value))
+let PropertiesCache = Map.empty
+                            .Add(typeof<Unit>.ToString(), typeof<Unit>.GetProperties())
+
+let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =    
+    let rec loop (properties: PropertyInfo[]) (data: byte[]) (stringSizes: int[]) (values: Queue<obj>) =
+        match properties with
+        | [||] -> FSharpValue.MakeRecord(typeof<'T>, values.ToArray()) :?> 'T
+        | _ ->
+            let property = properties.[0]
+            let size, stringsS = if property.PropertyType = typeof<string>
+                                    then stringSizes.[0], stringSizes.[1..]
+                                    else Marshal.SizeOf(property.PropertyType), stringSizes
+            let value = if property.PropertyType = typeof<int32> then ToInt32 data.[..size-1] :> obj
+                        elif property.PropertyType = typeof<uint32> then ToUInt32 data.[..size-1] :> obj
+                        elif property.PropertyType = typeof<byte> then data.[0] :> obj
+                        elif property.PropertyType = typeof<int16> then ToInt16 data.[..size-1] :> obj
+                        elif property.PropertyType = typeof<uint16> then ToUInt16 data.[..size-1] :> obj
+                        elif property.PropertyType = typeof<string> then (Encoding.UTF8.GetString data.[..size-1]) :> obj
+                        else raise (ArgumentException "Unhandled type")
+            values.Enqueue(value);
+            loop properties.[1..] data.[size..] stringsS values
+    let fields = PropertiesCache.[typeof<'T>.ToString()]
+    loop fields data stringSizes (Queue<obj>()) 
     
-let StatusChange (agent: Agent) (status: uint16) (value:uint32) (plus:uint32) =
-    let attribute = match status with
-                            | _ -> raise (System.ArgumentException (sprintf "Unknown status %d: %d+%d" status value plus))
+let SpawnNPC (agent: Agent) (data: byte[]) =
+    let a = MakeRecord<Unit> data [|24|]   
+    
+    agent.Post(SpawnNPC (MakeRecord<Unit> data [|24|]))
+    
+let SpawnPlayer (agent: Agent) (data: byte[]) =
+    agent.Post(SpawnPlayer (MakeRecord<Unit> data [|24|]))
+
+let AddSkill (agent: Agent) (data: byte[]) =
+    let fields = typeof<Skill>.GetProperties()
+    let rec ParseSkills (skillBytes: byte[]) =
+        match skillBytes with
+        | [||] -> ()
+        | bytes ->
+            agent.Post(AddSkill (MakeRecord<Skill> data [|24|]))
+            ParseSkills bytes.[37..]
+    ParseSkills data
+
+let StartWalk (agent: Agent) (data: byte[]) =
+    let fields = typeof<MoveData>.GetProperties()
     ()
+    //agent.Post(Moving ((StructureConstructor<MoveData> data [|24|])))
+    
+let PartyMemberHPUpdate (agent: Agent) (data: byte[]) =
+    let fields = typeof<UpdatePartyMemberHP>.GetProperties()
+    ()
+    //agent.Post(PartyMemberHP ((StructureConstructor<UpdatePartyMemberHP> data [|24|])))

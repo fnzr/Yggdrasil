@@ -18,9 +18,10 @@ let PacketLengthMap =
                  ToUInt16 (Hex.decode (parts.[0]) |> Array.rev) , Convert.ToInt32(parts.[1]))
     AggregatePacketMap Map.empty list
 
-let Reader (queue: byte[]) (callback: OnReceiveCallback) =    
+let Reader (queue: byte[]) (callback: OnReceiveCallback) =
     if queue.Length >= 2 then
         let packetType = ToUInt16 queue
+        if packetType = 0us then queue.[2..] else            
         if queue.Length > MAX_BUFFER_SIZE then
             raise (ArgumentException (
                                          sprintf "Queue length exceeded MAX_BUFFER_SIZE (%d) with packet type %X. Exiting." MAX_BUFFER_SIZE packetType
@@ -33,7 +34,7 @@ let Reader (queue: byte[]) (callback: OnReceiveCallback) =
                                             then int (ToUInt16 queue.[2..])
                                             else Int32.MaxValue
                                    | len -> len
-                               else raise (ArgumentException (sprintf "Unmapped packet %X" packetType))
+                               else raise (ArgumentException (sprintf "Unmapped packet %X. bytes in queue: %d" packetType queue.Length))
             if queue.Length >= packetLength
             then callback packetType queue.[..(packetLength - 1)]
                  queue.[packetLength..]
@@ -42,7 +43,7 @@ let Reader (queue: byte[]) (callback: OnReceiveCallback) =
     
 let GetReader (stream: NetworkStream) (callback: OnReceiveCallback) =
     let buffer = Array.zeroCreate 256
-    let rec loop queue =
+    let rec loop queue = async {
         let newQueue =
             try
                 Some(Reader 
@@ -54,10 +55,11 @@ let GetReader (stream: NetworkStream) (callback: OnReceiveCallback) =
                     callback)
             with
             | :? IOException | :? ObjectDisposedException | :? IndexOutOfRangeException -> None        
-            | :? ArgumentException as e -> printfn "%s" e.Message; None
+            //| :? ArgumentException as e -> printfn "%s" e.Message; None
         match newQueue with
-        | Some(q) -> loop q 
+        | Some(q) -> return! loop q 
         | None -> ()
+    }
     loop
     
     

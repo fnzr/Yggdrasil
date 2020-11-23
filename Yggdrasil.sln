@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PacketParser", "PacketParse
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Yggdrasil", "Yggdrasil\Yggdrasil.fsproj", "{E99C0F90-46EF-4BE6-B956-AA051863CC8B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PacketSniffer", "PacketSniffer\PacketSniffer.csproj", "{4D690412-0A41-4556-B660-E741ED3EF1DC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{E99C0F90-46EF-4BE6-B956-AA051863CC8B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E99C0F90-46EF-4BE6-B956-AA051863CC8B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E99C0F90-46EF-4BE6-B956-AA051863CC8B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D690412-0A41-4556-B660-E741ED3EF1DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D690412-0A41-4556-B660-E741ED3EF1DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D690412-0A41-4556-B660-E741ED3EF1DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D690412-0A41-4556-B660-E741ED3EF1DC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
