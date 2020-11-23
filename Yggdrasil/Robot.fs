@@ -3,6 +3,36 @@ module Yggdrasil.Robot
 open Microsoft.FSharp.Reflection
 open Yggdrasil.Structure
 
+type A = {
+    b: int
+}
+type State = {
+    im: int
+    //A: A
+}
+
+type S = obj
+type M = string
+type Q = int
+
+type E = Q -> M -> S -> S
+
+type P = Q->M->S
+
+let Event (id: Q) (data: M) (state: S) = state
+
+let AgentProcessor =
+        fun (inbox: MailboxProcessor<S->S>) ->
+            let rec loop state =
+                async {                    
+                    let! event = inbox.Receive()                                                                                                         
+                    return! loop <| event state  
+                }
+            loop {im = 0}
+let Agent = MailboxProcessor.Start(AgentProcessor)
+let ToQueue (id: Q) (data: M) =
+    Agent.Post(Event id data)
+
 type Robot(accountId: uint32) =
     member public this.AccountId = accountId
     

@@ -60,24 +60,26 @@ type Unit = {
     Name: string
 }
 
-type Skill() =
-    member val public Id = 0 with get, set
-    member val public Type = 0 with get, set
-    member val public Level = 0uy with get, set
-    member val public SpCost = 0uy with get, set
-    member val public AttackRange = 0uy with get, set
-    member val public Name = "" with get, set
-    member val public Upgradable = 0uy with get, set
+type Skill = {
+    Id: int
+    Type: int
+    Level: byte
+    SpCost: byte
+    AttackRange: byte
+    Name: string
+    Upgradable: byte
+}
     
-type MoveData() =
-    member val public StartTime = 0u with get, set
-    member val public StartX = 0uy with get, set
-    member val public StartY = 0uy with get, set
-    member val public EndX = 0uy with get, set
-    member val public EndY = 0uy with get, set
-    member val public SyX = 0uy with get, set
-    member val public SyY = 0uy with get, set
-    
+type MoveData = {
+    StartTime: uint32
+    StartX: byte
+    StartY: byte
+    EndX: byte
+    EndY: byte
+    SyX: byte
+    SyY: byte
+}
+
 type UpdatePartyMemberHP() =
     member val public AccountId = 0u with get, set
     member val public HP = 0 with get, set

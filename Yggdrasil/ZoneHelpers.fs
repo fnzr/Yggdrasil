@@ -12,10 +12,12 @@ open Yggdrasil.Utils
 let PropertiesCache = Map.empty
                             .Add(typeof<Unit>.ToString(), typeof<Unit>.GetProperties())
 
-let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =    
-    let rec loop (properties: PropertyInfo[]) (data: byte[]) (stringSizes: int[]) (values: Queue<obj>) =
+let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
+    let queue = Queue<obj>()
+    let fields = PropertiesCache.[typeof<'T>.ToString()]
+    let rec loop (properties: PropertyInfo[]) (data: byte[]) (stringSizes: int[]) =
         match properties with
-        | [||] -> FSharpValue.MakeRecord(typeof<'T>, values.ToArray()) :?> 'T
+        | [||] -> FSharpValue.MakeRecord(typeof<'T>, queue.ToArray()) :?> 'T
         | _ ->
             let property = properties.[0]
             let size, stringsS = if property.PropertyType = typeof<string>
@@ -28,21 +30,17 @@ let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
                         elif property.PropertyType = typeof<uint16> then ToUInt16 data.[..size-1] :> obj
                         elif property.PropertyType = typeof<string> then (Encoding.UTF8.GetString data.[..size-1]) :> obj
                         else raise (ArgumentException "Unhandled type")
-            values.Enqueue(value);
-            loop properties.[1..] data.[size..] stringsS values
-    let fields = PropertiesCache.[typeof<'T>.ToString()]
-    loop fields data stringSizes (Queue<obj>()) 
+            queue.Enqueue(value);
+            loop properties.[1..] data.[size..] stringsS    
+    loop fields data stringSizes
     
-let SpawnNPC (agent: Agent) (data: byte[]) =
-    let a = MakeRecord<Unit> data [|24|]   
-    
+let SpawnNonPlayer (agent: Agent) (data: byte[]) =
     agent.Post(SpawnNPC (MakeRecord<Unit> data [|24|]))
     
 let SpawnPlayer (agent: Agent) (data: byte[]) =
     agent.Post(SpawnPlayer (MakeRecord<Unit> data [|24|]))
 
 let AddSkill (agent: Agent) (data: byte[]) =
-    let fields = typeof<Skill>.GetProperties()
     let rec ParseSkills (skillBytes: byte[]) =
         match skillBytes with
         | [||] -> ()

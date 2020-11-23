@@ -28,7 +28,7 @@ let ZonePacketHandler (robot: Robot) writer =
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()
         | 0x00b7us (* ZC_MENU_LIST *) -> ()        
-        | 0x9ffus -> SpawnNPC robot.Agent data.[4..]
+        | 0x9ffus -> SpawnNonPlayer robot.Agent data.[4..]
         | 0x9feus -> SpawnPlayer robot.Agent data.[4..]
         | 0x10fus -> AddSkill robot.Agent data.[4..]
         | 0x0087us -> StartWalk robot.Agent data.[2..]
