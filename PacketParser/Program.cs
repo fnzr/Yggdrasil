@@ -8,15 +8,15 @@ namespace PacketParser
     class Program
     {
 
-        static Unit LoginSuccess(IPEndPoint ip, Structure.Credentials creds)
+        static Unit LoginSuccess(IPEndPoint ip, Handshake.Credentials creds)
         {
             //Console.WriteLine(" Login success!");
             //Console.WriteLine(creds);
-            Handshake.CharacterService.SelectCharacter(ip, creds, 0, FSharpFunc<Structure.SpawnZoneInfo, Unit>.FromConverter(CharacterSelected));
+            Handshake.CharacterService.SelectCharacter(ip, creds, 0, FSharpFunc<Handshake.SpawnZoneInfo, Unit>.FromConverter(CharacterSelected));
             return null;
         }
 
-        static Unit CharacterSelected(Structure.SpawnZoneInfo zoneInfo)
+        static Unit CharacterSelected(Handshake.SpawnZoneInfo zoneInfo)
         {
             Console.WriteLine("Character selected!");
             //Console.WriteLine(zoneInfo);
@@ -36,7 +36,7 @@ namespace PacketParser
             //Logging.ConfigureLogger();
             //Console.WriteLine(m);
             var loginServer = new IPEndPoint(IPAddress.Parse("192.168.2.10"), 6900);
-            Handshake.LoginService.Authenticate(loginServer, "roboco", "111111", FSharpFunc<Tuple<IPEndPoint, Structure.Credentials>, Unit>.FromConverter(
+            Handshake.LoginService.Authenticate(loginServer, "roboco", "111111", FSharpFunc<Tuple<IPEndPoint, Handshake.Credentials>, Unit>.FromConverter(
                 t =>
                  LoginSuccess(t.Item1, t.Item2)
                 ));

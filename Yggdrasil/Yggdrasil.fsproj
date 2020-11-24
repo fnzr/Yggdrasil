@@ -5,8 +5,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="Types.fs" />
         <Compile Include="Structure.fs" />
         <Compile Include="Utils.fs" />
+        <Compile Include="Messenger.fs" />
         <Compile Include="Logging.fs" />
         <Compile Include="StreamIO.fs" />        
         <Compile Include="Robot.fs" />
@@ -15,7 +17,8 @@
         <Compile Include="Handshake.fs" />
         <Content Include="PacketMap.txt">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>                
+        </Content>        
+        <Folder Include="IO" />                        
            
     </ItemGroup>
 

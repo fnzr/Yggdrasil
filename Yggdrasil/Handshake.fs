@@ -3,6 +3,7 @@ module Yggdrasil.Handshake
 open System
 open System.Net
 open System.Net.Sockets
+open System.Runtime.CompilerServices
 open System.Threading
 open NLog
 open Yggdrasil.Utils
@@ -10,6 +11,24 @@ open Yggdrasil.Structure
 open Yggdrasil.StreamIO
 
 let Logger = LogManager.GetCurrentClassLogger()
+
+[<IsReadOnly; Struct>]
+type Credentials = {
+    AccountId: uint32
+    LoginId1: uint32
+    LoginId2: uint32
+    Gender: byte
+}
+
+[<IsReadOnly; Struct>]
+type SpawnZoneInfo = {
+    AccountId: uint32
+    LoginId1: uint32
+    Gender: byte
+    CharId: int32
+    MapName: string
+    ZoneServer: IPEndPoint
+}
 
 module LoginService =
     let private OtpTokenLogin: byte[] = Array.concat([|BitConverter.GetBytes(0xacfus); (Array.zeroCreate 66)|])
@@ -143,9 +162,7 @@ module ZoneService =
         let writer = GetWriter stream
         writer (WantToConnect zoneInfo.AccountId zoneInfo.CharId zoneInfo.LoginId1 zoneInfo.Gender)
         
-        let robot = Robot(zoneInfo.AccountId)
-        
         Async.Start (async {            
-            let packetHandler = ZonePacketHandler robot writer
+            let packetHandler = ZonePacketHandler (Messenger.CreatePlayerMessageHandler zoneInfo.AccountId) writer
             return! (GetReader stream packetHandler) Array.empty
         })

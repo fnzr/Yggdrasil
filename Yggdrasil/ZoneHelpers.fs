@@ -41,6 +41,7 @@ let SpawnPlayer (agent: Agent) (data: byte[]) =
     agent.Post(SpawnPlayer (MakeRecord<Unit> data [|24|]))
 
 let AddSkill (agent: Agent) (data: byte[]) =
+    (*
     let rec ParseSkills (skillBytes: byte[]) =
         match skillBytes with
         | [||] -> ()
@@ -48,13 +49,15 @@ let AddSkill (agent: Agent) (data: byte[]) =
             agent.Post(AddSkill (MakeRecord<Skill> data [|24|]))
             ParseSkills bytes.[37..]
     ParseSkills data
+    *)
+    ()
 
 let StartWalk (agent: Agent) (data: byte[]) =
-    let fields = typeof<MoveData>.GetProperties()
+    //let fields = typeof<MoveData>.GetProperties()
     ()
     //agent.Post(Moving ((StructureConstructor<MoveData> data [|24|])))
     
 let PartyMemberHPUpdate (agent: Agent) (data: byte[]) =
-    let fields = typeof<UpdatePartyMemberHP>.GetProperties()
+    //let fields = typeof<UpdatePartyMemberHP>.GetProperties()
     ()
     //agent.Post(PartyMemberHP ((StructureConstructor<UpdatePartyMemberHP> data [|24|])))
