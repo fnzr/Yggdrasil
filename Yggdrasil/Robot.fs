@@ -1,15 +1,7 @@
 module Yggdrasil.Robot
-
-open Microsoft.FSharp.Reflection
 open Yggdrasil.Structure
 
-type S = obj
-type M = string
-type Q = int
-
-type E = Q -> M -> S -> S
-
-type P = Q->M->S
+    
 
 
 type Robot(accountId: uint32) =

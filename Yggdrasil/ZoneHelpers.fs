@@ -23,6 +23,7 @@ let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
             let size, stringsS = if property.PropertyType = typeof<string>
                                     then stringSizes.[0], stringSizes.[1..]
                                     else Marshal.SizeOf(property.PropertyType), stringSizes
+            
             let value = if property.PropertyType = typeof<int32> then ToInt32 data.[..size-1] :> obj
                         elif property.PropertyType = typeof<uint32> then ToUInt32 data.[..size-1] :> obj
                         elif property.PropertyType = typeof<byte> then data.[0] :> obj
