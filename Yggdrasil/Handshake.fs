@@ -4,7 +4,6 @@ open System
 open System.Net
 open System.Net.Sockets
 open System.Runtime.CompilerServices
-open System.Threading
 open NLog
 open Yggdrasil.Utils
 open Yggdrasil.StreamIO
@@ -78,8 +77,7 @@ module LoginService =
                          Authenticate loginServer username password onLoginSuccess
                 | _ -> Logger.Error("Login refused. Code: {errorCode:d}", data.[2]) 
             | 0xae3us -> writer(LoginPacket username password)
-            | 0xac4us ->
-                onLoginSuccess (LoginSuccessParser data)
+            | 0xac4us -> onLoginSuccess (LoginSuccessParser data)
             | unknown -> Logger.Error("Unknown LoginServer packet {packetType:X}", unknown)
 
 module CharacterService =
@@ -140,7 +138,6 @@ module CharacterService =
         
 module ZoneService =
     
-    open Yggdrasil.Robot
     open Yggdrasil.ZoneService
     
     let private WantToConnect (accountId: uint32) (charId: int32) (loginId1:uint32) (gender: byte) = Array.concat [|
@@ -159,9 +156,12 @@ module ZoneService =
         let stream = client.GetStream()
         
         let writer = GetWriter stream
-        writer (WantToConnect zoneInfo.AccountId zoneInfo.CharId zoneInfo.LoginId1 zoneInfo.Gender)
+        writer <| WantToConnect zoneInfo.AccountId zoneInfo.CharId zoneInfo.LoginId1 zoneInfo.Gender
+        
+        let mailbox = Agent.CreateAgentMailbox zoneInfo.AccountId
         
         Async.Start (async {            
-            let packetHandler = ZonePacketHandler (Agent.CreateAgentMessageHandler zoneInfo.AccountId) writer
+            let packetHandler = ZonePacketHandler mailbox writer
             return! (GetReader stream packetHandler) Array.empty
         })
+        mailbox

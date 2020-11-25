@@ -61,7 +61,7 @@ let CreateAgent accountId =
         CombatStatus = {AttackRange=0;AttackSpeed=0;Attack1=0;Attack2=0;MagicAttack1=0;MagicAttack2=0;Defense1=0;Defense2=0;MagicDefense1=0;MagicDefense2=0;Hit=0;Flee1=0;Flee2=0;Critical=0;Speed=0}
     }
         
-let CreateAgentMessageHandler accountId =
+let CreateAgentMailbox accountId =
     MailboxProcessor.Start(
         fun (inbox: MailboxProcessor<Message>) ->
         let agent = CreateAgent accountId
@@ -70,6 +70,7 @@ let CreateAgentMessageHandler accountId =
             let optEvent = match msg with
                             | StatusUpdate (c, v) -> On32StatusUpdate c v agent
                             | Status64Update (c, v) -> On64StatusUpdate c v agent
+                            | Print -> printfn "%A" agent; None
             match optEvent with
             | Some event -> Publish <| event agent
             | None -> ()

@@ -18,13 +18,16 @@
         <Compile Include="Handshake.fs" />
         <Content Include="PacketMap.txt">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>        
-        <Folder Include="IO" />
+        </Content>
     </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="FSharpx.Collections" Version="2.1.3" />
       <PackageReference Include="NLog" Version="4.7.5" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="IO\**" />
     </ItemGroup>
 
 </Project>

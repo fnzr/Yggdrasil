@@ -61,5 +61,6 @@ type MoveData = {
 type Message =
     | StatusUpdate of uint16 * int
     | Status64Update of uint16 * int64
+    | Print
 
-type Messenger = MailboxProcessor<Message>
+type Mailbox = MailboxProcessor<Message>

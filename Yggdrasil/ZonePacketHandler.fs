@@ -11,7 +11,7 @@ let Logger = LogManager.GetCurrentClassLogger()
 
 
    
-let ZonePacketHandler (messenger: Messenger) writer =
+let ZonePacketHandler (messenger: Mailbox) writer =
     let rec handler (packetType: uint16) (data: byte[]) =
         match packetType with
         | 0x13aus -> messenger.Post <| StatusUpdate (1000us, data.[2..] |> ToUInt16 |> int) 
