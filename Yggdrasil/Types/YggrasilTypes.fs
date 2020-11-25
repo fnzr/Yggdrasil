@@ -52,5 +52,5 @@ type Agent = {
 }
 
 type Event =
-    | StatusChanged of Agent
-    | HealthChanged of Agent
+    | StatusChanged
+    | HealthChanged of int * int

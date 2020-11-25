@@ -5,6 +5,7 @@ open System.IO
 open System.Net.Sockets
 open System.Text
 open System.Threading
+open Yggdrasil.PacketTypes
 
 let ToUInt16 data = BitConverter.ToUInt16(data, 0)
 let ToInt16 data = BitConverter.ToInt16(data, 0)
@@ -13,6 +14,7 @@ let ToInt32 data = BitConverter.ToInt32(data, 0)
 let ToInt64 data = BitConverter.ToInt64(data, 0)
 let ToChar data = BitConverter.ToChar(data, 0)
 let ToBool data = BitConverter.ToBoolean(data, 0)
+let ToStatusCode data : StatusCode = data |> ToUInt16 |> LanguagePrimitives.EnumOfValue 
 
 let ToParameterName code =
     match code with

@@ -9,48 +9,51 @@ let Logger = LogManager.GetCurrentClassLogger()
 
 let On32StatusUpdate code value agent =
     match code with
-    | 0us -> agent.CombatStatus.Speed <- value; None
-    | 3us -> None //Karma
-    | 4us -> None //Manner
-    | 5us -> agent.CharacterStatus.HP <- value; Some(HealthChanged)
-    | 6us -> agent.CharacterStatus.MaxHP <- value; None
-    | 7us -> agent.CharacterStatus.SP <- value; None
-    | 8us -> agent.CharacterStatus.MaxSP <- value; None
-    | 9us -> agent.CharacterStatus.StatusPoints <- value; None
-    | 11us -> agent.CharacterStatus.BaseLevel <- value; None
-    | 12us -> agent.CharacterStatus.SkillPoints <- value; None
-    | 13us -> agent.Attributes.STR <- value; None
-    | 14us -> agent.Attributes.AGI <- value; None
-    | 15us -> agent.Attributes.VIT <- value; None
-    | 16us -> agent.Attributes.INT <- value; None
-    | 17us -> agent.Attributes.DEX <- value; None
-    | 18us -> agent.Attributes.LUK <- value; None
-    | 20us -> agent.CharacterStatus.Zeny <- value; None
-    | 24us -> agent.CharacterStatus.Weight <- value; None
-    | 25us -> None //MaxWeight
-    | 41us -> agent.CombatStatus.Attack1 <- value; None
-    | 42us -> agent.CombatStatus.Attack2 <- value; None
-    | 43us -> agent.CombatStatus.MagicAttack1 <- value; None
-    | 44us -> agent.CombatStatus.MagicAttack2 <- value; None
-    | 45us -> agent.CombatStatus.Defense1 <- value; None
-    | 46us -> agent.CombatStatus.Defense2 <- value; None
-    | 47us -> agent.CombatStatus.MagicDefense1 <- value; None
-    | 48us -> agent.CombatStatus.MagicDefense2 <- value; None
-    | 49us -> agent.CombatStatus.Hit <- value; None
-    | 50us -> agent.CombatStatus.Flee1 <- value; None
-    | 51us -> agent.CombatStatus.Flee2 <- value; None
-    | 52us -> agent.CombatStatus.Critical <- value; None
-    | 53us -> agent.CombatStatus.AttackSpeed <- value; None
-    | 55us -> agent.CharacterStatus.JobLevel <- value; None
-    | 1000us -> agent.CombatStatus.AttackRange <- value; None
+    | StatusCode.Speed -> agent.CombatStatus.Speed <- value; None
+    | StatusCode.Karma -> None //Karma
+    | StatusCode.Manner -> None //Manner
+    | StatusCode.HP ->
+        let old = agent.CharacterStatus.HP
+        agent.CharacterStatus.HP <- value
+        Some(HealthChanged (old, value))
+    | StatusCode.MaxHP -> agent.CharacterStatus.MaxHP <- value; None
+    | StatusCode.SP -> agent.CharacterStatus.SP <- value; None
+    | StatusCode.MaxSP -> agent.CharacterStatus.MaxSP <- value; None
+    | StatusCode.StatusPoints -> agent.CharacterStatus.StatusPoints <- value; None
+    | StatusCode.BaseLevel -> agent.CharacterStatus.BaseLevel <- value; None
+    | StatusCode.SkillPoints -> agent.CharacterStatus.SkillPoints <- value; None
+    | StatusCode.STR -> agent.Attributes.STR <- value; None
+    | StatusCode.AGI -> agent.Attributes.AGI <- value; None
+    | StatusCode.VIT -> agent.Attributes.VIT <- value; None
+    | StatusCode.INT -> agent.Attributes.INT <- value; None
+    | StatusCode.DEX -> agent.Attributes.DEX <- value; None
+    | StatusCode.LUK -> agent.Attributes.LUK <- value; None
+    | StatusCode.Zeny -> agent.CharacterStatus.Zeny <- value; None
+    | StatusCode.Weight -> agent.CharacterStatus.Weight <- value; None
+    | StatusCode.MaxWeight -> None
+    | StatusCode.Attack1 -> agent.CombatStatus.Attack1 <- value; None
+    | StatusCode.Attack2 -> agent.CombatStatus.Attack2 <- value; None
+    | StatusCode.MagicAttack1 -> agent.CombatStatus.MagicAttack1 <- value; None
+    | StatusCode.MagicAttack2 -> agent.CombatStatus.MagicAttack2 <- value; None
+    | StatusCode.Defense1 -> agent.CombatStatus.Defense1 <- value; None
+    | StatusCode.Defense2 -> agent.CombatStatus.Defense2 <- value; None
+    | StatusCode.MagicDefense1 -> agent.CombatStatus.MagicDefense1 <- value; None
+    | StatusCode.MagicDefense2 -> agent.CombatStatus.MagicDefense2 <- value; None
+    | StatusCode.Hit -> agent.CombatStatus.Hit <- value; None
+    | StatusCode.Flee1 -> agent.CombatStatus.Flee1 <- value; None
+    | StatusCode.Flee2 -> agent.CombatStatus.Flee2 <- value; None
+    | StatusCode.Critical -> agent.CombatStatus.Critical <- value; None
+    | StatusCode.AttackSpeed -> agent.CombatStatus.AttackSpeed <- value; None
+    | StatusCode.JobLevel -> agent.CharacterStatus.JobLevel <- value; None
+    | StatusCode.AttackRange -> agent.CombatStatus.AttackRange <- value; None
     | _ -> Logger.Warn("Unhandled status32: {status}", code); None
     
 let On64StatusUpdate code value agent =
     match code with
-    | 1us -> agent.CharacterStatus.BaseExp <- value; None
-    | 2us -> agent.CharacterStatus.JobExp <- value; None
-    | 22us -> agent.CharacterStatus.NextBaseExp <- value; None
-    | 23us -> agent.CharacterStatus.NextJobExp <- value; None
+    | StatusCode.BaseExp -> agent.CharacterStatus.BaseExp <- value; None
+    | StatusCode.JobExp -> agent.CharacterStatus.JobExp <- value; None
+    | StatusCode.NextBaseExp -> agent.CharacterStatus.NextBaseExp <- value; None
+    | StatusCode.NextJobExp -> agent.CharacterStatus.NextJobExp <- value; None
     | _ -> Logger.Warn("Unhandled status64: {status}", code); None
     
 let CreateAgent accountId =
@@ -64,17 +67,16 @@ let CreateAgent accountId =
 let CreateAgentMailbox accountId =
     MailboxProcessor.Start(
         fun (inbox: MailboxProcessor<Message>) ->
-        let agent = CreateAgent accountId
-        let rec loop() = async {
+        let rec loop agent = async {
             let! msg = inbox.Receive()
             let optEvent = match msg with
                             | StatusUpdate (c, v) -> On32StatusUpdate c v agent
                             | Status64Update (c, v) -> On64StatusUpdate c v agent
                             | Print -> printfn "%A" agent; None
             match optEvent with
-            | Some event -> Publish <| event agent
+            | Some event -> () //Publish <| (event, agent)
             | None -> ()
-            return! loop()
+            return! loop agent
         }
-        loop()
+        loop <| CreateAgent accountId
     )

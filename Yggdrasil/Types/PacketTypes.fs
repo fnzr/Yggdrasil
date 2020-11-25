@@ -1,4 +1,14 @@
 module Yggdrasil.PacketTypes
+type StatusCode =
+    |Speed=0us|Karma=3us|Manner=4us|HP=5us|MaxHP=6us|SP=7us|MaxSP=8us
+    |StatusPoints=9us|BaseLevel=11us|SkillPoints=12us
+    |STR=13us|AGI=14us|VIT=15us|INT=16us|DEX=17us|LUK=18us
+    |Zeny=20us|Weight=24us|MaxWeight=25us|Attack1=41us|Attack2=42us
+    |MagicAttack1=43us|MagicAttack2=44us|Defense1=45us|Defense2=46us
+    |MagicDefense1=47us|MagicDefense2=48us|Hit=49us|Flee1=50us
+    |Flee2=51us|Critical=52us|AttackSpeed=53us|JobLevel=55us
+    |AttackRange=1000us|BaseExp=1us|JobExp=2us|NextBaseExp=22us
+    |NextJobExp=23us
 
 type Unit = {
     ObjectType: byte
@@ -59,8 +69,8 @@ type MoveData = {
 }
 
 type Message =
-    | StatusUpdate of uint16 * int
-    | Status64Update of uint16 * int64
+    | StatusUpdate of StatusCode * int
+    | Status64Update of StatusCode * int64
     | Print
 
 type Mailbox = MailboxProcessor<Message>

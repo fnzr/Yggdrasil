@@ -14,12 +14,12 @@ let Logger = LogManager.GetCurrentClassLogger()
 let ZonePacketHandler (messenger: Mailbox) writer =
     let rec handler (packetType: uint16) (data: byte[]) =
         match packetType with
-        | 0x13aus -> messenger.Post <| StatusUpdate (1000us, data.[2..] |> ToUInt16 |> int) 
+        | 0x13aus -> messenger.Post <| StatusUpdate (StatusCode.AttackRange, data.[2..] |> ToUInt16 |> int) 
         //| 0x121us (* cart info *) -> messenger.Post <| StatusUpdate (data.[2..] |> ToUInt16, data.[6..] |> ToInt32)
-        | 0x00b0us -> messenger.Post <| StatusUpdate (data.[2..] |> ToUInt16,  data.[4..] |> ToInt32) 
+        | 0x00b0us -> messenger.Post <| StatusUpdate (data.[2..] |> ToStatusCode,  data.[4..] |> ToInt32) 
         //Ignore plus bonus, its redundant
-        | 0x0141us -> messenger.Post <| StatusUpdate (data.[2..] |> ToUInt16,  data.[4..] |> ToInt32)
-        | 0xacbus -> messenger.Post <| Status64Update (ToUInt16 data.[2..], ToInt64 data.[4..])
+        | 0x0141us -> messenger.Post <| StatusUpdate (data.[2..] |> ToStatusCode,  data.[4..] |> ToInt32)
+        | 0xacbus -> messenger.Post <| Status64Update (data.[2..] |> ToStatusCode, ToInt64 data.[4..])
         //| 0xadeus -> robot.Agent.Post(WeightSoftCap (ToInt32 data.[2..]))
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> ()
         | 0x0a9bus (* list of items in the equip switch window *) -> ()
