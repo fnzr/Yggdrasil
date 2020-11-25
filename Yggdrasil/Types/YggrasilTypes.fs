@@ -1,6 +1,6 @@
 module Yggdrasil.YggrasilTypes
 
-type SecondaryStatus = {
+type CombatStatus = {
     mutable AttackRange: int
     mutable AttackSpeed: int
     mutable Attack1: int
@@ -18,23 +18,6 @@ type SecondaryStatus = {
     mutable Speed: int
 }
 
-type ExtraStatus = {
-    mutable MaxWeight: int
-    mutable Karma: int
-    mutable Manner: int    
-}
-
-type PrimaryStatus = {
-    mutable BaseExp: int64
-    mutable JobExp: int64
-    mutable NextBaseExp: int64
-    mutable NextJobExp: int64
-    mutable StatusPoints: int
-    mutable SkillPoints: int
-    mutable Weight: int
-    mutable Zeny: int    
-}
-
 type Attributes = {
     mutable STR: int
     mutable AGI: int
@@ -44,17 +27,29 @@ type Attributes = {
     mutable LUK: int
 }
 
-type CharacterStatus = {
-    AccountId: uint32
+type CharacterStatus = {    
     mutable BaseLevel: int
     mutable JobLevel: int
     mutable HP: int
     mutable MaxHP: int
     mutable SP: int
     mutable MaxSP: int
+    mutable BaseExp: int64
+    mutable JobExp: int64
+    mutable NextBaseExp: int64
+    mutable NextJobExp: int64
+    mutable StatusPoints: int
+    mutable SkillPoints: int
+    mutable Weight: int
+    mutable Zeny: int
 }
 
-type Agent = Attributes * CharacterStatus * PrimaryStatus * SecondaryStatus * ExtraStatus
+type Agent = {
+    AccountId: uint32
+    Attributes: Attributes
+    CharacterStatus: CharacterStatus
+    CombatStatus: CombatStatus
+}
 
 type Event =
     | StatusChanged of Agent
