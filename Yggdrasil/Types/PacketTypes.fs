@@ -1,4 +1,4 @@
-module Yggdrasil.Types
+module Yggdrasil.PacketTypes
 
 type Unit = {
     ObjectType: byte
@@ -57,3 +57,9 @@ type MoveData = {
     SyX: byte
     SyY: byte
 }
+
+type Message =
+    | StatusUpdate of uint16 * int
+    | Status64Update of uint16 * int64
+
+type Messenger = MailboxProcessor<Message>

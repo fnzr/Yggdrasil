@@ -1,7 +1,6 @@
 ﻿module Yggdrasil.Logging
 
 open NLog
-open Yggdrasil.Structure
 
 let LogPacket =
     let logger = LogManager.GetCurrentClassLogger()
@@ -13,7 +12,8 @@ let LogBinary =
     fun (data: byte[]) ->
         logger.Debug("{data:X}", data)
         
-let LogMessage =
+(*let LogMessage =
     let logger = LogManager.GetCurrentClassLogger()
     fun (accountId: uint32) (message: Message) ->
         logger.Debug("Character {accountId} => {message}", accountId, message)
+*)

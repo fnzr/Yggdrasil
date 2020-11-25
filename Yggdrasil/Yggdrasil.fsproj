@@ -5,10 +5,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Types.fs" />
-        <Compile Include="Structure.fs" />
+        <Compile Include="Types\PacketTypes.fs" />
+        <Compile Include="Types\YggrasilTypes.fs" />
         <Compile Include="Utils.fs" />
-        <Compile Include="Messenger.fs" />
+        <Compile Include="Publisher.fs" />
+        <Compile Include="Agent.fs" />
         <Compile Include="Logging.fs" />
         <Compile Include="StreamIO.fs" />        
         <Compile Include="Robot.fs" />
@@ -18,8 +19,7 @@
         <Content Include="PacketMap.txt">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>        
-        <Folder Include="IO" />                        
-           
+        <Folder Include="IO" />
     </ItemGroup>
 
     <ItemGroup>

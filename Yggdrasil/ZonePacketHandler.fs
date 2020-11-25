@@ -2,25 +2,24 @@ module Yggdrasil.ZoneService
 
 open System
 open NLog
-open Yggdrasil.Messenger
-open Yggdrasil.Structure
+open Yggdrasil.Agent
+open Yggdrasil.PacketTypes
 open Yggdrasil.Robot
 open Yggdrasil.Utils
-open Yggdrasil.ZoneHelper
 
 let Logger = LogManager.GetCurrentClassLogger()
 
 
    
-let ZonePacketHandler (messenger: Messenger.Messenger) writer =
+let ZonePacketHandler (messenger: Messenger) writer =
     let rec handler (packetType: uint16) (data: byte[]) =
         match packetType with
-        | 0x13aus -> messenger.Post <| StatusUpdate "AttackRange" (data.[2..] |> ToUInt16 |> int) 
-        | 0x121us -> messenger.Post <| StatusUpdate (data.[2..] |> ToInt32 |> ToParameterName) (data.[6..] |> ToInt32)
-        | 0x00b0us -> messenger.Post <| StatusUpdate (data.[2..] |> ToInt16 |> int |> ToParameterName) (data.[4..] |> ToInt32) 
+        | 0x13aus -> messenger.Post <| StatusUpdate (1000us, data.[2..] |> ToUInt16 |> int) 
+        //| 0x121us (* cart info *) -> messenger.Post <| StatusUpdate (data.[2..] |> ToUInt16, data.[6..] |> ToInt32)
+        | 0x00b0us -> messenger.Post <| StatusUpdate (data.[2..] |> ToUInt16,  data.[4..] |> ToInt32) 
         //Ignore plus bonus, its redundant
-        //| 0x0141us -> robot.Agent.Post(ParameterChange ((ToInt32 data.[2..] |> ToParameterName), ToInt32 data.[6..]))
-        //| 0xacbus -> robot.Agent.Post(ParameterLongChange ((ToInt16 data.[2..] |> int |> ToParameterName), ToInt64 data.[4..]))
+        | 0x0141us -> messenger.Post <| StatusUpdate (data.[2..] |> ToUInt16,  data.[4..] |> ToInt32)
+        | 0xacbus -> messenger.Post <| Status64Update (ToUInt16 data.[2..], ToInt64 data.[4..])
         //| 0xadeus -> robot.Agent.Post(WeightSoftCap (ToInt32 data.[2..]))
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> ()
         | 0x0a9bus (* list of items in the equip switch window *) -> ()

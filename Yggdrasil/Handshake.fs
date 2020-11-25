@@ -7,7 +7,6 @@ open System.Runtime.CompilerServices
 open System.Threading
 open NLog
 open Yggdrasil.Utils
-open Yggdrasil.Structure
 open Yggdrasil.StreamIO
 
 let Logger = LogManager.GetCurrentClassLogger()
@@ -163,6 +162,6 @@ module ZoneService =
         writer (WantToConnect zoneInfo.AccountId zoneInfo.CharId zoneInfo.LoginId1 zoneInfo.Gender)
         
         Async.Start (async {            
-            let packetHandler = ZonePacketHandler (Messenger.CreatePlayerMessageHandler zoneInfo.AccountId) writer
+            let packetHandler = ZonePacketHandler (Agent.CreateAgentMessageHandler zoneInfo.AccountId) writer
             return! (GetReader stream packetHandler) Array.empty
         })
