@@ -1,5 +1,6 @@
 module Yggdrasil.Agent
 
+open System
 open NLog
 open Yggdrasil.PacketTypes
 open Yggdrasil.YggrasilTypes
@@ -63,8 +64,8 @@ let CreateAgent accountId =
         CharacterStatus = {BaseLevel=0;JobLevel=0;HP=0;MaxHP=0;SP=0;MaxSP=0;BaseExp=0L;JobExp=0L;NextBaseExp=0L;NextJobExp=0L;StatusPoints=0;SkillPoints=0;Weight=0;Zeny=0}
         CombatStatus = {AttackRange=0;AttackSpeed=0;Attack1=0;Attack2=0;MagicAttack1=0;MagicAttack2=0;Defense1=0;Defense2=0;MagicDefense1=0;MagicDefense2=0;Hit=0;Flee1=0;Flee2=0;Critical=0;Speed=0}
     }
-        
-let CreateAgentMailbox accountId =
+
+let CreateAgentMailbox accountId (publisher: MailboxProcessor<PublisherMessages>) =
     MailboxProcessor.Start(
         fun (inbox: MailboxProcessor<Message>) ->
         let rec loop agent = async {
@@ -74,7 +75,7 @@ let CreateAgentMailbox accountId =
                             | Status64Update (c, v) -> On64StatusUpdate c v agent
                             | Print -> printfn "%A" agent; None
             match optEvent with
-            | Some event -> () //Publish <| (event, agent)
+            | Some event -> publisher.Post <| Publish (event, agent)
             | None -> ()
             return! loop agent
         }

@@ -19,13 +19,13 @@ type Credentials = {
 }
 
 [<IsReadOnly; Struct>]
-type SpawnZoneInfo = {
+type SpawnInfo = {
     AccountId: uint32
     LoginId1: uint32
     Gender: byte
     CharId: int32
-    MapName: string
-    ZoneServer: IPEndPoint
+    //MapName: string
+    MapServer: IPEndPoint
 }
 
 module LoginService =
@@ -104,12 +104,13 @@ module CharacterService =
             LoginId1 = loginId1
             Gender = gender
             CharId = BitConverter.ToInt32(span.Slice(2, 4))
-            MapName =  Encoding.UTF8.GetString(span.Slice(6, 16))
-            ZoneServer = IPEndPoint(
-                            Convert.ToInt64(BitConverter.ToInt32(span.Slice(22, 4))),
+            //MapName =  Encoding.UTF8.GetString(span.Slice(6, 16))
+            MapServer = IPEndPoint(
+                           Convert.ToInt64(BitConverter.ToInt32(span.Slice(22, 4))),
                             Convert.ToInt32(BitConverter.ToUInt16(span.Slice(26, 2)))
-            )
+                        )            
         }
+        
 
     let GetPacketHandler writer accountId loginId1 gender characterSlot onCharacterSelected =
         fun (packetType: uint16) (data: byte[]) ->
@@ -140,25 +141,26 @@ module ZoneService =
     
     open Yggdrasil.ZoneService
     
-    let private WantToConnect (accountId: uint32) (charId: int32) (loginId1:uint32) (gender: byte) = Array.concat [|
-        BitConverter.GetBytes(0x0436us)
-        BitConverter.GetBytes(accountId)
-        BitConverter.GetBytes(charId)
-        BitConverter.GetBytes(loginId1)
-        BitConverter.GetBytes(1)
-        [| gender |]
-    |]
+    let private WantToConnect zoneInfo =
+        Array.concat [|
+            BitConverter.GetBytes(0x0436us)
+            BitConverter.GetBytes(zoneInfo.AccountId)
+            BitConverter.GetBytes(zoneInfo.CharId)
+            BitConverter.GetBytes(zoneInfo.LoginId1)
+            BitConverter.GetBytes(1)
+            [| zoneInfo.Gender |]
+        |]
     
-    let Connect (zoneInfo: SpawnZoneInfo) =
+    let Connect (zoneInfo: SpawnInfo, messageBus) =
         let client = new TcpClient()
-        client.Connect(zoneInfo.ZoneServer)
+        client.Connect(zoneInfo.MapServer)
         
         let stream = client.GetStream()
         
         let writer = GetWriter stream
-        writer <| WantToConnect zoneInfo.AccountId zoneInfo.CharId zoneInfo.LoginId1 zoneInfo.Gender
+        writer <| WantToConnect zoneInfo
         
-        let mailbox = Agent.CreateAgentMailbox zoneInfo.AccountId
+        let mailbox = Agent.CreateAgentMailbox zoneInfo.AccountId messageBus
         
         Async.Start (async {            
             let packetHandler = ZonePacketHandler mailbox writer

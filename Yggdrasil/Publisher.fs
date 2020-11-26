@@ -1,34 +1,32 @@
 module Yggdrasil.Publisher
 
+open System
 open Yggdrasil.PacketTypes
 open Yggdrasil.YggrasilTypes
 
 
-type Subscriptions = Map<int, List<(Agent -> bool) * Agent>>
+type Subscriber = Type * (Agent -> bool) * MailboxProcessor<Event * Agent>
+type Subscriptions = List<Subscriber>
 
-type PublisherMessages = Publish of Event | Subscribe of Event * (Agent -> bool)
+let FilterSubscriptions expected agent (subscription: Subscriber) =
+    let (type_, filter, _) =  subscription
+    type_ = expected && filter(agent)
+    
+type PublisherMessages = Publish of Event * Agent | Subscribe of Subscriber
+
 let CreatePublisher() =
     MailboxProcessor.Start(
         fun (inbox:  MailboxProcessor<PublisherMessages>) ->
             let rec loop (subscriptions: Subscriptions) =  async {
                 let! msg = inbox.Receive()
-                
                 let next = match msg with
-                            | Subscribe (e, filter) ->
-                                let list = if subscriptions.ContainsKey <| int e
-                                                        then subscriptions.[int e]
-                                                        else []
-                                subscriptions.Add(int e, list)
-                            | Publish e ->
-                                let list = if subscriptions.ContainsKey <| int e
-                                            then subscriptions.[int e]
-                                            else []
-                                list
-                let subs = if subscriptions.ContainsKey(event.Tag)
-                            then 
-                                subscriptions                            
-                            else subscriptions
-                return! loop subscriptions
+                            | Subscribe (e, f, m) -> (e, f, m) :: subscriptions
+                            | Publish (e, a) ->
+                                let filter = FilterSubscriptions (e.GetType()) a
+                                let matches, remaining = List.partition filter subscriptions
+                                List.iter (fun ((_, _, m): Subscriber) -> m.Post(e,a)) matches
+                                remaining
+                return! loop next
             }
-            loop Map.empty
+            loop List.empty
     )

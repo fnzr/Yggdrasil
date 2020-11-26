@@ -16,22 +16,23 @@ namespace PacketParser
     {
         private static Logger Logger = LogManager.GetCurrentClassLogger();
         private static Dictionary<uint, FSharpMailboxProcessor<PacketTypes.Message>> Mailboxes = new Dictionary<uint, FSharpMailboxProcessor<PacketTypes.Message>>();
+        private static FSharpMailboxProcessor<Publisher.PublisherMessages> MessageBox = Publisher.CreatePublisher();
 
         static Unit LoginSuccess(IPEndPoint ip, Handshake.Credentials creds)
         {
             Logger.Info("Successful login: {accountId}", creds.AccountId);
             //Console.WriteLine(" Login success!");
             //Console.WriteLine(creds);
-            Handshake.CharacterService.SelectCharacter(ip, creds, 0, FSharpFunc<Handshake.SpawnZoneInfo, Unit>.FromConverter(CharacterSelected));
+            Handshake.CharacterService.SelectCharacter(ip, creds, 0, FSharpFunc<Handshake.SpawnInfo, Unit>.FromConverter(CharacterSelected));
             return null;
         }
 
-        static Unit CharacterSelected(Handshake.SpawnZoneInfo zoneInfo)
+        static Unit CharacterSelected(Handshake.SpawnInfo info)
         {
             Console.WriteLine("Character selected!");
             //Console.WriteLine(zoneInfo);
-            var mailbox = Handshake.ZoneService.Connect(zoneInfo);
-            Mailboxes[zoneInfo.AccountId] = mailbox;
+            var mailbox = Handshake.ZoneService.Connect(info, MessageBox);
+            Mailboxes[info.AccountId] = mailbox;
             return null;
         }
 
@@ -89,15 +90,19 @@ namespace PacketParser
             var a = PacketTypes.Message.Print;
             var b = PacketTypes.Message.Print;
                 
-            var x = PacketTypes.Message.NewStatus64Update(1, 2);
-            var y = PacketTypes.Message.NewStatus64Update(3, 4);
+            var x = PacketTypes.Message.NewStatus64Update(PacketTypes.StatusCode.Attack2, 2);
+            var y = PacketTypes.Message.NewStatus64Update(PacketTypes.StatusCode.Attack1, 4);
 
 
             var z = YggrasilTypes.Event.StatusChanged;
             //z.Tag
-            Console.WriteLine(x.Tag.CompareTo(y.Tag));
-            Console.WriteLine(a.Tag.CompareTo(b.Tag));
-            Console.WriteLine(a.Tag.CompareTo(x.Tag));
+            //Console.WriteLine(x.CompareTo(y.Tag));
+            //Console.WriteLine(a.CompareTo(b.Tag));
+
+            Console.WriteLine(a.GetType() == b.GetType());
+            Console.WriteLine(x.GetType() == y.GetType());
+            Console.WriteLine(x.GetType() == a.GetType());
+            
             /*
             var loginServer = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 6900);
             new Task(() =>
