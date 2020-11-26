@@ -19,6 +19,7 @@
         <Content Include="PacketMap.txt">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
+        <Compile Include="API.fs" />
     </ItemGroup>
 
     <ItemGroup>

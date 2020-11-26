@@ -18,75 +18,15 @@ namespace PacketParser
         private static Dictionary<uint, FSharpMailboxProcessor<PacketTypes.Message>> Mailboxes = new Dictionary<uint, FSharpMailboxProcessor<PacketTypes.Message>>();
         private static FSharpMailboxProcessor<Publisher.PublisherMessages> MessageBox = Publisher.CreatePublisher();
 
-        static Unit LoginSuccess(IPEndPoint ip, Handshake.Credentials creds)
-        {
-            Logger.Info("Successful login: {accountId}", creds.AccountId);
-            //Console.WriteLine(" Login success!");
-            //Console.WriteLine(creds);
-            Handshake.CharacterService.SelectCharacter(ip, creds, 0, FSharpFunc<Handshake.SpawnInfo, Unit>.FromConverter(CharacterSelected));
-            return null;
-        }
-
-        static Unit CharacterSelected(Handshake.SpawnInfo info)
-        {
-            Console.WriteLine("Character selected!");
-            //Console.WriteLine(zoneInfo);
-            var mailbox = Handshake.ZoneService.Connect(info, MessageBox);
-            Mailboxes[info.AccountId] = mailbox;
-            return null;
-        }
-
-        static void ReadCommands()
-        {
-            while (true)
-            {
-                try
-                {
-                    var command = Console.ReadLine()?.Split(' ');
-                    if (command[0].Equals("exit"))
-                    {
-                        break;
-                    }
-                    var messageTypes =
-                        FSharpType.GetUnionCases(typeof(PacketTypes.Message), FSharpOption<BindingFlags>.None);
-                    var messageCaseInfo = messageTypes.FirstOrDefault(c =>
-                    {
-                        Console.WriteLine(c.Name);return c.Name.Equals(command?[0]);
-                    });
-                    if (messageCaseInfo == null)
-                    {
-                        throw new ArgumentException($"Unknown message: {command[0]}");
-                    }
-
-                    if (Mailboxes.TryGetValue(Convert.ToUInt32(command[1]), out var mailbox))
-                    {
-                        var fields = messageCaseInfo.GetFields();
-                        var values = new List<object>();
-                        for (var i = 0; i < fields.Length; i++)
-                        {
-                            var field = fields[i];
-                            var value = Convert.ChangeType(command[2 + i], field.PropertyType);
-                            values.Add(value);
-                        }
-
-                        var message = FSharpValue.MakeUnion(messageCaseInfo, values.ToArray(), FSharpOption<BindingFlags>.None);
-                        mailbox.Post(message as PacketTypes.Message);
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"Account id not found: {command[1]}");
-                    }
-                    
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e.Message);
-                }
-            }
-        }
 
         static void Main(string[] args)
         {
+            API.Login(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 6900),
+                "roboco", "111111");
+            while (true)
+            {
+                API.RunCommand(Console.ReadLine());
+            }
             var a = PacketTypes.Message.Print;
             var b = PacketTypes.Message.Print;
                 

@@ -54,7 +54,7 @@ let GetReader (stream: NetworkStream) (callback: OnReceiveCallback) =
                     else queue)
                     callback)
             with
-            | :? IOException | :? ObjectDisposedException | :? IndexOutOfRangeException -> None        
+            | :? IOException -> printfn "oops"; None        
             //| :? ArgumentException as e -> printfn "%s" e.Message; None
         match newQueue with
         | Some(q) -> return! loop q 
@@ -64,9 +64,4 @@ let GetReader (stream: NetworkStream) (callback: OnReceiveCallback) =
     
     
 let GetWriter (stream: Stream) =
-    fun data ->
-        try
-            stream.Write(data, 0, data.Length)
-        with
-        | :? IOException -> ()
-        | :? ObjectDisposedException -> ()
+    fun data -> stream.Write(data, 0, data.Length)

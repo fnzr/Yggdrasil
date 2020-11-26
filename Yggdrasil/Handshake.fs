@@ -4,6 +4,7 @@ open System
 open System.Net
 open System.Net.Sockets
 open System.Runtime.CompilerServices
+open System.Text
 open NLog
 open Yggdrasil.Utils
 open Yggdrasil.StreamIO
@@ -55,7 +56,7 @@ module LoginService =
                                    )
         charServer, credentials
          
-    let rec Authenticate (loginServer: IPEndPoint) (username: string) (password: string) onLoginSuccess =
+    let rec Authenticate loginServer username password onLoginSuccess =
         let client = new TcpClient()
         client.Connect loginServer
         let stream = client.GetStream()
@@ -66,6 +67,7 @@ module LoginService =
         Async.Start (async {
             let packetHandler = GetPacketHandler writer loginServer username password onLoginSuccess
             return! (GetReader stream packetHandler) Array.empty
+            //stream.Dispose()
         })
 
     and GetPacketHandler writer loginServer username password onLoginSuccess =
@@ -81,7 +83,6 @@ module LoginService =
             | unknown -> Logger.Error("Unknown LoginServer packet {packetType:X}", unknown)
 
 module CharacterService =
-    open System.Text
 
     let private RequestToConnect (credentials: Credentials) = Array.concat([|
         BitConverter.GetBytes(0x65us)
@@ -114,14 +115,17 @@ module CharacterService =
 
     let GetPacketHandler writer accountId loginId1 gender characterSlot onCharacterSelected =
         fun (packetType: uint16) (data: byte[]) ->
+            let mutable name = ""
             match packetType with
             | 0x82dus | 0x9a0us | 0x20dus | 0x8b9us -> ()
-            | 0x6bus -> writer(CharSelect characterSlot)            
-            | 0xac5us -> onCharacterSelected (ZoneInfoParser data accountId loginId1 gender)
+            | 0x6bus ->
+                name <- Encoding.UTF8.GetString(data.[115..139])
+                writer(CharSelect characterSlot)            
+            | 0xac5us -> onCharacterSelected (ZoneInfoParser data accountId loginId1 gender) name
             | 0x840us -> Logger.Error("Map server unavailable")
             | unknown -> Logger.Error("Unknown CharServer packet {packetType:X}", unknown)
         
-    let SelectCharacter charServer (credentials: Credentials) characterSlot onCharacterSelected =
+    let SelectCharacter charServer credentials characterSlot onCharacterSelected =
         let client = new TcpClient()
         client.Connect charServer
         let stream = client.GetStream()   
@@ -135,6 +139,7 @@ module CharacterService =
         Async.Start (async {
             let packetHandler = GetPacketHandler writer credentials.AccountId credentials.LoginId1 credentials.Gender characterSlot onCharacterSelected
             return! (GetReader stream packetHandler) Array.empty
+            //stream.Dispose()
     })
         
 module ZoneService =
@@ -151,7 +156,7 @@ module ZoneService =
             [| zoneInfo.Gender |]
         |]
     
-    let Connect (zoneInfo: SpawnInfo, messageBus) =
+    let Connect zoneInfo messageStore =
         let client = new TcpClient()
         client.Connect(zoneInfo.MapServer)
         
@@ -160,10 +165,11 @@ module ZoneService =
         let writer = GetWriter stream
         writer <| WantToConnect zoneInfo
         
-        let mailbox = Agent.CreateAgentMailbox zoneInfo.AccountId messageBus
+        let mailbox = Agent.CreateAgentMailbox zoneInfo.AccountId messageStore
         
         Async.Start (async {            
             let packetHandler = ZonePacketHandler mailbox writer
-            return! (GetReader stream packetHandler) Array.empty
+            Async.Ignore <| (GetReader stream packetHandler) Array.empty |> ignore
+            stream.Dispose()
         })
         mailbox
