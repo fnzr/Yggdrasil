@@ -6,6 +6,7 @@ open System.Reflection
 open System.Runtime.InteropServices
 open System.Text
 open Microsoft.FSharp.Reflection
+open Yggdrasil.Communication
 open Yggdrasil.PacketTypes
 open Yggdrasil.Utils
 
@@ -35,15 +36,15 @@ let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
             loop properties.[1..] data.[size..] stringsS    
     loop fields data stringSizes
     
-let SpawnNonPlayer (agent: Mailbox) (data: byte[]) =
+let SpawnNonPlayer (agent: AgentMailbox) (data: byte[]) =
     //agent.Post(SpawnNPC (MakeRecord<Unit> data [|24|]))
     ()
     
-let SpawnPlayer (agent: Mailbox) (data: byte[]) =
+let SpawnPlayer (agent: AgentMailbox) (data: byte[]) =
     //agent.Post(SpawnPlayer (MakeRecord<Unit> data [|24|]))
     ()
 
-let AddSkill (agent: Mailbox) (data: byte[]) =
+let AddSkill (agent: AgentMailbox) (data: byte[]) =
     (*
     let rec ParseSkills (skillBytes: byte[]) =
         match skillBytes with
@@ -55,12 +56,12 @@ let AddSkill (agent: Mailbox) (data: byte[]) =
     *)
     ()
 
-let StartWalk (agent: Mailbox) (data: byte[]) =
+let StartWalk (agent: AgentMailbox) (data: byte[]) =
     //let fields = typeof<MoveData>.GetProperties()
     ()
     //agent.Post(Moving ((StructureConstructor<MoveData> data [|24|])))
     
-let PartyMemberHPUpdate (agent: Mailbox) (data: byte[]) =
+let PartyMemberHPUpdate (agent: AgentMailbox) (data: byte[]) =
     //let fields = typeof<UpdatePartyMemberHP>.GetProperties()
     ()
     //agent.Post(PartyMemberHP ((StructureConstructor<UpdatePartyMemberHP> data [|24|])))

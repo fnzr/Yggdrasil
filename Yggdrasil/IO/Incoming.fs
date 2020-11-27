@@ -1,25 +1,48 @@
-module Yggdrasil.ZoneService
+module Yggdrasil.IO.Incoming
 
 open System
 open NLog
-open Yggdrasil.Agent
+open Yggdrasil.Communication
 open Yggdrasil.PacketTypes
-open Yggdrasil.Robot
 open Yggdrasil.Utils
 
 let Logger = LogManager.GetCurrentClassLogger()
 
-
+let ParameterChange (mailbox: AgentMailbox) parameter value =
+    match parameter with
+    | Parameter.Weight | Parameter.MaxWeight | Parameter.SkillPoints | Parameter.StatusPoints
+    | Parameter.JobLevel | Parameter.BaseLevel | Parameter.MaxHP | Parameter.MaxSP
+    | Parameter.SP | Parameter.HP -> mailbox.Post <| StatusU32 (parameter, ToUInt32 value)
+    
+    | Parameter.Manner | Parameter.Hit | Parameter.Flee1
+    | Parameter.Flee2 | Parameter.Critical -> mailbox.Post <| StatusI16 (parameter, ToInt16 value)
+    
+    | Parameter.Speed | Parameter.AttackSpeed | Parameter.Attack1 | Parameter.Attack2
+    | Parameter.Defense1 | Parameter.Defense2 | Parameter.MagicAttack1
+    | Parameter.MagicAttack2 | Parameter.MagicDefense1 | Parameter.MagicDefense2
+    | Parameter.AttackRange -> mailbox.Post <| StatusU16 (parameter, ToUInt16 value)
+    
+    | Parameter.Zeny | Parameter.USTR |Parameter.UAGI |Parameter.UDEX
+    | Parameter.UVIT |Parameter.ULUK |Parameter.UINT -> mailbox.Post <| StatusI32 (parameter, ToInt32 value)
+    
+    | Parameter.JobExp | Parameter.NextBaseExp
+    | Parameter.BaseExp | Parameter.NextJobExp -> mailbox.Post <| Status64 (parameter, ToInt64 value)
+    
+    | Parameter.STR |Parameter.AGI |Parameter.DEX | Parameter.VIT
+    | Parameter.LUK |Parameter.INT -> mailbox.Post <| StatusPair (parameter, ToUInt16 value.[2..], ToInt16 value.[6..])
+    
+    | Parameter.Karma -> ()
+    
+    | _ -> Logger.Error("Unhandled parameter: {paramCode}", parameter)
    
-let ZonePacketHandler (messenger: Mailbox) writer =
+let ZonePacketHandler (messenger: AgentMailbox) writer =
     let rec handler (packetType: uint16) (data: byte[]) =
         match packetType with
-        | 0x13aus -> messenger.Post <| StatusUpdate (StatusCode.AttackRange, data.[2..] |> ToUInt16 |> int) 
+        | 0x13aus -> ParameterChange messenger Parameter.AttackRange data.[2..] 
         //| 0x121us (* cart info *) -> messenger.Post <| StatusUpdate (data.[2..] |> ToUInt16, data.[6..] |> ToInt32)
-        | 0x00b0us -> messenger.Post <| StatusUpdate (data.[2..] |> ToStatusCode,  data.[4..] |> ToInt32) 
-        //Ignore plus bonus, its redundant
-        | 0x0141us -> messenger.Post <| StatusUpdate (data.[2..] |> ToStatusCode,  data.[4..] |> ToInt32)
-        | 0xacbus -> messenger.Post <| Status64Update (data.[2..] |> ToStatusCode, ToInt64 data.[4..])
+        | 0x00b0us -> ParameterChange messenger (data.[2..] |> ToParameter)  data.[4..] 
+        | 0x0141us -> ParameterChange messenger (data.[2..] |> ToParameter)  data.[4..]
+        | 0xacbus -> ParameterChange messenger (data.[2..] |> ToParameter)  data.[4..]
         //| 0xadeus -> robot.Agent.Post(WeightSoftCap (ToInt32 data.[2..]))
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> ()
         | 0x0a9bus (* list of items in the equip switch window *) -> ()
@@ -46,10 +69,4 @@ let ZonePacketHandler (messenger: Mailbox) writer =
         | 0xa00us (* ZC_SHORTCUT_KEY_LIST_V3 *) | 0x2c9us (* ZC_PARTY_CONFIG *) | 0x02daus (* ZC_CONFIG_NOTIFY *)
         | 0x02d9us (* ZC_CONFIG *) | 0x00b6us (* ZC_CLOSE_DIALOG *) | 0x01b3us (* ZC_SHOW_IMAGE2 *) -> ()        
         | unknown -> Logger.Error("[{accountId}] Unhandled packet {packetType:X} with length {length}",0, unknown, data.Length) //shutdown()
-    handler
-
-let ClientPacketHandler (robot: Robot) =
-    let rec handler (packetType: uint16) (data: byte[]) =
-        Logger.Info("[{accountId}] Received packet {packetType:X} with length {length}",
-                     robot.AccountId, packetType, data.Length)
     handler

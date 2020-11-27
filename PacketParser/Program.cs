@@ -14,10 +14,6 @@ namespace PacketParser
 {
     class Program
     {
-        private static Logger Logger = LogManager.GetCurrentClassLogger();
-        private static Dictionary<uint, FSharpMailboxProcessor<PacketTypes.Message>> Mailboxes = new Dictionary<uint, FSharpMailboxProcessor<PacketTypes.Message>>();
-        private static FSharpMailboxProcessor<Publisher.PublisherMessages> MessageBox = Publisher.CreatePublisher();
-
 
         static void Main(string[] args)
         {
@@ -27,14 +23,14 @@ namespace PacketParser
             {
                 API.RunCommand(Console.ReadLine());
             }
-            var a = PacketTypes.Message.Print;
-            var b = PacketTypes.Message.Print;
+            var a = PacketTypes.AgentUpdate.Print;
+            var b = PacketTypes.AgentUpdate.Print;
                 
-            var x = PacketTypes.Message.NewStatus64Update(PacketTypes.StatusCode.Attack2, 2);
-            var y = PacketTypes.Message.NewStatus64Update(PacketTypes.StatusCode.Attack1, 4);
+            var x = PacketTypes.AgentUpdate.NewStatus64(PacketTypes.Parameter.Attack2, 2);
+            var y = PacketTypes.AgentUpdate.NewStatus64(PacketTypes.Parameter.Attack1, 4);
 
 
-            var z = YggrasilTypes.Event.StatusChanged;
+            //var z = YggrasilTypes.Event.StatusChanged;
             //z.Tag
             //Console.WriteLine(x.CompareTo(y.Tag));
             //Console.WriteLine(a.CompareTo(b.Tag));

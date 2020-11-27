@@ -4,9 +4,11 @@ open System
 open System.Reflection
 open Microsoft.FSharp.Reflection
 open NLog
-open Yggdrasil.Handshake
+open Yggdrasil.Communication
 open Yggdrasil.PacketTypes
-open Yggdrasil.Publisher
+open Yggdrasil.Mailbox.Publisher
+open Yggdrasil.Mailbox.Agent
+open Yggdrasil.YggrasilTypes
 
 type GlobalCommand =
     | List
@@ -14,38 +16,38 @@ type GlobalCommand =
     | Delete
     | Send
 
-let MessageStore = CreatePublisher()
+let MessageStore = CreatePublisherMailbox()
 let mutable Mailboxes = Map.empty
 let Logger = LogManager.GetCurrentClassLogger()
 
-let AgentMessageUnionCases = FSharpType.GetUnionCases(typeof<PacketTypes.Message>)
+let AgentMessageUnionCases = FSharpType.GetUnionCases(typeof<AgentUpdate>)
 let GlobalCommandUnionCases = FSharpType.GetUnionCases(typeof<GlobalCommand>)
 
-module Handshake =    
-    let OnCharacterSelected messageStore info characterName =
-        let mailbox = ZoneService.Connect info messageStore
-        Mailboxes <- Mailboxes.Add(info.AccountId, mailbox)
-        Logger.Info("Character {characterName}[{accountId}] is ready.", characterName, info.AccountId)        
-    
-    let OnLoginSuccess messageStore (ipEndPoint, credentials) =
-        CharacterService.SelectCharacter ipEndPoint credentials 0uy <| OnCharacterSelected messageStore
-        
 let Login loginServer username password =
-    LoginService.Authenticate loginServer username password <| Handshake.OnLoginSuccess MessageStore
-
+    let id = uint32 Mailboxes.Count
+    let mailbox = CreateAgentMailbox id MessageStore
+    Mailboxes <- Mailboxes.Add(id, mailbox)
+    Async.Start (IO.Handshake.Connect  {
+        LoginServer = loginServer
+        Mailbox = mailbox
+        Username = username
+        Password = password
+        CharacterSlot = 0uy
+    })
+    
 let ArgumentConverter (value: string) target =
-    if target = typeof<StatusCode>
-    then Enum.Parse(typeof<StatusCode>, value)
+    if target = typeof<Parameter>
+    then Enum.Parse(typeof<Parameter>, value)
     else Convert.ChangeType(value, target)
     
-let FilterAny (event, agent) = true
+let FilterAny (_, _) = true
 let Supervisor =
     MailboxProcessor.Start(
-        fun (inbox:  MailboxProcessor<YggrasilTypes.Event * YggrasilTypes.Agent>) ->
+        fun (inbox:  MailboxProcessor<AgentEvent * Agent>) ->
             let rec loop() =  async {
                 let! msg = inbox.Receive()
                 match msg with
-                | e -> Logger.Info("{event}", e)                            
+                | (e, _) -> Logger.Info("{event}", e)                            
                 return! loop()
             }
             loop()
@@ -61,7 +63,7 @@ let PostMessage (args: string[]) =
                      (fun i (p: PropertyInfo) -> ArgumentConverter args.[1+i] p.PropertyType)
                  <| unionCaseInfo.GetFields()
                  
-    let message = FSharpValue.MakeUnion(unionCaseInfo, values) :?> Message
+    let message = FSharpValue.MakeUnion(unionCaseInfo, values) :?> AgentUpdate
     
     let accountId = Convert.ToUInt32 args.[args.Length-1]
     Mailboxes.[accountId].Post message
@@ -77,7 +79,7 @@ let RunGlobalCommand (args: string) =
     match command with
     | Create ->
         let id = uint32 Mailboxes.Count
-        let mailbox = Agent.CreateAgentMailbox id MessageStore        
+        let mailbox = CreateAgentMailbox id MessageStore        
         Mailboxes <- Mailboxes.Add(id, mailbox) 
         Logger.Info("Agent {id} created", id)
     | Send -> PostMessage(parts.[1..])

@@ -1,4 +1,4 @@
-module Yggdrasil.StreamIO
+module Yggdrasil.IO.Stream
 
 open System
 open System.IO
@@ -54,14 +54,11 @@ let GetReader (stream: NetworkStream) (callback: OnReceiveCallback) =
                     else queue)
                     callback)
             with
-            | :? IOException -> printfn "oops"; None        
-            //| :? ArgumentException as e -> printfn "%s" e.Message; None
+            | :? IOException -> stream.Close(); None        
         match newQueue with
         | Some(q) -> return! loop q 
         | None -> ()
     }
     loop
     
-    
-let GetWriter (stream: Stream) =
-    fun data -> stream.Write(data, 0, data.Length)
+let Write (stream: Stream) data = stream.Write(data, 0, data.Length)

@@ -1,56 +1,48 @@
 module Yggdrasil.YggrasilTypes
 
-type CombatStatus = {
-    mutable AttackRange: int
-    mutable AttackSpeed: int
-    mutable Attack1: int
-    mutable Attack2: int
-    mutable MagicAttack1: int
-    mutable MagicAttack2: int
-    mutable Defense1: int
-    mutable Defense2: int
-    mutable MagicDefense1: int
-    mutable MagicDefense2: int
-    mutable Hit: int
-    mutable Flee1: int
-    mutable Flee2: int
-    mutable Critical: int
-    mutable Speed: int
-}
-
-type Attributes = {
-    mutable STR: int
-    mutable AGI: int
-    mutable VIT: int
-    mutable INT: int
-    mutable DEX: int
-    mutable LUK: int
-}
-
-type CharacterStatus = {    
-    mutable BaseLevel: int
-    mutable JobLevel: int
-    mutable HP: int
-    mutable MaxHP: int
-    mutable SP: int
-    mutable MaxSP: int
+type Agent = {
+    mutable AccountId: uint32
+    mutable CharacterName: string
+    mutable BaseLevel: uint32
+    mutable JobLevel: uint32
+    mutable HP: uint32
+    mutable MaxHP: uint32
+    mutable SP: uint32
+    mutable MaxSP: uint32
     mutable BaseExp: int64
     mutable JobExp: int64
     mutable NextBaseExp: int64
     mutable NextJobExp: int64
-    mutable StatusPoints: int
-    mutable SkillPoints: int
-    mutable Weight: int
+    mutable StatusPoints: uint32
+    mutable SkillPoints: uint32
+    mutable Weight: uint32
+    mutable MaxWeight: uint32
     mutable Zeny: int
+    mutable STRRaw: uint16 * int16
+    mutable AGIRaw: uint16 * int16
+    mutable VITRaw: uint16 * int16
+    mutable INTRaw: uint16 * int16
+    mutable DEXRaw: uint16 * int16
+    mutable LUKRaw: uint16 * int16
+    mutable AttackRange: uint16
+    mutable AttackSpeed: uint16
+    mutable Attack1: uint16
+    mutable Attack2: uint16
+    mutable MagicAttack1: uint16
+    mutable MagicAttack2: uint16
+    mutable Defense1: uint16
+    mutable Defense2: uint16
+    mutable MagicDefense1: uint16
+    mutable MagicDefense2: uint16
+    mutable Hit: int16
+    mutable Flee1: int16
+    mutable Flee2: int16
+    mutable Critical: int16
+    mutable Speed: uint16
+    mutable STRUpgradeCost: int
+    mutable AGIUpgradeCost: int
+    mutable VITUpgradeCost: int
+    mutable INTUpgradeCost: int
+    mutable DEXUpgradeCost: int
+    mutable LUKUpgradeCost: int
 }
-
-type Agent = {
-    AccountId: uint32
-    Attributes: Attributes
-    CharacterStatus: CharacterStatus
-    CombatStatus: CombatStatus
-}
-
-type Event =
-    | StatusChanged
-    | HealthChanged of int * int

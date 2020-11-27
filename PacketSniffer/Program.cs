@@ -124,10 +124,10 @@ namespace PacketSniffer
         private static FSharpFunc<byte[], Unit> _blankWriter = FSharpFunc<byte[], Unit>.FromConverter(_ => null);
 
         private static FSharpFunc<ushort, FSharpFunc<byte[], Unit>> _mapToClientCallback =
-            ZoneService.ZonePacketHandler(_robot, _blankWriter); 
+            Incoming.ZonePacketHandler(_robot, _blankWriter); 
         
         private static FSharpFunc<ushort, FSharpFunc<byte[], Unit>> _clientToMapCallback =
-            ZoneService.ClientPacketHandler(_robot); 
+            Incoming.ClientPacketHandler(_robot); 
 
         private static Unit MapToClientCallbackNative(ushort packetType, byte[] data)
         {

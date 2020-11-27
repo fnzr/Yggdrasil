@@ -14,18 +14,8 @@ let ToInt32 data = BitConverter.ToInt32(data, 0)
 let ToInt64 data = BitConverter.ToInt64(data, 0)
 let ToChar data = BitConverter.ToChar(data, 0)
 let ToBool data = BitConverter.ToBoolean(data, 0)
-let ToStatusCode data : StatusCode = data |> ToUInt16 |> LanguagePrimitives.EnumOfValue 
+let ToParameter data : Parameter = data |> ToUInt16 |> LanguagePrimitives.EnumOfValue 
 
-let ToParameterName code =
-    match code with
-    | 13 -> "STR"
-    | 14 -> "AGI"
-    | 15 -> "VIT"
-    | 16 -> "INT"
-    | 17 -> "DEX"
-    | 18 -> "LUK"
-    | _ -> code.ToString()
-    
 let rec AggregatePacketMap (state: Map<uint16, int>) (list: List<uint16 * int>) =
     match list with
     | head :: tail -> AggregatePacketMap (state.Add(fst head, snd head)) tail
@@ -36,14 +26,7 @@ let FillBytes (data:string) size =
         Encoding.UTF8.GetBytes(data);
         Array.zeroCreate (size - data.Length)
    |])
-    
-let CreateShutdownFunction (client: TcpClient) (token: CancellationTokenSource) =
-    fun () ->
-        printfn "Closing connection to %s" (client.Client.RemoteEndPoint.ToString())
-        token.Cancel()
-        client.Dispose()
-        token.Dispose()
-    
+
 let ReadBytes (stream: Stream) count =
     let buffer = Array.zeroCreate count
     match stream.Read(buffer, 0, buffer.Length) = count with
