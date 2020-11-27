@@ -8,7 +8,7 @@ open Yggdrasil.Utils
 
 let Logger = LogManager.GetCurrentClassLogger()
 
-let ParameterChange (mailbox: AgentMailbox) parameter value =
+let OnParameterChange (mailbox: AgentMailbox) parameter value =
     match parameter with
     | Parameter.Weight | Parameter.MaxWeight | Parameter.SkillPoints | Parameter.StatusPoints
     | Parameter.JobLevel | Parameter.BaseLevel | Parameter.MaxHP | Parameter.MaxSP
@@ -34,16 +34,19 @@ let ParameterChange (mailbox: AgentMailbox) parameter value =
     | Parameter.Karma -> ()
     
     | _ -> Logger.Error("Unhandled parameter: {paramCode}", parameter)
+    
+let OnWeightSoftCap (mailbox: AgentMailbox) value =
+    mailbox.Post(WeightSoftCap <| ToInt32 value)
    
-let ZonePacketHandler (messenger: AgentMailbox) writer =
+let ZonePacketHandler (mailbox: AgentMailbox) writer =
     let rec handler (packetType: uint16) (data: byte[]) =
         match packetType with
-        | 0x13aus -> ParameterChange messenger Parameter.AttackRange data.[2..] 
+        | 0x13aus -> OnParameterChange mailbox Parameter.AttackRange data.[2..] 
         //| 0x121us (* cart info *) -> messenger.Post <| StatusUpdate (data.[2..] |> ToUInt16, data.[6..] |> ToInt32)
-        | 0x00b0us -> ParameterChange messenger (data.[2..] |> ToParameter)  data.[4..] 
-        | 0x0141us -> ParameterChange messenger (data.[2..] |> ToParameter)  data.[4..]
-        | 0xacbus -> ParameterChange messenger (data.[2..] |> ToParameter)  data.[4..]
-        //| 0xadeus -> robot.Agent.Post(WeightSoftCap (ToInt32 data.[2..]))
+        | 0x00b0us -> OnParameterChange mailbox (data.[2..] |> ToParameter)  data.[4..] 
+        | 0x0141us -> OnParameterChange mailbox (data.[2..] |> ToParameter)  data.[4..]
+        | 0xacbus -> OnParameterChange mailbox (data.[2..] |> ToParameter)  data.[4..]
+        | 0xadeus -> mailbox.Post(WeightSoftCap <| ToInt32 data)
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> ()
         | 0x0a9bus (* list of items in the equip switch window *) -> ()
         | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> ()

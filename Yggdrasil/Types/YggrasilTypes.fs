@@ -46,3 +46,7 @@ type Agent = {
     mutable DEXUpgradeCost: int
     mutable LUKUpgradeCost: int
 }
+
+type System = {
+    mutable Units: Map<uint32, PacketTypes.Unit>
+}

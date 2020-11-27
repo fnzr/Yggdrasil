@@ -40,7 +40,7 @@ let ArgumentConverter (value: string) target =
     then Enum.Parse(typeof<Parameter>, value)
     else Convert.ChangeType(value, target)
     
-let FilterAny (_, _) = true
+let FilterNone (_, _) = true
 let Supervisor =
     MailboxProcessor.Start(
         fun (inbox:  MailboxProcessor<AgentEvent * Agent>) ->
@@ -52,7 +52,7 @@ let Supervisor =
             }
             loop()
     )
-MessageStore.Post(Supervise (FilterAny, Supervisor))
+//MessageStore.Post(Supervise (FilterNone, Supervisor))
 
 let PostMessage (args: string[]) =
     let unionCaseInfo = Array.find

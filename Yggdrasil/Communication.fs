@@ -11,6 +11,7 @@ type AgentUpdate =
     | StatusI16 of Parameter * int16
     | StatusPair of Parameter * uint16 * int16
     | Status64 of Parameter * int64
+    | WeightSoftCap of int
     | Print
 
 type AgentMailbox = MailboxProcessor<AgentUpdate>
@@ -18,3 +19,6 @@ type AgentMailbox = MailboxProcessor<AgentUpdate>
 type AgentEvent =
     | ParameterChanged of Parameter
     | HealthChanged of uint32 * uint32
+    
+type SystemUpdate =
+    | UnitSpawn of AgentMailbox * Unit
