@@ -1,14 +1,12 @@
 ﻿module Yggdrasil.API
 
 open System
+open System.Collections.Concurrent
 open System.Reflection
 open Microsoft.FSharp.Reflection
 open NLog
-open Yggdrasil.Communication
 open Yggdrasil.PacketTypes
-open Yggdrasil.Mailbox.Publisher
-open Yggdrasil.Mailbox.Agent
-open Yggdrasil.YggrasilTypes
+open Yggdrasil.Reporter
 
 type GlobalCommand =
     | List
@@ -16,57 +14,62 @@ type GlobalCommand =
     | Delete
     | Send
 
-let MessageStore = CreatePublisherMailbox()
-let mutable Mailboxes = Map.empty
-let Logger = LogManager.GetCurrentClassLogger()
-
-let AgentMessageUnionCases = FSharpType.GetUnionCases(typeof<AgentUpdate>)
+let ReportUnionCases = FSharpType.GetUnionCases(typeof<Report>)
 let GlobalCommandUnionCases = FSharpType.GetUnionCases(typeof<GlobalCommand>)
+let Logger = LogManager.GetCurrentClassLogger()
+let ReportPool = ConcurrentDictionary<uint32, List<Mailbox>>()
 
-let Login loginServer username password =
-    let id = uint32 Mailboxes.Count
-    let mailbox = CreateAgentMailbox id MessageStore
-    Mailboxes <- Mailboxes.Add(id, mailbox)
+let Supervisor =
+    MailboxProcessor.Start(
+        fun (inbox:  MailboxProcessor<uint32 * Report>) ->
+            let rec loop() =  async {
+                let! msg = inbox.Receive()
+                match msg with
+                | (id, e) -> Logger.Info("[{id}] {event}", id, e)                            
+                return! loop()
+            }
+            loop()
+    )
+
+let ConnectAndSupervise (result:  Result<IO.Handshake.ZoneCredentials, string>) =
+    match result with
+    | Ok info ->
+        AddReporter ReportPool info.AccountId
+        AddSubscriber ReportPool info.AccountId Supervisor
+        let publish = PublishReport ReportPool info.AccountId
+        let onReceivePacket = IO.Incoming.ZonePacketHandler publish
+        IO.Handshake.EnterZone info onReceivePacket
+    | Error error -> Logger.Error error
+
+let Login loginServer username password onReadyToEnterZone =
     Async.Start (IO.Handshake.Connect  {
         LoginServer = loginServer
-        Mailbox = mailbox
+        ReportPool = ReportPool
         Username = username
         Password = password
         CharacterSlot = 0uy
-    })
+    } onReadyToEnterZone)
+
+let DefaultLogin loginServer username password =
+    Login loginServer username password ConnectAndSupervise
     
 let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>
     then Enum.Parse(typeof<Parameter>, value)
     else Convert.ChangeType(value, target)
     
-let FilterNone (_, _) = true
-let Supervisor =
-    MailboxProcessor.Start(
-        fun (inbox:  MailboxProcessor<AgentEvent * Agent>) ->
-            let rec loop() =  async {
-                let! msg = inbox.Receive()
-                match msg with
-                | (e, _) -> Logger.Info("{event}", e)                            
-                return! loop()
-            }
-            loop()
-    )
-//MessageStore.Post(Supervise (FilterNone, Supervisor))
-
 let PostMessage (args: string[]) =
     let unionCaseInfo = Array.find
                             (fun (u: UnionCaseInfo) -> u.Name.Equals args.[0])
-                            AgentMessageUnionCases    
+                            ReportUnionCases    
     
-    let values = Array.mapi
-                     (fun i (p: PropertyInfo) -> ArgumentConverter args.[1+i] p.PropertyType)
-                 <| unionCaseInfo.GetFields()
+    let convert = fun i (p: PropertyInfo) -> ArgumentConverter args.[1+i] p.PropertyType
+    let values = Array.mapi convert <| unionCaseInfo.GetFields()
                  
-    let message = FSharpValue.MakeUnion(unionCaseInfo, values) :?> AgentUpdate
+    let message = FSharpValue.MakeUnion(unionCaseInfo, values) :?> Report
     
     let accountId = Convert.ToUInt32 args.[args.Length-1]
-    Mailboxes.[accountId].Post message
+    PublishReport ReportPool accountId message
     Logger.Info("OK")
     
 let RunGlobalCommand (args: string) =
@@ -78,10 +81,10 @@ let RunGlobalCommand (args: string) =
     
     match command with
     | Create ->
-        let id = uint32 Mailboxes.Count
-        let mailbox = CreateAgentMailbox id MessageStore        
-        Mailboxes <- Mailboxes.Add(id, mailbox) 
-        Logger.Info("Agent {id} created", id)
+        let id =uint32 ReportPool.Count
+        AddReporter ReportPool id 
+        AddSubscriber ReportPool id Supervisor
+        Logger.Info("Reporter {id} created", id)
     | Send -> PostMessage(parts.[1..])
     | _ -> Logger.Error("Unhandled command")
     

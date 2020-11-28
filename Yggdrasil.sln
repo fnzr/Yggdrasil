@@ -6,6 +6,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Yggdrasil", "Yggdrasil\Yggd
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PacketSniffer", "PacketSniffer\PacketSniffer.csproj", "{4D690412-0A41-4556-B660-E741ED3EF1DC}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Sunna", "Sunna\Sunna.fsproj", "{B570F867-323D-4040-8316-06D1D3C69EEA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{4D690412-0A41-4556-B660-E741ED3EF1DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4D690412-0A41-4556-B660-E741ED3EF1DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4D690412-0A41-4556-B660-E741ED3EF1DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B570F867-323D-4040-8316-06D1D3C69EEA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B570F867-323D-4040-8316-06D1D3C69EEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B570F867-323D-4040-8316-06D1D3C69EEA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B570F867-323D-4040-8316-06D1D3C69EEA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

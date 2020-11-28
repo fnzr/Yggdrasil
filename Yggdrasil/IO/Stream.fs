@@ -5,7 +5,7 @@ open System.IO
 open System.Net.Sockets
 open Yggdrasil.Utils
 
-type OnReceiveCallback = uint16 -> byte[] -> unit
+type OnReceivePacket = uint16 -> byte[] -> unit
 type PacketMap = Map<uint16, int>
 
 [<Literal>]
@@ -18,7 +18,7 @@ let PacketLengthMap =
                  ToUInt16 (Hex.decode (parts.[0]) |> Array.rev) , Convert.ToInt32(parts.[1]))
     AggregatePacketMap Map.empty list
 
-let Reader (queue: byte[]) (callback: OnReceiveCallback) =
+let Reader (queue: byte[]) (callback: OnReceivePacket) =
     if queue.Length >= 2 then
         let packetType = ToUInt16 queue
         if packetType = 0us then queue.[2..] else            
@@ -41,23 +41,17 @@ let Reader (queue: byte[]) (callback: OnReceiveCallback) =
             else queue
     else queue
     
-let GetReader (stream: NetworkStream) (callback: OnReceiveCallback) =
+let GetReader (stream: NetworkStream) (callback: OnReceivePacket) =
     let buffer = Array.zeroCreate 256
     let rec loop queue = async {
         let newQueue =
-            try
-                Some(Reader 
-                    (if queue = [||] || stream.DataAvailable
-                    then
-                        let bytesRead = stream.Read(buffer, 0, buffer.Length) 
-                        Array.concat [| queue; buffer.[.. (bytesRead - 1)] |]
-                    else queue)
-                    callback)
-            with
-            | :? IOException -> stream.Close(); None        
-        match newQueue with
-        | Some(q) -> return! loop q 
-        | None -> ()
+            if stream.DataAvailable || queue = [||] then
+                let bytesRead = stream.Read(buffer, 0, buffer.Length)
+                if bytesRead = 0 then raise <| IOException "Connection closed"
+                else Array.concat [| queue; buffer.[.. (bytesRead - 1)] |]
+            else queue
+        if newQueue = [||] then return ()
+        else return! loop <| Reader newQueue callback
     }
     loop
     

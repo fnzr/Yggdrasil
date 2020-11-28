@@ -9,8 +9,8 @@ namespace PacketParser
 
         static void Main(string[] args)
         {
-            API.Login(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 6900),
-                "roboco", "111111");
+            API.DefaultLogin(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 6900),
+              "roboco", "111111");
             while (true)
             {
                 API.RunCommand(Console.ReadLine());

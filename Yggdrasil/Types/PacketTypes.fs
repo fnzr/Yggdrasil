@@ -67,3 +67,13 @@ type MoveData = {
     SyX: byte
     SyY: byte
 }
+
+type StartData = {
+    StartTime: uint32
+    PosX: byte
+    PosY: byte
+    Direction: byte
+    SizeX: byte //ignored
+    SizeY: byte //ignored
+    Font: byte
+}

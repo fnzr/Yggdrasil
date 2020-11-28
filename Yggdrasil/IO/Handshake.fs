@@ -1,18 +1,17 @@
 module Yggdrasil.IO.Handshake
 
 open System
+open System.IO
 open System.Net
 open System.Net.Sockets
 open System.Text
 open NLog
-open Yggdrasil.Communication
 open Yggdrasil.Utils
 open Yggdrasil.IO.Stream
-open Yggdrasil.IO.Incoming
 
 type LoginCredentials = {
     LoginServer: IPEndPoint
-    Mailbox: AgentMailbox
+    ReportPool: Yggdrasil.Reporter.ReportPool
     Username: string
     Password: string
     CharacterSlot: byte
@@ -27,6 +26,7 @@ type LoginServerResponse = {
 }
 
 type ZoneCredentials = {
+    CharacterName: string
     ZoneServer: IPEndPoint
     AccountId: uint32
     LoginId1: uint32
@@ -66,44 +66,50 @@ let private WantToConnect zoneInfo =
         [| zoneInfo.Gender |]
     |]
     
-let EnterZone zoneInfo mailbox =
+let EnterZone zoneInfo packetHandler =
     let client = new TcpClient()
     client.Connect(zoneInfo.ZoneServer)
         
     let stream = client.GetStream()
-    stream.ReadTimeout <- 10000
+    //stream.ReadTimeout <- 10000
         
     Write stream <| WantToConnect zoneInfo
     
-    let packetHandler = ZonePacketHandler mailbox <| Write stream
-    Logger.Info("Entered Zone")
-    Async.Start <| (GetReader stream packetHandler) Array.empty
+    //let packetHandler = ZonePacketHandler publish <| Write stream
+    Async.Start <| async {
+        try
+            return! Array.empty |> GetReader stream packetHandler
+        with
+        | :? IOException -> Logger.Error("[{accountId}] MapServer connection closed (timed out?)", zoneInfo.AccountId)
+        | :? ObjectDisposedException -> ()
+    }
     
-let GetCharPacketHandler (mailbox: AgentMailbox) stream characterSlot (credentials: LoginServerResponse) =
+let GetCharPacketHandler stream characterSlot (credentials: LoginServerResponse) onReadyToEnterZone =
+    let mutable name = ""
     fun (packetType: uint16) (data: byte[]) ->
         match packetType with
         | 0x82dus | 0x9a0us | 0x20dus | 0x8b9us -> ()
         | 0x6bus ->
-            let name = data.[115..139] |> Encoding.UTF8.GetString
-            mailbox.Post(Name <|  name.Trim('\x00'))
+            name <- data.[115..139] |> Encoding.UTF8.GetString
             Write stream <| CharSelect characterSlot            
         | 0xac5us ->
             let span = new ReadOnlySpan<byte>(data)
-            let zoneInfo = {
+            onReadyToEnterZone <| Ok {
                 AccountId = credentials.AccountId
+                CharacterName = name
                 LoginId1 = credentials.LoginId1
                 Gender = credentials.Gender
                 CharId = BitConverter.ToUInt32(span.Slice(2, 4))                
                 ZoneServer = IPEndPoint(
                                 Convert.ToInt64(BitConverter.ToInt32(span.Slice(22, 4))),
                                 Convert.ToInt32(BitConverter.ToUInt16(span.Slice(26, 2)))
-                        )  
+                        )
             }
-            EnterZone zoneInfo mailbox |> ignore
+            stream.Close()
         | 0x840us -> Logger.Error("Map server unavailable")
         | unknown -> Logger.Error("Unknown CharServer packet {packetType:X}", unknown)
     
-let SelectCharacter mailbox slot loginServerResponse = async {
+let SelectCharacter slot loginServerResponse onReadyToEnterZone = async {
     use client = new TcpClient()
     client.Connect loginServerResponse.CharServer
     let stream = client.GetStream()
@@ -114,11 +120,15 @@ let SelectCharacter mailbox slot loginServerResponse = async {
     //account_id feedback
     ReadBytes stream 4 |> ignore
     
-    let packetHandler = GetCharPacketHandler mailbox stream slot loginServerResponse 
-    return! (GetReader stream packetHandler) Array.empty
+    let packetHandler = GetCharPacketHandler stream slot loginServerResponse onReadyToEnterZone
+    try
+        return! Array.empty |> GetReader stream packetHandler
+    with
+    | :? IOException -> onReadyToEnterZone <| Error "CharServer connection closed"
+    | :? ObjectDisposedException -> ()
 }
     
-let rec Connect loginCredentials = async {
+let rec Connect loginCredentials onReadyToEnterZone = async {
     use client = new TcpClient()
     client.Connect loginCredentials.LoginServer
     let stream = client.GetStream()
@@ -126,16 +136,21 @@ let rec Connect loginCredentials = async {
         
     Write stream OtpTokenLogin
         
-    let packetHandler = GetLoginPacketHandler stream loginCredentials
-    return! (GetReader stream packetHandler) Array.empty
+    let packetHandler = GetLoginPacketHandler stream loginCredentials onReadyToEnterZone
+    try
+        return! Array.empty |> GetReader stream packetHandler
+    with
+    | :? IOException -> onReadyToEnterZone <| Error "LoginServer connection closed"
+    | :? ObjectDisposedException -> ()
     }
-and GetLoginPacketHandler stream credentials =
+and GetLoginPacketHandler stream credentials onReadyToEnterZone =
     fun (packetType: uint16) (data: byte[]) ->
         match packetType with
         | 0x81us ->
             match data.[2] with
-            | 8uy -> Logger.Info("Already logged in. Retrying.")
-                     Async.Start <| Connect credentials
+            | 8uy -> Logger.Info("Already logged in. Retrying.")                     
+                     Async.Start <| Connect credentials onReadyToEnterZone
+                     stream.Close()
             | _ -> Logger.Error("Login refused. Code: {errorCode:d}", data.[2]) 
         | 0xae3us -> Write stream (LoginPacket credentials.Username credentials.Password)
         | 0xac4us ->
@@ -149,7 +164,7 @@ and GetLoginPacketHandler stream credentials =
                                    Convert.ToInt64(BitConverter.ToInt32(span.Slice(64, 4))),
                                    Convert.ToInt32(BitConverter.ToUInt16(span.Slice(68, 2)))                                       
                                )
-            }
-            credentials.Mailbox.Post(AccountId response.AccountId)
-            Async.Start <| ((SelectCharacter credentials.Mailbox) credentials.CharacterSlot) response
+            }            
+            Async.Start <| SelectCharacter credentials.CharacterSlot response onReadyToEnterZone
+            stream.Close()
         | unknown -> Logger.Error("Unknown LoginServer packet {packetType:X}", unknown)
