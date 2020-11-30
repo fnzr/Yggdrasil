@@ -9,8 +9,6 @@ open Microsoft.FSharp.Reflection
 open Yggdrasil.PacketTypes
 open Yggdrasil.Utils
 
-let PropertiesCache = Map.empty
-                            .Add(typeof<Unit>.ToString(), typeof<Unit>.GetProperties())
 
 (*    
 let SpawnNonPlayer (agent: AgentMailbox) (data: byte[]) =

@@ -11,7 +11,7 @@ open Yggdrasil.IO.Stream
 
 type LoginCredentials = {
     LoginServer: IPEndPoint
-    ReportPool: Yggdrasil.Reporter.ReportPool
+    ReportPool: Yggdrasil.Reporter.ReporterPool
     Username: string
     Password: string
     CharacterSlot: byte
@@ -56,7 +56,7 @@ let private LoginPacket username password =
         BitConverter.GetBytes('0');
     |])
     
-let private WantToConnect zoneInfo =
+let WantToConnect zoneInfo =
     Array.concat [|
         BitConverter.GetBytes(0x0436us)
         BitConverter.GetBytes(zoneInfo.AccountId)
@@ -83,6 +83,7 @@ let EnterZone zoneInfo packetHandler =
         | :? IOException -> Logger.Error("[{accountId}] MapServer connection closed (timed out?)", zoneInfo.AccountId)
         | :? ObjectDisposedException -> ()
     }
+    client
     
 let GetCharPacketHandler stream characterSlot (credentials: LoginServerResponse) onReadyToEnterZone =
     let mutable name = ""

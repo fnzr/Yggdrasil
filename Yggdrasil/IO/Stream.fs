@@ -54,5 +54,3 @@ let GetReader (stream: NetworkStream) (callback: OnReceivePacket) =
         else return! loop <| Reader newQueue callback
     }
     loop
-    
-let Write (stream: Stream) data = stream.Write(data, 0, data.Length)

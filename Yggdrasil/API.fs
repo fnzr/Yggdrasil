@@ -2,9 +2,12 @@
 
 open System
 open System.Collections.Concurrent
+open System.IO
+open System.Net.Sockets
 open System.Reflection
 open Microsoft.FSharp.Reflection
 open NLog
+open Yggdrasil.IO
 open Yggdrasil.PacketTypes
 open Yggdrasil.Reporter
 
@@ -31,16 +34,6 @@ let Supervisor =
             loop()
     )
 
-let ConnectAndSupervise (result:  Result<IO.Handshake.ZoneCredentials, string>) =
-    match result with
-    | Ok info ->
-        AddReporter ReportPool info.AccountId
-        AddSubscriber ReportPool info.AccountId Supervisor
-        let publish = PublishReport ReportPool info.AccountId
-        let onReceivePacket = IO.Incoming.ZonePacketHandler publish
-        IO.Handshake.EnterZone info onReceivePacket
-    | Error error -> Logger.Error error
-
 let Login loginServer username password onReadyToEnterZone =
     Async.Start (IO.Handshake.Connect  {
         LoginServer = loginServer
@@ -50,8 +43,39 @@ let Login loginServer username password onReadyToEnterZone =
         CharacterSlot = 0uy
     } onReadyToEnterZone)
 
-let DefaultLogin loginServer username password =
-    Login loginServer username password ConnectAndSupervise
+let onReadyToEnterZone reportPool (systemMailbox:Mailbox)
+    (reporterFactory: uint32 -> Mailbox) (result:  Result<Handshake.ZoneCredentials, string>) =
+    match result with
+    | Ok info ->
+        let systemReporter = SystemPublish systemMailbox info.AccountId
+        AddReporter reportPool info.AccountId
+        let reporter = PublishReport reportPool info.AccountId
+        let packetHandler = Incoming.ZonePacketHandler systemReporter reporter
+        let reporter = reporterFactory info.AccountId
+        
+        let conn = new TcpClient()
+        conn.Connect(info.ZoneServer)
+        let stream = conn.GetStream()
+        
+        reporter.Post <| (info.AccountId, Dispatcher <| Outgoing.Dispatch stream)
+        
+        Utils.Write stream <| Handshake.WantToConnect info
+        
+        Async.Start <| async {
+        try
+            return! Array.empty |> IO.Stream.GetReader stream packetHandler
+        with
+        | :? IOException -> Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)
+        | :? ObjectDisposedException -> ()
+        }
+    | Error error -> Logger.Error error
+       
+            
+let PrepareReporterPool () =
+    let pool = ReporterPool()
+    let system = System.CreateSystem pool 
+    onReadyToEnterZone pool system
+    
     
 let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>
@@ -89,5 +113,3 @@ let RunGlobalCommand (args: string) =
     | _ -> Logger.Error("Unhandled command")
     
 let RunCommand(args) = RunGlobalCommand(args)
-    
-    

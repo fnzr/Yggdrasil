@@ -14,7 +14,9 @@ let ToInt32 data = BitConverter.ToInt32(data, 0)
 let ToInt64 data = BitConverter.ToInt64(data, 0)
 let ToChar data = BitConverter.ToChar(data, 0)
 let ToBool data = BitConverter.ToBoolean(data, 0)
-let ToParameter data : Parameter = data |> ToUInt16 |> LanguagePrimitives.EnumOfValue 
+let ToParameter data : Parameter = data |> ToUInt16 |> LanguagePrimitives.EnumOfValue
+
+let Write (stream: Stream) data = stream.Write(data, 0, data.Length)
 
 let rec AggregatePacketMap (state: Map<uint16, int>) (list: List<uint16 * int>) =
     match list with

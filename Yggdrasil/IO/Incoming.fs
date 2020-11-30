@@ -67,8 +67,10 @@ let OnWeightSoftCap publish value = value |> ToInt32 |> WeightSoftCap |> publish
 
 let OnConnectionAccepted publish value =
     publish <| ConnectionAccepted(MakeRecord<StartData> value [||])
+    
+let OnUnitSpawn system data = system <| UnitSpawn (MakeRecord<Unit> data [|24|])    
    
-let ZonePacketHandler (publish: Report -> unit) =
+let ZonePacketHandler (system: Report -> unit) (publish: Report -> unit) =
     let rec handler (packetType: uint16) (data: byte[]) =
         match packetType with
         | 0x13aus -> OnParameterChange publish Parameter.AttackRange data.[2..] 
@@ -85,7 +87,7 @@ let ZonePacketHandler (publish: Report -> unit) =
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()
         | 0x00b7us (* ZC_MENU_LIST *) -> ()
-        //| 0x9ffus -> SpawnNonPlayer robot.Agent data.[4..]
+        | 0x9ffus -> OnUnitSpawn system data.[4..]
         //| 0x9feus -> SpawnPlayer robot.Agent data.[4..]
         //| 0x10fus -> AddSkill robot.Agent data.[4..]
         //| 0x0087us -> StartWalk robot.Agent data.[2..]
