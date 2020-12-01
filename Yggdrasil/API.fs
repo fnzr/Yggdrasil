@@ -33,48 +33,41 @@ let Supervisor =
             loop()
     )
 
-let Login reportPool loginServer username password onReadyToEnterZone =
-    Async.Start (IO.Handshake.Connect  {
+let Login loginServer username password onReadyToEnterZone =
+    Async.Start (Handshake.Connect  {
         LoginServer = loginServer
-        ReportPool = reportPool
         Username = username
         Password = password
         CharacterSlot = 0uy
     } onReadyToEnterZone)
 
-let onReadyToEnterZone reportPool (system: SystemMailbox)
-    (reporterFactory: uint32 -> AgentMailbox) (result:  Result<Handshake.ZoneCredentials, string>) =
+let onReadyToEnterZone world
+    (agentFactory: uint32 -> AgentMailbox) (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
-        AddReporter reportPool info.AccountId
-        let publishReport = PublishReport reportPool system info.AccountId
-        let packetHandler = Incoming.ZonePacketHandler publishReport
-        let reporter = reporterFactory info.AccountId
+        let agent = agentFactory info.AccountId
         
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
         let stream = conn.GetStream()
         
-        reporter.Post <| (info.AccountId, Dispatcher <| Outgoing.Dispatch stream)
+        agent.Post <| (info.AccountId, Dispatcher <| Outgoing.Dispatch stream)
         
         Utils.Write stream <| Handshake.WantToConnect info
         
         Async.Start <| async {
         try
+            let packetHandler = Incoming.ZonePacketHandler <| world.PublishReport info.AccountId
             return! Array.empty |> IO.Stream.GetReader stream packetHandler
         with
         | :? IOException -> Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)
         | :? ObjectDisposedException -> ()
         }
     | Error error -> Logger.Error error
-       
-            
-let PrepareReporterPool () =
-    let pool = ReporterPool()
-    let system = System.CreateSystem pool
-    let doLogin = Login pool    
-    (doLogin, onReadyToEnterZone pool system)
     
+let CreateLivePool () =
+    let world = Reporter.CreateWorld()  
+    onReadyToEnterZone world
     
 let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>

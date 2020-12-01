@@ -68,7 +68,7 @@ let OnWeightSoftCap publish value = value |> ToInt32 |> WeightSoftCap |> AgentRe
 let OnConnectionAccepted publish value =
     publish <| AgentReport (ConnectionAccepted(MakeRecord<StartData> value [||]))
     
-let OnUnitSpawn publish data = publish <| SystemReport (UnitSpawn (MakeRecord<Unit> data [|24|]))    
+let OnUnitSpawn publish data = publish <| AutomatonReport (UnitSpawn (MakeRecord<Unit> data [|24|]))    
    
 let ZonePacketHandler (publish: Report -> unit) =
     let rec handler (packetType: uint16) (data: byte[]) =

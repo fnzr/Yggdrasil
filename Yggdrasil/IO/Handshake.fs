@@ -11,7 +11,6 @@ open Yggdrasil.IO.Stream
 
 type LoginCredentials = {
     LoginServer: IPEndPoint
-    ReportPool: Yggdrasil.Reporter.ReporterPool
     Username: string
     Password: string
     CharacterSlot: byte

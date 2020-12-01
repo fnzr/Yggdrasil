@@ -6,10 +6,9 @@
 
     <ItemGroup>
         <Compile Include="Types\PacketTypes.fs" />
-        <Compile Include="Types\YggrasilTypes.fs" />
+        <Compile Include="Types\YggrasilTypes.fs" />        
         <Compile Include="Reporter.fs" />
-        <Compile Include="Utils.fs" />
-        <Compile Include="System.fs" />
+        <Compile Include="Utils.fs" />        
         <Compile Include="IO\Stream.fs" />
         <Compile Include="IO\Incoming.fs" />
         <Compile Include="IO\Handshake.fs" />

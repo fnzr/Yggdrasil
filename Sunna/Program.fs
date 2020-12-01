@@ -1,16 +1,11 @@
-﻿// Learn more about F# at http://fsharp.org
-
+﻿
 open System
-open System.Collections.Concurrent
-open System.IO
 open System.Net
 open NLog
 open Yggdrasil.Reporter
-open Yggdrasil.IO
 open Yggdrasil
 
 let Logger = LogManager.GetCurrentClassLogger()
-let ReportPool = ConcurrentDictionary<uint32, List<Mailbox>>()
 
 type TestState = {
     mutable Dispatch: (Command -> unit)
@@ -63,9 +58,9 @@ let onReadyToEnterZone (result:  Result<Handshake.ZoneCredentials, string>) =
 *)
 [<EntryPoint>]
 let main argv =
-    let doLogin, onConnected = API.PrepareReporterPool()
+    let onConnected = API.CreateLivePool()
     let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)
-    doLogin loginServer "roboco" "111111" <| onConnected SupervisorFactory
+    API.Login loginServer "roboco" "111111" <| onConnected SupervisorFactory
     
     let line = Console.ReadLine ()
     0 // return an integer exit code
