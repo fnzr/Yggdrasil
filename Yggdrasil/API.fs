@@ -41,7 +41,7 @@ let Login loginServer username password onReadyToEnterZone =
         CharacterSlot = 0uy
     } onReadyToEnterZone)
 
-let onReadyToEnterZone world
+let onReadyToEnterZone reporter
     (agentFactory: uint32 -> AgentMailbox) (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
@@ -57,7 +57,7 @@ let onReadyToEnterZone world
         
         Async.Start <| async {
         try
-            let packetHandler = Incoming.ZonePacketHandler <| world.PublishReport info.AccountId
+            let packetHandler = Incoming.ZonePacketHandler <| reporter.PublishReport info.AccountId
             return! Array.empty |> IO.Stream.GetReader stream packetHandler
         with
         | :? IOException -> Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)
@@ -66,8 +66,8 @@ let onReadyToEnterZone world
     | Error error -> Logger.Error error
     
 let CreateLivePool () =
-    let world = Reporter.CreateWorld()  
-    onReadyToEnterZone world
+    let reporter = Reporter.CreateReporter()  
+    onReadyToEnterZone reporter
     
 let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>

@@ -57,7 +57,7 @@ type AutomatonMailbox = MailboxProcessor<uint32 * AutomatonReport>
 type SubscriberPool = ConcurrentDictionary<uint32, List<AgentMailbox>>
 type Subscriber = MailboxProcessor<uint32 * AgentReport>
 
-type World =
+type Reporter =
     {
         PublishReport: uint32 -> Report -> unit
         AddSubscriber: uint32 -> Subscriber -> unit
@@ -91,7 +91,7 @@ let private CreateAutomaton (pool: SubscriberPool) =
             loop () 
     )
     
-let CreateWorld () =
+let CreateReporter () =
     let pool = SubscriberPool()
     let automaton = CreateAutomaton pool    
     {
