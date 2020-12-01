@@ -20,7 +20,6 @@ type GlobalCommand =
 let ReportUnionCases = FSharpType.GetUnionCases(typeof<Report>)
 let GlobalCommandUnionCases = FSharpType.GetUnionCases(typeof<GlobalCommand>)
 let Logger = LogManager.GetCurrentClassLogger()
-let ReportPool = ConcurrentDictionary<uint32, List<Mailbox>>()
 
 let Supervisor =
     MailboxProcessor.Start(
@@ -34,23 +33,22 @@ let Supervisor =
             loop()
     )
 
-let Login loginServer username password onReadyToEnterZone =
+let Login reportPool loginServer username password onReadyToEnterZone =
     Async.Start (IO.Handshake.Connect  {
         LoginServer = loginServer
-        ReportPool = ReportPool
+        ReportPool = reportPool
         Username = username
         Password = password
         CharacterSlot = 0uy
     } onReadyToEnterZone)
 
-let onReadyToEnterZone reportPool (systemMailbox:Mailbox)
-    (reporterFactory: uint32 -> Mailbox) (result:  Result<Handshake.ZoneCredentials, string>) =
+let onReadyToEnterZone reportPool (system: SystemMailbox)
+    (reporterFactory: uint32 -> AgentMailbox) (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
-        let systemReporter = SystemPublish systemMailbox info.AccountId
         AddReporter reportPool info.AccountId
-        let reporter = PublishReport reportPool info.AccountId
-        let packetHandler = Incoming.ZonePacketHandler systemReporter reporter
+        let publishReport = PublishReport reportPool system info.AccountId
+        let packetHandler = Incoming.ZonePacketHandler publishReport
         let reporter = reporterFactory info.AccountId
         
         let conn = new TcpClient()
@@ -73,8 +71,9 @@ let onReadyToEnterZone reportPool (systemMailbox:Mailbox)
             
 let PrepareReporterPool () =
     let pool = ReporterPool()
-    let system = System.CreateSystem pool 
-    onReadyToEnterZone pool system
+    let system = System.CreateSystem pool
+    let doLogin = Login pool    
+    (doLogin, onReadyToEnterZone pool system)
     
     
 let ArgumentConverter (value: string) target =
@@ -82,6 +81,7 @@ let ArgumentConverter (value: string) target =
     then Enum.Parse(typeof<Parameter>, value)
     else Convert.ChangeType(value, target)
     
+(*
 let PostMessage (args: string[]) =
     let unionCaseInfo = Array.find
                             (fun (u: UnionCaseInfo) -> u.Name.Equals args.[0])
@@ -111,5 +111,6 @@ let RunGlobalCommand (args: string) =
         Logger.Info("Reporter {id} created", id)
     | Send -> PostMessage(parts.[1..])
     | _ -> Logger.Error("Unhandled command")
-    
+
 let RunCommand(args) = RunGlobalCommand(args)
+*)

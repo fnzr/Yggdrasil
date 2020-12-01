@@ -36,41 +36,41 @@ let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
             loop properties.[1..] data.[size..] stringsS    
     loop fields data stringSizes
 
-let OnParameterChange publish parameter value =
+let OnParameterChange (publish: Report -> unit) parameter value =
     match parameter with
     | Parameter.Weight | Parameter.MaxWeight | Parameter.SkillPoints | Parameter.StatusPoints
     | Parameter.JobLevel | Parameter.BaseLevel | Parameter.MaxHP | Parameter.MaxSP
-    | Parameter.SP | Parameter.HP -> publish <| StatusU32 (parameter, ToUInt32 value)
+    | Parameter.SP | Parameter.HP -> publish <| AgentReport (StatusU32 (parameter, ToUInt32 value))
     
     | Parameter.Manner | Parameter.Hit | Parameter.Flee1
-    | Parameter.Flee2 | Parameter.Critical -> publish <| StatusI16 (parameter, ToInt16 value)
+    | Parameter.Flee2 | Parameter.Critical -> publish <| AgentReport (StatusI16 (parameter, ToInt16 value))
     
     | Parameter.Speed | Parameter.AttackSpeed | Parameter.Attack1 | Parameter.Attack2
     | Parameter.Defense1 | Parameter.Defense2 | Parameter.MagicAttack1
     | Parameter.MagicAttack2 | Parameter.MagicDefense1 | Parameter.MagicDefense2
-    | Parameter.AttackRange -> publish <| StatusU16 (parameter, ToUInt16 value)
+    | Parameter.AttackRange -> publish <| AgentReport (StatusU16 (parameter, ToUInt16 value))
     
     | Parameter.Zeny | Parameter.USTR |Parameter.UAGI |Parameter.UDEX
-    | Parameter.UVIT |Parameter.ULUK |Parameter.UINT -> publish <| StatusI32 (parameter, ToInt32 value)
+    | Parameter.UVIT |Parameter.ULUK |Parameter.UINT -> publish <| AgentReport (StatusI32 (parameter, ToInt32 value))
     
     | Parameter.JobExp | Parameter.NextBaseExp
-    | Parameter.BaseExp | Parameter.NextJobExp -> publish <| Status64 (parameter, ToInt64 value)
+    | Parameter.BaseExp | Parameter.NextJobExp -> publish <| AgentReport (Status64 (parameter, ToInt64 value))
     
     | Parameter.STR |Parameter.AGI |Parameter.DEX | Parameter.VIT
-    | Parameter.LUK |Parameter.INT -> publish <| StatusPair (parameter, ToUInt16 value.[2..], ToInt16 value.[6..])
+    | Parameter.LUK |Parameter.INT -> publish <| AgentReport (StatusPair (parameter, ToUInt16 value.[2..], ToInt16 value.[6..]))
     
     | Parameter.Karma -> ()
     
     | _ -> Logger.Error("Unhandled parameter: {paramCode}", parameter)
     
-let OnWeightSoftCap publish value = value |> ToInt32 |> WeightSoftCap |> publish
+let OnWeightSoftCap publish value = value |> ToInt32 |> WeightSoftCap |> AgentReport |> publish
 
 let OnConnectionAccepted publish value =
-    publish <| ConnectionAccepted(MakeRecord<StartData> value [||])
+    publish <| AgentReport (ConnectionAccepted(MakeRecord<StartData> value [||]))
     
-let OnUnitSpawn system data = system <| UnitSpawn (MakeRecord<Unit> data [|24|])    
+let OnUnitSpawn publish data = publish <| SystemReport (UnitSpawn (MakeRecord<Unit> data [|24|]))    
    
-let ZonePacketHandler (system: Report -> unit) (publish: Report -> unit) =
+let ZonePacketHandler (publish: Report -> unit) =
     let rec handler (packetType: uint16) (data: byte[]) =
         match packetType with
         | 0x13aus -> OnParameterChange publish Parameter.AttackRange data.[2..] 
@@ -87,7 +87,7 @@ let ZonePacketHandler (system: Report -> unit) (publish: Report -> unit) =
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()
         | 0x00b7us (* ZC_MENU_LIST *) -> ()
-        | 0x9ffus -> OnUnitSpawn system data.[4..]
+        | 0x9ffus -> OnUnitSpawn publish data.[4..]
         //| 0x9feus -> SpawnPlayer robot.Agent data.[4..]
         //| 0x10fus -> AddSkill robot.Agent data.[4..]
         //| 0x0087us -> StartWalk robot.Agent data.[2..]

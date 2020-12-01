@@ -7,7 +7,7 @@ let Logger = LogManager.GetCurrentClassLogger()
 
 let CreateSystem (pool: ReporterPool) =
     MailboxProcessor.Start(
-        fun (inbox:  MailboxProcessor<uint32 * Report>) ->
+        fun (inbox:  MailboxProcessor<uint32 * SystemReport>) ->
             let rec loop () =  async {
                 let! msg = inbox.Receive()
                 match msg with

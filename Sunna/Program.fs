@@ -24,12 +24,12 @@ let HandleOwnReport state report =
         Logger.Warn("Dispatching")
         state.Dispatch Command.DoneLoadingMap
         state.Dispatch <| Command.RequestServerTick 1;
-    | _ -> ()
+    | e -> Logger.Info("Received report {id:A}", e)
     ()
 
 let SupervisorFactory ownId =
     MailboxProcessor.Start(
-        fun (inbox:  MailboxProcessor<uint32 * Report>) ->
+        fun (inbox:  MailboxProcessor<uint32 * AgentReport>) ->
             let state = {
                 Dispatch = (fun _ -> Logger.Error("Called dispatch but there's none!"))
             } 
@@ -63,9 +63,9 @@ let onReadyToEnterZone (result:  Result<Handshake.ZoneCredentials, string>) =
 *)
 [<EntryPoint>]
 let main argv =
-    let onConnected = API.PrepareReporterPool()
+    let doLogin, onConnected = API.PrepareReporterPool()
     let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)
-    API.Login loginServer "roboco" "111111" <| onConnected SupervisorFactory
+    doLogin loginServer "roboco" "111111" <| onConnected SupervisorFactory
     
     let line = Console.ReadLine ()
     0 // return an integer exit code
