@@ -18,6 +18,8 @@ type GlobalCommand =
     | Send
 
 let ReportUnionCases = FSharpType.GetUnionCases(typeof<Report>)
+let AutomatonReportCases = FSharpType.GetUnionCases(typeof<AutomatonReport>)
+let AgentReportCases = FSharpType.GetUnionCases(typeof<AgentReport>)
 let GlobalCommandUnionCases = FSharpType.GetUnionCases(typeof<GlobalCommand>)
 let Logger = LogManager.GetCurrentClassLogger()
 
@@ -38,12 +40,13 @@ let onAuthenticationResult reporter
     match result with
     | Ok info ->
         let agent = agentFactory info.AccountId
+        reporter.AddSubscriber info.AccountId agent
         
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
         let stream = conn.GetStream()
         
-        agent.Post <| (info.AccountId, Dispatcher <| Outgoing.Dispatch stream)
+        agent.Post <| (info.AccountId, Dispatcher <| Outgoing.Dispatch stream)        
         
         Utils.Write stream <| Handshake.WantToConnect info
         
@@ -68,28 +71,33 @@ let Login loginServer onAuthenticationResult username password =
     
 let CreateServerReporter loginServer agentFactory =
     let reporter = CreateReporter()
-    Login loginServer <| onAuthenticationResult reporter agentFactory
+    reporter, Login loginServer <| onAuthenticationResult reporter agentFactory
     
 let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>
     then Enum.Parse(typeof<Parameter>, value)
     else Convert.ChangeType(value, target)
+
+let PostReport reporter (args: string[]) =
+    let source = Convert.ToUInt32 args.[0]
     
-(*
-let PostMessage (args: string[]) =
-    let unionCaseInfo = Array.find
-                            (fun (u: UnionCaseInfo) -> u.Name.Equals args.[0])
-                            ReportUnionCases    
+    let unionCases =
+        if source = 0u then AutomatonReportCases
+        else AgentReportCases
+        
+    let reportType = Array.find
+                            (fun (u: UnionCaseInfo) -> u.Name.Equals args.[1])
+                            unionCases
     
-    let convert = fun i (p: PropertyInfo) -> ArgumentConverter args.[1+i] p.PropertyType
-    let values = Array.mapi convert <| unionCaseInfo.GetFields()
-                 
-    let message = FSharpValue.MakeUnion(unionCaseInfo, values) :?> Report
+    let convert = fun i (p: PropertyInfo) -> ArgumentConverter args.[2+i] p.PropertyType
+    let values = Array.mapi convert <| reportType.GetFields()
     
-    let accountId = Convert.ToUInt32 args.[args.Length-1]
-    PublishReport ReportPool accountId message
-    Logger.Info("OK")
+    let report =
+        if source = 0u then AutomatonReport (FSharpValue.MakeUnion(reportType, values) :?> AutomatonReport)
+        else AgentReport (FSharpValue.MakeUnion(reportType, values) :?> AgentReport)
+    reporter.PublishReport source report
     
+(* 
 let RunGlobalCommand (args: string) =
     let parts = args.Split(' ')
     let unionCaseInfo = Array.find

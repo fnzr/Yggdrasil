@@ -32,25 +32,7 @@ type AgentReport =
 type Report =
     | AutomatonReport of AutomatonReport
     | AgentReport of AgentReport
-    
-(*
-let PublishReport (pool: ReporterPool) (system: SystemMailbox) (source: uint32) (report: Report) =
-    match report with
-    | SystemReport s -> system.Post <| (source, s)    
-    | AgentReport a -> List.iter (fun (m: AgentMailbox) -> m.Post (source, a)) pool.[source]
-    
-let CreatePublisher (pool: ReporterPool) =
-    PublishReport pool <| System.CreateSystem pool
-    
-let RegisterReporter (pool: ReporterPool) (id: uint32) =
-    let success = pool.TryAdd(id, List.empty)
-    if not success then Logger.Error("Failed adding reporter {id} to report pool", id)
-    ()
-    
-let AddSubscriber (pool: ReporterPool) (source: uint32) (subscriber: AgentMailbox) =
-    pool.AddOrUpdate(source, [subscriber], fun id subscribers -> subscriber :: subscribers) |> ignore
-    ()
-*)
+
 type AgentMailbox = MailboxProcessor<uint32 * AgentReport>
 type AutomatonMailbox = MailboxProcessor<uint32 * AutomatonReport>
 

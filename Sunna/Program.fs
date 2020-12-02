@@ -11,12 +11,10 @@ type TestState = {
     mutable Dispatch: (Command -> unit)
 }
 
-let HandleOwnReport state report =
-    Logger.Debug "Hello?"
+let HandleOwnReport state (report: AgentReport) =
     match report with
     | Dispatcher d -> state.Dispatch <- d
     | ConnectionAccepted _ ->
-        Logger.Warn("Dispatching")
         state.Dispatch Command.DoneLoadingMap
         state.Dispatch <| Command.RequestServerTick 1;
     | e -> Logger.Info("Received report {id:A}", e)
@@ -42,12 +40,16 @@ let SupervisorFactory ownId =
 
 let AgentFactory id = SupervisorFactory id
 
+let rec ReadInput reporter =
+    let line = Console.ReadLine ()
+    API.PostReport reporter <| line.Split (' ')
+    ReadInput reporter
+
 [<EntryPoint>]
 let main argv =
     let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)
     
-    let login = API.CreateServerReporter loginServer AgentFactory   
-    login "roboco" "111111"
-    
-    let line = Console.ReadLine ()
+    let (reporter, login) = API.CreateServerReporter loginServer AgentFactory   
+    login "roboco" "111111"    
+    ReadInput reporter
     0 // return an integer exit code
