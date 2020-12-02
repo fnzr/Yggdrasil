@@ -8,7 +8,7 @@ open System.Text
 open Microsoft.FSharp.Reflection
 open NLog
 open Yggdrasil.PacketTypes
-open Yggdrasil.Reporter
+open Yggdrasil.Types
 open Yggdrasil.Utils
 
 let Logger = LogManager.GetCurrentClassLogger()
@@ -40,45 +40,60 @@ let OnParameterChange (publish: Report -> unit) parameter value =
     match parameter with
     | Parameter.Weight | Parameter.MaxWeight | Parameter.SkillPoints | Parameter.StatusPoints
     | Parameter.JobLevel | Parameter.BaseLevel | Parameter.MaxHP | Parameter.MaxSP
-    | Parameter.SP | Parameter.HP -> publish <| AgentReport (StatusU32 (parameter, ToUInt32 value))
+    | Parameter.SP | Parameter.HP -> publish <| StatusU32 (parameter, ToUInt32 value)
     
     | Parameter.Manner | Parameter.Hit | Parameter.Flee1
-    | Parameter.Flee2 | Parameter.Critical -> publish <| AgentReport (StatusI16 (parameter, ToInt16 value))
+    | Parameter.Flee2 | Parameter.Critical -> publish <| StatusI16 (parameter, ToInt16 value)
     
     | Parameter.Speed | Parameter.AttackSpeed | Parameter.Attack1 | Parameter.Attack2
     | Parameter.Defense1 | Parameter.Defense2 | Parameter.MagicAttack1
     | Parameter.MagicAttack2 | Parameter.MagicDefense1 | Parameter.MagicDefense2
-    | Parameter.AttackRange -> publish <| AgentReport (StatusU16 (parameter, ToUInt16 value))
+    | Parameter.AttackRange -> publish <| StatusU16 (parameter, ToUInt16 value)
     
     | Parameter.Zeny | Parameter.USTR |Parameter.UAGI |Parameter.UDEX
-    | Parameter.UVIT |Parameter.ULUK |Parameter.UINT -> publish <| AgentReport (StatusI32 (parameter, ToInt32 value))
+    | Parameter.UVIT |Parameter.ULUK |Parameter.UINT -> publish <| StatusI32 (parameter, ToInt32 value)
     
     | Parameter.JobExp | Parameter.NextBaseExp
-    | Parameter.BaseExp | Parameter.NextJobExp -> publish <| AgentReport (Status64 (parameter, ToInt64 value))
+    | Parameter.BaseExp | Parameter.NextJobExp -> publish <| Status64 (parameter, ToInt64 value)
     
     | Parameter.STR |Parameter.AGI |Parameter.DEX | Parameter.VIT
-    | Parameter.LUK |Parameter.INT -> publish <| AgentReport (StatusPair (parameter, ToUInt16 value.[2..], ToInt16 value.[6..]))
+    | Parameter.LUK |Parameter.INT -> publish <| StatusPair (parameter, ToUInt16 value.[2..], ToInt16 value.[6..])
     
     | Parameter.Karma -> ()
     
     | _ -> Logger.Error("Unhandled parameter: {paramCode}", parameter)
     
-let OnWeightSoftCap publish value = value |> ToInt32 |> WeightSoftCap |> AgentReport |> publish
+let OnWeightSoftCap publish value = value |> ToInt32 |> WeightSoftCap |> publish
 
 let OnConnectionAccepted publish value =
-    publish <| AgentReport (ConnectionAccepted(MakeRecord<StartData> value [||]))
+    publish <| ConnectionAccepted(MakeRecord<StartDataRaw> value [||])
     
-let OnUnitSpawn publish data = publish <| AutomatonReport (UnitSpawn (MakeRecord<Unit> data [|24|]))    
+let OnUnitSpawn publish data = publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
+
+let AddSkill publish data =
+    let rec ParseSkills (skillBytes: byte[]) =
+        match skillBytes with
+        | [||] -> ()
+        | bytes ->
+            publish <| AddSkill (MakeRecord<SkillRaw> data [|24|])
+            ParseSkills bytes.[37..]
+    ParseSkills data    
    
 let ZonePacketHandler (publish: Report -> unit) =
     let rec handler (packetType: uint16) (data: byte[]) =
         match packetType with
-        | 0x13aus -> OnParameterChange publish Parameter.AttackRange data.[2..] 
-        //| 0x121us (* cart info *) -> messenger.Post <| StatusUpdate (data.[2..] |> ToUInt16, data.[6..] |> ToInt32)
+        | 0x13aus -> OnParameterChange publish Parameter.AttackRange data.[2..]
         | 0x00b0us -> OnParameterChange publish (data.[2..] |> ToParameter)  data.[4..] 
         | 0x0141us -> OnParameterChange publish (data.[2..] |> ToParameter)  data.[4..]
         | 0xacbus -> OnParameterChange publish (data.[2..] |> ToParameter)  data.[4..]
-        | 0xadeus -> OnWeightSoftCap publish data.[2..]
+        | 0xadeus -> OnWeightSoftCap publish data.[2..]        
+        | 0x9ffus -> OnUnitSpawn publish data.[4..]
+        //| 0x9feus -> SpawnPlayer robot.Agent data.[4..]
+        | 0x10fus -> AddSkill publish data.[4..]
+        //| 0x0087us -> StartWalk robot.Agent data.[2..]
+        //| 0x080eus -> PartyMemberHPUpdate robot.Agent data.[2..]
+        | 0x2ebus -> OnConnectionAccepted publish data.[2..]
+        | 0x121us (* cart info *) -> ()
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> ()
         | 0x0a9bus (* list of items in the equip switch window *) -> ()
         | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> ()
@@ -87,21 +102,10 @@ let ZonePacketHandler (publish: Report -> unit) =
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()
         | 0x00b7us (* ZC_MENU_LIST *) -> ()
-        | 0x9ffus -> OnUnitSpawn publish data.[4..]
-        //| 0x9feus -> SpawnPlayer robot.Agent data.[4..]
-        //| 0x10fus -> AddSkill robot.Agent data.[4..]
-        //| 0x0087us -> StartWalk robot.Agent data.[2..]
-        //| 0x080eus -> PartyMemberHPUpdate robot.Agent data.[2..]
-        | 0x2ebus -> OnConnectionAccepted publish data.[2..]
-            (*writer(BitConverter.GetBytes 0x7dus)
-            writer(Array.concat [|
-                BitConverter.GetBytes 0x0360us
-                BitConverter.GetBytes 1
-            |])*)            
-        | 0x0081us -> Logger.Error ("Forced disconnect. Code %d", data.[2])
         | 0x283us | 0x9e7us (* ZC_NOTIFY_UNREADMAIL *) | 0x1d7us (* ZC_SPRITE_CHANGE2 *)
         | 0x008eus (* ZC_NOTIFY_PLAYERCHAT *) | 0xa24us (* ZC_ACH_UPDATE *) | 0xa23us (* ZC_ALL_ACH_LIST *)
         | 0xa00us (* ZC_SHORTCUT_KEY_LIST_V3 *) | 0x2c9us (* ZC_PARTY_CONFIG *) | 0x02daus (* ZC_CONFIG_NOTIFY *)
-        | 0x02d9us (* ZC_CONFIG *) | 0x00b6us (* ZC_CLOSE_DIALOG *) | 0x01b3us (* ZC_SHOW_IMAGE2 *) -> ()        
+        | 0x02d9us (* ZC_CONFIG *) | 0x00b6us (* ZC_CLOSE_DIALOG *) | 0x01b3us (* ZC_SHOW_IMAGE2 *) -> ()
+        | 0x0081us -> Logger.Error ("Forced disconnect. Code %d", data.[2])
         | unknown -> Logger.Error("Unhandled packet {packetType:X} with length {length}", unknown, data.Length) //shutdown()
     handler

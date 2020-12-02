@@ -1,7 +1,7 @@
 module Yggdrasil.IO.Outgoing
 
 open System
-open Yggdrasil.Reporter
+open Yggdrasil.Types
 open Yggdrasil.Utils
 
 let Dispatch stream (command: Command) =

@@ -2,10 +2,8 @@ module Yggdrasil.Utils
 
 open System
 open System.IO
-open System.Net.Sockets
 open System.Text
-open System.Threading
-open Yggdrasil.PacketTypes
+open Yggdrasil.Types
 
 let ToUInt16 data = BitConverter.ToUInt16(data, 0)
 let ToInt16 data = BitConverter.ToInt16(data, 0)

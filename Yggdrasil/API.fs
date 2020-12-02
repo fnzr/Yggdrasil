@@ -8,8 +8,8 @@ open System.Reflection
 open Microsoft.FSharp.Reflection
 open NLog
 open Yggdrasil.IO
-open Yggdrasil.PacketTypes
-open Yggdrasil.Reporter
+open Yggdrasil.Types
+open Yggdrasil.AgentMailbox
 
 type GlobalCommand =
     | List
@@ -17,9 +17,7 @@ type GlobalCommand =
     | Delete
     | Send
 
-let ReportUnionCases = FSharpType.GetUnionCases(typeof<Report>)
-let AutomatonReportCases = FSharpType.GetUnionCases(typeof<AutomatonReport>)
-let AgentReportCases = FSharpType.GetUnionCases(typeof<AgentReport>)
+let ReportCases = FSharpType.GetUnionCases(typeof<Report>)
 let GlobalCommandUnionCases = FSharpType.GetUnionCases(typeof<GlobalCommand>)
 let Logger = LogManager.GetCurrentClassLogger()
 
@@ -34,26 +32,27 @@ let Supervisor =
             }
             loop()
     )
-
-let onAuthenticationResult reporter
-    (agentFactory: uint32 -> AgentMailbox) (result:  Result<Handshake.ZoneCredentials, string>) =
+let PublishReport (mailbox: Mailbox) (report: Report) =  mailbox.Post report
+let onAuthenticationResult (office: ConcurrentDictionary<uint32, Mailbox>)
+    (behaviorFactory: uint32 -> unit) (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
-        let agent = agentFactory info.AccountId
-        reporter.AddSubscriber info.AccountId agent
+        //behaviorFactory info.AccountId
+        let mailbox = MailboxFactory () 
+        office.[info.AccountId] <- mailbox
         
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
         let stream = conn.GetStream()
         
-        agent.Post <| (info.AccountId, Dispatcher <| Outgoing.Dispatch stream)        
+        mailbox.Post <| Dispatcher (Outgoing.Dispatch stream)        
         
         Utils.Write stream <| Handshake.WantToConnect info
         
         Async.Start <|
         async {
-            try
-                let packetHandler = Incoming.ZonePacketHandler <| reporter.PublishReport info.AccountId
+            try                
+                let packetHandler = Incoming.ZonePacketHandler <| PublishReport mailbox
                 return! Array.empty |> IO.Stream.GetReader stream packetHandler
             with
             | :? IOException -> Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)
@@ -69,33 +68,28 @@ let Login loginServer onAuthenticationResult username password =
         CharacterSlot = 0uy
     } onAuthenticationResult)
     
-let CreateServerReporter loginServer agentFactory =
-    let reporter = CreateReporter()
-    reporter, Login loginServer <| onAuthenticationResult reporter agentFactory
+let CreateServerOffice loginServer behaviorFactory =
+    let office = ConcurrentDictionary<uint32, Mailbox>()
+    office, Login loginServer <| onAuthenticationResult office behaviorFactory
     
 let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>
     then Enum.Parse(typeof<Parameter>, value)
     else Convert.ChangeType(value, target)
 
-let PostReport reporter (args: string[]) =
+let PostReport (office: ConcurrentDictionary<uint32, Mailbox>) (args: string[]) =
     let source = Convert.ToUInt32 args.[0]
     
-    let unionCases =
-        if source = 0u then AutomatonReportCases
-        else AgentReportCases
-        
     let reportType = Array.find
                             (fun (u: UnionCaseInfo) -> u.Name.Equals args.[1])
-                            unionCases
+                            ReportCases
     
     let convert = fun i (p: PropertyInfo) -> ArgumentConverter args.[2+i] p.PropertyType
     let values = Array.mapi convert <| reportType.GetFields()
     
-    let report =
-        if source = 0u then AutomatonReport (FSharpValue.MakeUnion(reportType, values) :?> AutomatonReport)
-        else AgentReport (FSharpValue.MakeUnion(reportType, values) :?> AgentReport)
-    reporter.PublishReport source report
+    let report = FSharpValue.MakeUnion(reportType, values) :?> Report
+    let mailbox = office.[source]
+    mailbox.Post report
     
 (* 
 let RunGlobalCommand (args: string) =
