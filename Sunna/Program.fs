@@ -39,28 +39,15 @@ let SupervisorFactory ownId =
             }            
             loop () 
     )
-(*
-let SystemPublisher = SystemPublish ReportPool
 
-let onReadyToEnterZone (result:  Result<Handshake.ZoneCredentials, string>) =
-    match result with
-    | Ok info ->
-        AddReporter ReportPool info.AccountId
-        let supervisor = Supervisor info.AccountId
-        AddSubscriber ReportPool info.AccountId supervisor 
-        let publish = PublishReport ReportPool info.AccountId        
-        let onReceivePacket = Incoming.ZonePacketHandler publish <| SystemPublisher info.AccountId 
-        let client = Handshake.EnterZone info onReceivePacket
-        let dispatcher = Outgoing.Dispatch <| client.GetStream()
-        supervisor.Post <| (info.AccountId, Dispatcher dispatcher)
-        ()
-    | Error error -> Logger.Error error
-*)
+let AgentFactory id = SupervisorFactory id
+
 [<EntryPoint>]
 let main argv =
-    let onConnected = API.CreateLivePool()
     let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)
-    API.Login loginServer "roboco" "111111" <| onConnected SupervisorFactory
+    
+    let login = API.CreateServerReporter loginServer AgentFactory   
+    login "roboco" "111111"
     
     let line = Console.ReadLine ()
     0 // return an integer exit code

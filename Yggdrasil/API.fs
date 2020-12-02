@@ -33,15 +33,7 @@ let Supervisor =
             loop()
     )
 
-let Login loginServer username password onReadyToEnterZone =
-    Async.Start (Handshake.Connect  {
-        LoginServer = loginServer
-        Username = username
-        Password = password
-        CharacterSlot = 0uy
-    } onReadyToEnterZone)
-
-let onReadyToEnterZone reporter
+let onAuthenticationResult reporter
     (agentFactory: uint32 -> AgentMailbox) (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
@@ -55,19 +47,28 @@ let onReadyToEnterZone reporter
         
         Utils.Write stream <| Handshake.WantToConnect info
         
-        Async.Start <| async {
-        try
-            let packetHandler = Incoming.ZonePacketHandler <| reporter.PublishReport info.AccountId
-            return! Array.empty |> IO.Stream.GetReader stream packetHandler
-        with
-        | :? IOException -> Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)
-        | :? ObjectDisposedException -> ()
+        Async.Start <|
+        async {
+            try
+                let packetHandler = Incoming.ZonePacketHandler <| reporter.PublishReport info.AccountId
+                return! Array.empty |> IO.Stream.GetReader stream packetHandler
+            with
+            | :? IOException -> Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)
+            | :? ObjectDisposedException -> ()
         }
     | Error error -> Logger.Error error
+
+let Login loginServer onAuthenticationResult username password =
+    Async.Start (Handshake.Connect  {
+        LoginServer = loginServer
+        Username = username
+        Password = password
+        CharacterSlot = 0uy
+    } onAuthenticationResult)
     
-let CreateLivePool () =
-    let reporter = Reporter.CreateReporter()  
-    onReadyToEnterZone reporter
+let CreateServerReporter loginServer agentFactory =
+    let reporter = CreateReporter()
+    Login loginServer <| onAuthenticationResult reporter agentFactory
     
 let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>
