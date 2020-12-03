@@ -19,12 +19,14 @@ let MailboxFactory () =
     MailboxProcessor.Start(
         fun (inbox:  MailboxProcessor< Report>) ->            
             let rec loop state =  async {
+                //Logger.Info "what the fuck"
                 let! msg = inbox.Receive()
                 match msg with
                 | Dispatcher d -> state.Dispatch <- d
                 | AddSkill s -> state.Skills <- List.append [s] state.Skills
-                | NonPlayerSpawn u -> ()
-                | ConnectionAccepted _ ->
+                | NonPlayerSpawn u | PlayerSpawn u -> Logger.Info("Unit spawn: {unitName}", u.Name)
+                | ConnectionAccepted s ->
+                    Logger.Info ("{startData:A}", s)
                     state.Dispatch Command.DoneLoadingMap
                     state.Dispatch <| Command.RequestServerTick 1;
                 //| e -> Logger.Info("Received report {id:A}", e)

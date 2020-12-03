@@ -5,6 +5,7 @@ using Microsoft.FSharp.Core;
 using PacketDotNet;
 using SharpPcap;
 using Yggdrasil;
+using Yggdrasil.IO;
 
 namespace PacketSniffer
 {
@@ -93,12 +94,12 @@ namespace PacketSniffer
                 if (srcIp.Equals(IPAddress.Parse("192.168.2.10")))
                 {
                     var queue = _mapToClientQueue.Concat(tcpPacket.PayloadData).ToArray();
-                    _mapToClientQueue = StreamIO.Reader(queue, _mapToClientCallback);
+                    //_mapToClientQueue = Stream.Reader(queue, _mapToClientCallback);
                 }
                 else
                 {
                     var queue = _clientToMapQueue.Concat(tcpPacket.PayloadData).ToArray();
-                    _clientToMapQueue = StreamIO.Reader(queue, _clientToMapCallback);
+                    _clientToMapQueue = Stream.Reader(queue, _clientToMapCallback);
                 }
             }
         }
@@ -120,14 +121,19 @@ namespace PacketSniffer
         private static byte[] _mapToClientQueue = new byte[] {};
         private static byte[] _clientToMapQueue = new byte[] {};
         
-        private static Robot.Robot _robot = new Robot.Robot(0);
         private static FSharpFunc<byte[], Unit> _blankWriter = FSharpFunc<byte[], Unit>.FromConverter(_ => null);
 
         private static FSharpFunc<ushort, FSharpFunc<byte[], Unit>> _mapToClientCallback =
-            Incoming.ZonePacketHandler(_robot, _blankWriter); 
+            Incoming.ZonePacketHandler(FSharpFunc<Types.Report, Unit>.FromConverter(Publish)); 
         
         private static FSharpFunc<ushort, FSharpFunc<byte[], Unit>> _clientToMapCallback =
-            Incoming.ClientPacketHandler(_robot); 
+            Incoming.ZonePacketHandler(FSharpFunc<Types.Report, Unit>.FromConverter(Publish));
+
+
+        private static Unit Publish(Types.Report report)
+        {
+            return null;
+        }
 
         private static Unit MapToClientCallbackNative(ushort packetType, byte[] data)
         {

@@ -2,6 +2,7 @@
 
     <PropertyGroup>
         <TargetFramework>netcoreapp3.1</TargetFramework>
+        <OutputType>Exe</OutputType>
     </PropertyGroup>
 
     <ItemGroup>
@@ -21,7 +22,8 @@
         </Content>
         <Content Include="PacketMap.txt">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>                                   
+        </Content>
+        <Compile Include="Program.fs" />                                   
         
         
     </ItemGroup>

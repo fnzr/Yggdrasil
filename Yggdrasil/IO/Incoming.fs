@@ -11,8 +11,6 @@ open Yggdrasil.PacketTypes
 open Yggdrasil.Types
 open Yggdrasil.Utils
 
-let Logger = LogManager.GetCurrentClassLogger()
-
 let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
     let queue = Queue<obj>()
     let fields = typeof<'T>.GetProperties()
@@ -28,6 +26,7 @@ let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
             let value = if property.PropertyType = typeof<int32> then ToInt32 data.[..size-1] :> obj
                         elif property.PropertyType = typeof<uint32> then ToUInt32 data.[..size-1] :> obj
                         elif property.PropertyType = typeof<byte> then data.[0] :> obj
+                        elif property.PropertyType = typeof<sbyte> then Convert.ToSByte data.[0] :> obj
                         elif property.PropertyType = typeof<int16> then ToInt16 data.[..size-1] :> obj
                         elif property.PropertyType = typeof<uint16> then ToUInt16 data.[..size-1] :> obj
                         elif property.PropertyType = typeof<string> then (Encoding.UTF8.GetString data.[..size-1]) :> obj
@@ -35,6 +34,8 @@ let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
             queue.Enqueue(value);
             loop properties.[1..] data.[size..] stringsS    
     loop fields data stringSizes
+
+let Logger = LogManager.GetCurrentClassLogger()
 
 let OnParameterChange (publish: Report -> unit) parameter value =
     match parameter with
@@ -68,7 +69,8 @@ let OnWeightSoftCap publish value = value |> ToInt32 |> WeightSoftCap |> publish
 let OnConnectionAccepted publish value =
     publish <| ConnectionAccepted(MakeRecord<StartDataRaw> value [||])
     
-let OnUnitSpawn publish data = publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
+let OnNonPlayerSpawn publish data = publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
+let OnPlayerSpawn publish data = publish <| PlayerSpawn (MakeRecord<Unit> data [|24|])
 
 let AddSkill publish data =
     let rec ParseSkills (skillBytes: byte[]) =
@@ -81,17 +83,20 @@ let AddSkill publish data =
    
 let ZonePacketHandler (publish: Report -> unit) =
     let rec handler (packetType: uint16) (data: byte[]) =
+        //Logger.Debug ("Received packet: {packet:X}", packetType)
         match packetType with
         | 0x13aus -> OnParameterChange publish Parameter.AttackRange data.[2..]
         | 0x00b0us -> OnParameterChange publish (data.[2..] |> ToParameter)  data.[4..] 
         | 0x0141us -> OnParameterChange publish (data.[2..] |> ToParameter)  data.[4..]
         | 0xacbus -> OnParameterChange publish (data.[2..] |> ToParameter)  data.[4..]
         | 0xadeus -> OnWeightSoftCap publish data.[2..]        
-        | 0x9ffus -> OnUnitSpawn publish data.[4..]
-        //| 0x9feus -> SpawnPlayer robot.Agent data.[4..]
+        | 0x9ffus -> OnNonPlayerSpawn publish data.[4..]
+        | 0x9feus -> OnPlayerSpawn publish data.[4..]
         | 0x10fus -> AddSkill publish data.[4..]
-        //| 0x0087us -> StartWalk robot.Agent data.[2..]
-        //| 0x080eus -> PartyMemberHPUpdate robot.Agent data.[2..]
+        | 0x0087us -> Logger.Info "is walking"
+        | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> ()        
+        | 0x0bdus (* ZC_STATUS *) -> ()
+        | 0x0086us (* ZC_NOTIFY_PLAYERMOVE *) -> ()
         | 0x2ebus -> OnConnectionAccepted publish data.[2..]
         | 0x121us (* cart info *) -> ()
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> ()

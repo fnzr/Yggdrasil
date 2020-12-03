@@ -47,7 +47,7 @@ let GetReader (stream: NetworkStream) (callback: OnReceivePacket) =
         let newQueue =
             if stream.DataAvailable || queue = [||] then
                 let bytesRead = stream.Read(buffer, 0, buffer.Length)
-                if bytesRead = 0 then raise <| IOException "Connection closed"
+                if bytesRead = 0 then raise <| IOException "Stream closed"
                 else Array.concat [| queue; buffer.[.. (bytesRead - 1)] |]
             else queue
         if newQueue = [||] then return ()

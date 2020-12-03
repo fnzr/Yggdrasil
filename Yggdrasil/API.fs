@@ -17,6 +17,7 @@ type GlobalCommand =
     | Delete
     | Send
 
+LogManager.Setup() |> ignore
 let ReportCases = FSharpType.GetUnionCases(typeof<Report>)
 let GlobalCommandUnionCases = FSharpType.GetUnionCases(typeof<GlobalCommand>)
 let Logger = LogManager.GetCurrentClassLogger()
@@ -51,12 +52,16 @@ let onAuthenticationResult (office: ConcurrentDictionary<uint32, Mailbox>)
         
         Async.Start <|
         async {
-            try                
-                let packetHandler = Incoming.ZonePacketHandler <| PublishReport mailbox
-                return! Array.empty |> IO.Stream.GetReader stream packetHandler
-            with
-            | :? IOException -> Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)
-            | :? ObjectDisposedException -> ()
+            try
+                try                
+                    let packetHandler = Incoming.ZonePacketHandler <| PublishReport mailbox
+                    return! Array.empty |> IO.Stream.GetReader stream packetHandler
+                with
+                | :? IOException ->
+                    Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)                
+                | :? ObjectDisposedException -> ()
+            finally
+                mailbox.Post <| Disconnected
         }
     | Error error -> Logger.Error error
 

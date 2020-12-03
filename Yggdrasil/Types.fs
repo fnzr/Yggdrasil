@@ -98,17 +98,23 @@ type Unit = {
     Name: string
 }
 
-type AccountId = | Id of uint32
+type RequestMove = {
+    x: sbyte
+    y: sbyte
+    dir: sbyte
+}
 
 type Command =
     | DoneLoadingMap
     | RequestServerTick of int32
+    | RequestMove of RequestMove
     
 type Report =
+    | Disconnected
+    | ConnectionAccepted of StartDataRaw
     | Dispatcher of (Command -> unit)
     | Name of string
-    | AccountId of uint32
-    | ConnectionAccepted of StartDataRaw
+    | AccountId of uint32    
     | StatusU32 of Parameter * uint32
     | StatusI32 of Parameter * int
     | StatusU16 of Parameter * uint16
@@ -117,6 +123,7 @@ type Report =
     | Status64 of Parameter * int64
     | WeightSoftCap of int
     | NonPlayerSpawn of Unit
+    | PlayerSpawn of Unit
     | AddSkill of SkillRaw
     | Print
 
