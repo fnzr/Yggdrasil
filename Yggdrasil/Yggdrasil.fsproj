@@ -2,19 +2,17 @@
 
     <PropertyGroup>
         <TargetFramework>netcoreapp3.1</TargetFramework>
-        <OutputType>Exe</OutputType>
     </PropertyGroup>
 
-    <ItemGroup>
-        <Compile Include="IO\PacketTypes.fs" />
+    <ItemGroup>        
         <Compile Include="Types.fs" />
-        <Compile Include="Logging.fs" />                
-        <Compile Include="Utils.fs" />        
+        <Compile Include="Messages.fs" />
+        <Compile Include="Utils.fs" />
+        <Compile Include="IO\PacketTypes.fs" />
         <Compile Include="IO\Stream.fs" />        
         <Compile Include="IO\Handshake.fs" />
         <Compile Include="IO\Incoming.fs" />
-        <Compile Include="IO\Outgoing.fs" />        
-        <Compile Include="ZoneHelpers.fs" />
+        <Compile Include="IO\Outgoing.fs" />
         <Compile Include="AgentMailbox.fs" />
         <Compile Include="API.fs" />
         <Content Include="NLog.config">
@@ -22,8 +20,7 @@
         </Content>
         <Content Include="PacketMap.txt">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
-        <Compile Include="Program.fs" />                                   
+        </Content>                                               
         
         
     </ItemGroup>

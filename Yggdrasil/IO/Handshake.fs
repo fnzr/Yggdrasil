@@ -1,6 +1,7 @@
 module Yggdrasil.IO.Handshake
 
 open System
+open System
 open System.IO
 open System.Net
 open System.Net.Sockets
@@ -34,36 +35,37 @@ type ZoneCredentials = {
 }
 
 let Logger = LogManager.GetCurrentClassLogger()
-let private OtpTokenLogin: byte[] = Array.concat([|BitConverter.GetBytes(0xacfus); (Array.zeroCreate 66)|])
-let private CharSelect (slot: byte) = Array.concat[| BitConverter.GetBytes(0x0066us); [| slot |]|]
+let private OtpTokenLogin () = new ReadOnlySpan<byte> (Array.concat([|BitConverter.GetBytes(0xacfus); (Array.zeroCreate 66)|]))
+let private CharSelect slot = new ReadOnlySpan<byte> (Array.concat[| BitConverter.GetBytes(0x0066us); [| slot |]|])
 
-let private RequestToConnect (credentials: LoginServerResponse) = Array.concat([|
-    BitConverter.GetBytes(0x65us)
-    BitConverter.GetBytes(credentials.AccountId)
-    BitConverter.GetBytes(credentials.LoginId1)
-    BitConverter.GetBytes(credentials.LoginId2)
-    BitConverter.GetBytes(0us)
-    [| credentials.Gender |]
-|])
+let private RequestToConnect (credentials: LoginServerResponse) =
+    new ReadOnlySpan<byte> (Array.concat([|
+        BitConverter.GetBytes(0x65us)
+        BitConverter.GetBytes(credentials.AccountId)
+        BitConverter.GetBytes(credentials.LoginId1)
+        BitConverter.GetBytes(credentials.LoginId2)
+        BitConverter.GetBytes(0us)
+        [| credentials.Gender |]
+    |]))
 
 let private LoginPacket username password =
-    Array.concat([|
+    new ReadOnlySpan<byte> (Array.concat([|
         BitConverter.GetBytes(0x0064us);
         BitConverter.GetBytes(0u);
         FillBytes username 24;
         FillBytes password 24;
         BitConverter.GetBytes('0');
-    |])
+    |]))
     
 let WantToConnect zoneInfo =
-    Array.concat [|
+    new ReadOnlySpan<byte> (Array.concat [|
         BitConverter.GetBytes(0x0436us)
         BitConverter.GetBytes(zoneInfo.AccountId)
         BitConverter.GetBytes(zoneInfo.CharId)
         BitConverter.GetBytes(zoneInfo.LoginId1)
         BitConverter.GetBytes(1)
         [| zoneInfo.Gender |]
-    |]
+    |])
     
 let EnterZone zoneInfo packetHandler =
     let client = new TcpClient()
@@ -72,7 +74,7 @@ let EnterZone zoneInfo packetHandler =
     let stream = client.GetStream()
     //stream.ReadTimeout <- 10000
         
-    Write stream <| WantToConnect zoneInfo
+    stream.Write(WantToConnect zoneInfo)
     
     //let packetHandler = ZonePacketHandler publish <| Write stream
     Async.Start <| async {
@@ -84,14 +86,14 @@ let EnterZone zoneInfo packetHandler =
     }
     client
     
-let GetCharPacketHandler stream characterSlot (credentials: LoginServerResponse) onReadyToEnterZone =
+let GetCharPacketHandler (stream: Stream) characterSlot (credentials: LoginServerResponse) onReadyToEnterZone =
     let mutable name = ""
     fun (packetType: uint16) (data: byte[]) ->
         match packetType with
         | 0x82dus | 0x9a0us | 0x20dus | 0x8b9us -> ()
         | 0x6bus ->
             name <- data.[115..139] |> Encoding.UTF8.GetString
-            Write stream <| CharSelect characterSlot            
+            stream.Write(CharSelect characterSlot)            
         | 0xac5us ->
             let span = new ReadOnlySpan<byte>(data)
             onReadyToEnterZone <| Ok {
@@ -115,10 +117,11 @@ let SelectCharacter slot loginServerResponse onReadyToEnterZone = async {
     let stream = client.GetStream()
     stream.ReadTimeout <- 10000
     
-    Write stream <| RequestToConnect loginServerResponse
+    stream.Write(RequestToConnect loginServerResponse)
 
     //account_id feedback
-    ReadBytes stream 4 |> ignore
+    if stream.Read(Span(Array.zeroCreate 4)) <> 4 then
+        raise <| IOException "Invalid byte count read"     
     
     let packetHandler = GetCharPacketHandler stream slot loginServerResponse onReadyToEnterZone
     try
@@ -134,7 +137,7 @@ let rec Connect loginCredentials onReadyToEnterZone = async {
     let stream = client.GetStream()
     stream.ReadTimeout <- 10000
         
-    Write stream OtpTokenLogin
+    stream.Write(OtpTokenLogin())
         
     let packetHandler = GetLoginPacketHandler stream loginCredentials onReadyToEnterZone
     try
@@ -152,7 +155,7 @@ and GetLoginPacketHandler stream credentials onReadyToEnterZone =
                      Async.Start <| Connect credentials onReadyToEnterZone
                      stream.Close()
             | _ -> Logger.Error("Login refused. Code: {errorCode:d}", data.[2]) 
-        | 0xae3us -> Write stream (LoginPacket credentials.Username credentials.Password)
+        | 0xae3us -> stream.Write (LoginPacket credentials.Username credentials.Password)
         | 0xac4us ->
             let span = new ReadOnlySpan<byte>(data)                
             let response = {

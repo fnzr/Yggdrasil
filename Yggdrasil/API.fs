@@ -9,6 +9,7 @@ open Microsoft.FSharp.Reflection
 open NLog
 open Yggdrasil.IO
 open Yggdrasil.Types
+open Yggdrasil.Messages
 open Yggdrasil.AgentMailbox
 
 type GlobalCommand =
@@ -48,7 +49,7 @@ let onAuthenticationResult (office: ConcurrentDictionary<uint32, Mailbox>)
         
         mailbox.Post <| Dispatcher (Outgoing.Dispatch stream)        
         
-        Utils.Write stream <| Handshake.WantToConnect info
+        stream.Write(Handshake.WantToConnect info)
         
         Async.Start <|
         async {

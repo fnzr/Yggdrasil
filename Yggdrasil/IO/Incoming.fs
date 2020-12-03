@@ -7,7 +7,7 @@ open System.Runtime.InteropServices
 open System.Text
 open Microsoft.FSharp.Reflection
 open NLog
-open Yggdrasil.PacketTypes
+open Yggdrasil.Messages
 open Yggdrasil.Types
 open Yggdrasil.Utils
 
@@ -67,7 +67,8 @@ let OnParameterChange (publish: Report -> unit) parameter value =
 let OnWeightSoftCap publish value = value |> ToInt32 |> WeightSoftCap |> publish
 
 let OnConnectionAccepted publish value =
-    publish <| ConnectionAccepted(MakeRecord<StartDataRaw> value [||])
+    //TODO StartDataRaw -> StartData
+    publish <| ConnectionAccepted(MakeRecord<StartData> value [||])
     
 let OnNonPlayerSpawn publish data = publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
 let OnPlayerSpawn publish data = publish <| PlayerSpawn (MakeRecord<Unit> data [|24|])
@@ -77,7 +78,8 @@ let AddSkill publish data =
         match skillBytes with
         | [||] -> ()
         | bytes ->
-            publish <| AddSkill (MakeRecord<SkillRaw> data [|24|])
+            //TODO SkillRaw -> Skill
+            publish <| AddSkill (MakeRecord<Skill> data [|24|])
             ParseSkills bytes.[37..]
     ParseSkills data    
    

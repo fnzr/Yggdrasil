@@ -1,7 +1,6 @@
 module Yggdrasil.Utils
 
 open System
-open System.IO
 open System.Text
 open Yggdrasil.Types
 
@@ -14,8 +13,6 @@ let ToChar data = BitConverter.ToChar(data, 0)
 let ToBool data = BitConverter.ToBoolean(data, 0)
 let ToParameter data : Parameter = data |> ToUInt16 |> LanguagePrimitives.EnumOfValue
 
-let Write (stream: Stream) data = stream.Write(data, 0, data.Length)
-
 let rec AggregatePacketMap (state: Map<uint16, int>) (list: List<uint16 * int>) =
     match list with
     | head :: tail -> AggregatePacketMap (state.Add(fst head, snd head)) tail
@@ -26,14 +23,6 @@ let FillBytes (data:string) size =
         Encoding.UTF8.GetBytes(data);
         Array.zeroCreate (size - data.Length)
    |])
-
-let ReadBytes (stream: Stream) count =
-    let buffer = Array.zeroCreate count
-    match stream.Read(buffer, 0, buffer.Length) = count with
-    | true -> buffer
-    | false ->
-        printfn "Expected %d bytes" count 
-        [||]
 
 module Hex =
     

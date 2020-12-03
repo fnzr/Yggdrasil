@@ -1,7 +1,5 @@
 module Yggdrasil.Types
 
-open Yggdrasil.PacketTypes
-
 type Parameter =
     |Speed=0us|Karma=3us|Manner=4us|HP=5us|MaxHP=6us|SP=7us|MaxSP=8us
     |StatusPoints=9us|BaseLevel=11us|SkillPoints=12us
@@ -104,27 +102,16 @@ type RequestMove = {
     dir: sbyte
 }
 
-type Command =
-    | DoneLoadingMap
-    | RequestServerTick of int32
-    | RequestMove of RequestMove
-    
-type Report =
-    | Disconnected
-    | ConnectionAccepted of StartDataRaw
-    | Dispatcher of (Command -> unit)
-    | Name of string
-    | AccountId of uint32    
-    | StatusU32 of Parameter * uint32
-    | StatusI32 of Parameter * int
-    | StatusU16 of Parameter * uint16
-    | StatusI16 of Parameter * int16
-    | StatusPair of Parameter * uint16 * int16
-    | Status64 of Parameter * int64
-    | WeightSoftCap of int
-    | NonPlayerSpawn of Unit
-    | PlayerSpawn of Unit
-    | AddSkill of SkillRaw
-    | Print
+type Skill = {
+    Id: int
+    Type: int
+    Level: byte
+    SpCost: byte
+    AttackRange: byte
+    Name: string
+    Upgradable: byte
+}
 
-type Mailbox = MailboxProcessor<Report>
+type StartData = {
+    x: byte //TODO
+}

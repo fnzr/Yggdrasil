@@ -124,13 +124,13 @@ namespace PacketSniffer
         private static FSharpFunc<byte[], Unit> _blankWriter = FSharpFunc<byte[], Unit>.FromConverter(_ => null);
 
         private static FSharpFunc<ushort, FSharpFunc<byte[], Unit>> _mapToClientCallback =
-            Incoming.ZonePacketHandler(FSharpFunc<Types.Report, Unit>.FromConverter(Publish)); 
+            Incoming.ZonePacketHandler(FSharpFunc<Messages.Report, Unit>.FromConverter(Publish)); 
         
         private static FSharpFunc<ushort, FSharpFunc<byte[], Unit>> _clientToMapCallback =
-            Incoming.ZonePacketHandler(FSharpFunc<Types.Report, Unit>.FromConverter(Publish));
+            Incoming.ZonePacketHandler(FSharpFunc<Messages.Report, Unit>.FromConverter(Publish));
 
 
-        private static Unit Publish(Types.Report report)
+        private static Unit Publish(Messages.Report report)
         {
             return null;
         }

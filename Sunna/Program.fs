@@ -1,5 +1,4 @@
-﻿
-open System
+﻿open System
 open System.Net
 open NLog
 open Yggdrasil

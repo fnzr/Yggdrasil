@@ -2,6 +2,7 @@
 
 open NLog
 open Yggdrasil.PacketTypes
+open Yggdrasil.Messages
 open Yggdrasil.Types
 let Logger = LogManager.GetCurrentClassLogger()
 
@@ -17,7 +18,7 @@ type TestState =
 
 let MailboxFactory () =
     MailboxProcessor.Start(
-        fun (inbox:  MailboxProcessor< Report>) ->            
+        fun (inbox:  Mailbox) ->            
             let rec loop state =  async {
                 //Logger.Info "what the fuck"
                 let! msg = inbox.Receive()

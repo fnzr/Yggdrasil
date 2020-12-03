@@ -38,15 +38,7 @@ type UnitRaw = {
     Name: string
 }
 
-type SkillRaw = {
-    Id: int
-    Type: int
-    Level: byte
-    SpCost: byte
-    AttackRange: byte
-    Name: string
-    Upgradable: byte
-}
+type SkillRaw = Types.Skill
     
 type MoveDataRaw = {
     StartTime: uint32
