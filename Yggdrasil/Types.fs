@@ -113,5 +113,8 @@ type Skill = {
 }
 
 type StartData = {
-    x: byte //TODO
+    StartTime: uint32
+    X: byte
+    Y: byte
+    Direction: byte
 }

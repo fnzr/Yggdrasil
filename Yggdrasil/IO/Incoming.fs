@@ -34,6 +34,21 @@ let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
             queue.Enqueue(value);
             loop properties.[1..] data.[size..] stringsS    
     loop fields data stringSizes
+    
+let UnpackPosition (data: byte[]) =
+    ((data.[0] <<< 2) ||| (data.[1] >>> 6),  //X
+     (data.[1] <<< 4) ||| (data.[2] >>> 4),  //Y
+     data.[2] <<< 4 //not sure about this //Direction
+    )
+    
+let UnpackPosition2 (data: byte[]) =
+    ((data.[0] <<< 2) ||| (data.[1] >>> 6),  //X0
+     (data.[1] <<< 4) ||| (data.[2] >>> 4),  //Y0
+     (data.[2] <<< 6) ||| (data.[3] >>> 2),  //X1
+     (data.[3] <<< 5) ||| data.[4],  //Y1
+     (data.[5] >>> 4),  //dirX
+     8uy//(data.[5] <<< 8)  //this doesnt work //dirY
+    )
 
 let Logger = LogManager.GetCurrentClassLogger()
 
@@ -66,9 +81,19 @@ let OnParameterChange (publish: Report -> unit) parameter value =
     
 let OnWeightSoftCap publish value = value |> ToInt32 |> WeightSoftCap |> publish
 
-let OnConnectionAccepted publish value =
-    //TODO StartDataRaw -> StartData
-    publish <| ConnectionAccepted(MakeRecord<StartData> value [||])
+let OnConnectionAccepted publish (value: byte[]) =
+    let (x, y, dir) = UnpackPosition value.[4..]
+    publish <| ConnectionAccepted {
+        StartTime = ToUInt32 value.[0..]
+        X = x
+        Y = y
+        Direction = dir
+    }
+    
+let OnSelfStartWalking publish (data: byte[]) =
+    //TODO
+    let (x0, y0, x1, y1, sx, sy) = UnpackPosition2 data.[4..]
+    ()
     
 let OnNonPlayerSpawn publish data = publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
 let OnPlayerSpawn publish data = publish <| PlayerSpawn (MakeRecord<Unit> data [|24|])
@@ -95,7 +120,7 @@ let ZonePacketHandler (publish: Report -> unit) =
         | 0x9ffus -> OnNonPlayerSpawn publish data.[4..]
         | 0x9feus -> OnPlayerSpawn publish data.[4..]
         | 0x10fus -> AddSkill publish data.[4..]
-        | 0x0087us -> Logger.Info "is walking"
+        | 0x0087us -> OnSelfStartWalking publish data.[2..]
         | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> ()        
         | 0x0bdus (* ZC_STATUS *) -> ()
         | 0x0086us (* ZC_NOTIFY_PLAYERMOVE *) -> ()

@@ -52,9 +52,9 @@ type MoveDataRaw = {
 
 type StartDataRaw = {
     StartTime: uint32
-    PosX: byte
-    PosY: byte
-    Direction: byte
+    p0: byte
+    p1: byte
+    p2: byte
     SizeX: byte //ignored
     SizeY: byte //ignored
     Font: byte

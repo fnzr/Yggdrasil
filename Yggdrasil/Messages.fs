@@ -5,7 +5,7 @@ open Yggdrasil.Types
 type Command =
     | DoneLoadingMap
     | RequestServerTick of int32
-    | RequestMove of RequestMove
+    | RequestMove of byte * byte * byte
 
 type Report =
     | Disconnected
@@ -24,6 +24,7 @@ type Report =
     | PlayerSpawn of Unit
     | AddSkill of Skill
     | Print
+    | Command of Command
     
 type Mailbox = MailboxProcessor<Report>
     

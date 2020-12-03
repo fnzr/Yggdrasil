@@ -20,6 +20,7 @@ type GlobalCommand =
 
 LogManager.Setup() |> ignore
 let ReportCases = FSharpType.GetUnionCases(typeof<Report>)
+let CommandCases = FSharpType.GetUnionCases(typeof<Command>)
 let GlobalCommandUnionCases = FSharpType.GetUnionCases(typeof<GlobalCommand>)
 let Logger = LogManager.GetCurrentClassLogger()
 
@@ -82,20 +83,31 @@ let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>
     then Enum.Parse(typeof<Parameter>, value)
     else Convert.ChangeType(value, target)
-
-let PostReport (office: ConcurrentDictionary<uint32, Mailbox>) (args: string[]) =
-    let source = Convert.ToUInt32 args.[0]
     
-    let reportType = Array.find
-                            (fun (u: UnionCaseInfo) -> u.Name.Equals args.[1])
+let FindMessage name =
+    let reportType = Array.tryFind
+                            (fun (u: UnionCaseInfo) -> u.Name.Equals name)
                             ReportCases
+    match reportType with
+    | None -> false, Array.find
+                (fun (u: UnionCaseInfo) -> u.Name.Equals name)
+                CommandCases
+    | Some r -> true, r
+    
+let PostReport (office: ConcurrentDictionary<uint32, Mailbox>) (args: string[]) =
+    let source = Convert.ToUInt32 args.[0]    
+    
+    let isReport, messageType = FindMessage args.[1]
     
     let convert = fun i (p: PropertyInfo) -> ArgumentConverter args.[2+i] p.PropertyType
-    let values = Array.mapi convert <| reportType.GetFields()
+    let values = Array.mapi convert <| messageType.GetFields()
     
-    let report = FSharpValue.MakeUnion(reportType, values) :?> Report
+    let message = FSharpValue.MakeUnion(messageType, values)
     let mailbox = office.[source]
-    mailbox.Post report
+    
+    if isReport
+        then mailbox.Post (message :?> Report)
+        else mailbox.Post (Command (message :?> Command))
     
 (* 
 let RunGlobalCommand (args: string) =
