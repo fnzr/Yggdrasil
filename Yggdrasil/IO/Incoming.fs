@@ -47,7 +47,7 @@ let UnpackPosition2 (data: byte[]) =
      (data.[2] <<< 6) ||| (data.[3] >>> 2),  //X1
      (data.[3] <<< 5) ||| data.[4],  //Y1
      (data.[5] >>> 4),  //dirX
-     8uy//(data.[5] <<< 8)  //this doesnt work //dirY
+     (data.[5] &&& 0x3uy)//(data.[5] <<< 8)  //this doesnt work //dirY
     )
 
 let Logger = LogManager.GetCurrentClassLogger()

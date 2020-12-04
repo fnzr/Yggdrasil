@@ -1,6 +1,7 @@
 module Yggdrasil.Utils
 
 open System
+open System.Diagnostics
 open System.Text
 open Yggdrasil.Types
 
@@ -13,6 +14,10 @@ let ToChar data = BitConverter.ToChar(data, 0)
 let ToBool data = BitConverter.ToBoolean(data, 0)
 let ToParameter data : Parameter = data |> ToUInt16 |> LanguagePrimitives.EnumOfValue
 let ToString (data: byte[]) = (data |> Encoding.UTF8.GetString).Trim [| '\x00'; '' |]
+
+let Stopwatch = Stopwatch()
+Stopwatch.Start()
+let GetCurrentTick() = Convert.ToUInt32 (Stopwatch.ElapsedTicks / 1000000L)
 
 let rec AggregatePacketMap (state: Map<uint16, int>) (list: List<uint16 * int>) =
     match list with

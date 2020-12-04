@@ -14,5 +14,5 @@ let main argv =
     let (mailboxes, login) = API.CreateServerMailboxes loginServer BehaviorFactory
     //printfn "%d" Stopwatch.Frequency
     login "roboco" "111111"
-    API.CommandLineHandler mailboxes
+    API.CommandLineHandler mailboxes 
     0 // return an integer exit code

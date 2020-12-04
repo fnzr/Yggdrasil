@@ -18,9 +18,9 @@ let onAuthenticationResult (mailboxes: Dictionary<string, Mailbox>)
     match result with
     | Ok info ->
         //behaviorFactory info.AccountId
-        let mailbox = MailboxFactory () 
+        let mailbox = MailboxFactory ()
         mailboxes.[info.CharacterName] <- mailbox
-        
+        mailbox.Error.Add OnMailboxError
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
         let stream = conn.GetStream()
@@ -72,46 +72,42 @@ module CharacterAPI =
     let rec Handler character (mailbox: Mailbox) =
         printf "%s>" character
         
-        //0: command
-        //1: union case name
-        //2?..: args
         let args = Console.ReadLine().Split(' ')
         let messageCase = match FindUnionCase CharacterMessageCases args.[0] with
-                          | None -> Help
+                          | None -> Command
                           | Some(case) ->
                               FSharpValue.MakeUnion(case, [||]) :?> CharacterMessage
         match messageCase with
-        | Command ->
+        | Help -> Handler character mailbox
+        | Exit -> ()
+        | _ ->
             match FindUnionCase CommandCases args.[1] with
-            | None -> printfn "Unknown command: %s" args.[1]
+            | None -> match FindUnionCase ReportCases args.[1] with
+                      | None -> printfn "Unknown message: %s" args.[1] 
+                      | Some (case) -> mailbox.Post <| MakeMessage<Messages.Report> case args.[2..]
             | Some (case) ->
                 mailbox.Post (Messages.Command <| MakeMessage<Messages.Command> case args.[2..])
             Handler character mailbox
-        | Report ->
-            match FindUnionCase ReportCases args.[1] with
-            | None -> printfn "Unknown report: %s" args.[1]
-            | Some (case) ->
-                mailbox.Post <| MakeMessage<Messages.Report> case args.[2..]
-            Handler character mailbox
-        | Help -> Handler character mailbox
-        | Exit -> ()
 
-
-type MailboxesMessage = | Help | List | Select | Exit
+type MailboxesMessage = | Help | List | Select | Exit | Char of string
 let MailboxesMessageCases = FSharpType.GetUnionCases(typeof<MailboxesMessage>)
-let rec CommandLineHandler (office: Dictionary<string, Mailbox>) =
+
+let ActivateCharacter (mailboxes: Dictionary<string, Mailbox>) name =
+    if mailboxes.ContainsKey name
+            then CharacterAPI.Handler name mailboxes.[name]
+            else printfn "%s not found" name
+    
+let rec CommandLineHandler (mailboxes: Dictionary<string, Mailbox>) =
     printf ">"
+    
     let args = Console.ReadLine().Split(' ')
     let messageCase = match FindUnionCase MailboxesMessageCases args.[0] with
-                      | None -> MailboxesMessage.Help
+                      | None -> Char args.[0]
                       | Some(case) ->
                           FSharpValue.MakeUnion(case, [||]) :?> MailboxesMessage
     match messageCase with
-    | List -> Seq.iter (printfn "%s") office.Keys; CommandLineHandler office
-    | Help -> CommandLineHandler office
-    | Select ->
-        if office.ContainsKey args.[1]
-            then CharacterAPI.Handler args.[1] office.[args.[1]]
-            else printfn "%s not found" args.[1]
-        CommandLineHandler office
+    | List -> Seq.iter (printfn "%s") mailboxes.Keys; CommandLineHandler mailboxes
+    | Help -> CommandLineHandler mailboxes
+    | Select -> ActivateCharacter mailboxes args.[1]; CommandLineHandler mailboxes        
+    | Char name -> ActivateCharacter mailboxes name; CommandLineHandler mailboxes
     | Exit -> ()

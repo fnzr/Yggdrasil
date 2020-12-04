@@ -13,14 +13,12 @@ type AgentState =
         mutable Skills: Skill list
         mutable PosX: byte
         mutable PosY: byte
-        mutable LastServerTime: int64
     }
     static member Default = {
         Dispatch = fun _ -> Logger.Error("Called dispatch but there's none!")
         Skills = List.empty
         PosX = 0uy
         PosY = 0uy
-        LastServerTime = 0L
     }
     
 let mutable LastServerTime = 0u
@@ -40,17 +38,11 @@ let MailboxFactory () =
                     state.Dispatch <| Command.RequestServerTick
                 | Command c -> state.Dispatch c
                 | Print -> Logger.Info("{state:A}", state)
-                | ServerTime t ->
-                    
-                    let serverTickDifference = t - LastServerTime
-                    let elapsed = Types.GetCurrentTick()
-                    let stopwatchDifference =  Convert.ToUInt32 (elapsed - state.LastServerTime)
-                    let clockDifference = serverTickDifference - stopwatchDifference
-                    Logger.Info("Difference: {serverTime}", clockDifference)
-                    LastServerTime <- t
-                    state.LastServerTime <- elapsed
+                | ServerTime _ -> ()
                 | e -> ()//Logger.Info("Received report {id:A}", e)
                 return! loop state
             }            
             loop AgentState.Default
     )
+    
+let OnMailboxError (e) = raise e
