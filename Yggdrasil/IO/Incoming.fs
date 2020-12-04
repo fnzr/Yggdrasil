@@ -29,7 +29,7 @@ let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
                         elif property.PropertyType = typeof<sbyte> then Convert.ToSByte data.[0] :> obj
                         elif property.PropertyType = typeof<int16> then ToInt16 data.[..size-1] :> obj
                         elif property.PropertyType = typeof<uint16> then ToUInt16 data.[..size-1] :> obj
-                        elif property.PropertyType = typeof<string> then (Encoding.UTF8.GetString data.[..size-1]) :> obj
+                        elif property.PropertyType = typeof<string> then ToString data.[..size-1] :> obj
                         else raise (ArgumentException "Unhandled type")
             queue.Enqueue(value);
             loop properties.[1..] data.[size..] stringsS    

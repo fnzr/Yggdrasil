@@ -92,7 +92,7 @@ let GetCharPacketHandler (stream: Stream) characterSlot (credentials: LoginServe
         match packetType with
         | 0x82dus | 0x9a0us | 0x20dus | 0x8b9us -> ()
         | 0x6bus ->
-            name <- (data.[115..139] |> Encoding.UTF8.GetString).TrimEnd [| '\x00'; '' |]
+            name <- data.[115..139] |> ToString
             stream.Write(CharSelect characterSlot)            
         | 0xac5us ->
             let span = new ReadOnlySpan<byte>(data)
