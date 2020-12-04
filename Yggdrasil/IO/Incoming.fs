@@ -97,6 +97,7 @@ let OnSelfStartWalking publish (data: byte[]) =
     
 let OnNonPlayerSpawn publish data = publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
 let OnPlayerSpawn publish data = publish <| PlayerSpawn (MakeRecord<Unit> data [|24|])
+let OnServerTime publish data = publish <| ServerTime (ToUInt32 data)
 
 let AddSkill publish data =
     let rec ParseSkills (skillBytes: byte[]) =
@@ -130,7 +131,7 @@ let ZonePacketHandler (publish: Report -> unit) =
         | 0x0a9bus (* list of items in the equip switch window *) -> ()
         | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> ()
         | 0x0091us (* ZC_NPCACK_MAPMOVE *) -> ()
-        | 0x007fus (* ZC_NOTIFY_TIME *)  -> ()
+        | 0x007fus -> OnServerTime publish data.[2..]
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()
         | 0x00b7us (* ZC_MENU_LIST *) -> ()
@@ -139,5 +140,5 @@ let ZonePacketHandler (publish: Report -> unit) =
         | 0xa00us (* ZC_SHORTCUT_KEY_LIST_V3 *) | 0x2c9us (* ZC_PARTY_CONFIG *) | 0x02daus (* ZC_CONFIG_NOTIFY *)
         | 0x02d9us (* ZC_CONFIG *) | 0x00b6us (* ZC_CLOSE_DIALOG *) | 0x01b3us (* ZC_SHOW_IMAGE2 *) -> ()
         | 0x0081us -> Logger.Error ("Forced disconnect. Code %d", data.[2])
-        | unknown -> Logger.Error("Unhandled packet {packetType:X} with length {length}", unknown, data.Length) //shutdown()
+        | unknown -> () //Logger.Error("Unhandled packet {packetType:X} with length {length}", unknown, data.Length) //shutdown()
     handler

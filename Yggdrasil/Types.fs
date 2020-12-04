@@ -1,5 +1,8 @@
 module Yggdrasil.Types
 
+open System
+open System.Diagnostics
+
 type Parameter =
     |Speed=0us|Karma=3us|Manner=4us|HP=5us|MaxHP=6us|SP=7us|MaxSP=8us
     |StatusPoints=9us|BaseLevel=11us|SkillPoints=12us
@@ -118,3 +121,15 @@ type StartData = {
     Y: byte
     Direction: byte
 }
+
+//1 tick = 100 nanoseconds
+//tval.tv_usec = 1 nanosecons = 1 tick / 100
+//1 Mili = 0.1s * 10000
+//tval.tv_sec * 1000 + tval.tv_usec / 1000;
+// ElapsedMili * 10000 + ElapsedTicks / 100
+let Stopwatch = Stopwatch()
+Stopwatch.Start()
+
+let GetCurrentTick() = Stopwatch.ElapsedTicks
+    //Convert.ToUInt32 ((Stopwatch.ElapsedMilliseconds + Stopwatch.ElapsedTicks / 100L) / 100000L)
+    //Convert.ToUInt32 DateTime.Now. 

@@ -1,5 +1,7 @@
 ﻿module Yggdrasil.AgentMailbox
 
+open System
+open System.Diagnostics
 open NLog
 open Yggdrasil.Messages
 open Yggdrasil.Types
@@ -9,15 +11,19 @@ type AgentState =
     {
         mutable Dispatch: (Command -> unit)
         mutable Skills: Skill list
-        mutable posX: byte
-        mutable posY: byte
+        mutable PosX: byte
+        mutable PosY: byte
+        mutable LastServerTime: int64
     }
     static member Default = {
         Dispatch = fun _ -> Logger.Error("Called dispatch but there's none!")
         Skills = List.empty
-        posX = 0uy
-        posY = 0uy
+        PosX = 0uy
+        PosY = 0uy
+        LastServerTime = 0L
     }
+    
+let mutable LastServerTime = 0u
 
 let MailboxFactory () =
     MailboxProcessor.Start(
@@ -29,12 +35,21 @@ let MailboxFactory () =
                 | AddSkill s -> state.Skills <- List.append [s] state.Skills
                 | NonPlayerSpawn u | PlayerSpawn u -> Logger.Info("Unit spawn: {unitName}", u.Name)
                 | ConnectionAccepted s ->
-                    state.posX <- s.X; state.posY <- s.Y
+                    state.PosX <- s.X; state.PosY <- s.Y
                     state.Dispatch Command.DoneLoadingMap
-                    state.Dispatch <| Command.RequestServerTick 1
+                    state.Dispatch <| Command.RequestServerTick
                 | Command c -> state.Dispatch c
                 | Print -> Logger.Info("{state:A}", state)
-                | e -> Logger.Info("Received report {id:A}", e)
+                | ServerTime t ->
+                    
+                    let serverTickDifference = t - LastServerTime
+                    let elapsed = Types.GetCurrentTick()
+                    let stopwatchDifference =  Convert.ToUInt32 (elapsed - state.LastServerTime)
+                    let clockDifference = serverTickDifference - stopwatchDifference
+                    Logger.Info("Difference: {serverTime}", clockDifference)
+                    LastServerTime <- t
+                    state.LastServerTime <- elapsed
+                | e -> ()//Logger.Info("Received report {id:A}", e)
                 return! loop state
             }            
             loop AgentState.Default

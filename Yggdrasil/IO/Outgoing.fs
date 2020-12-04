@@ -3,6 +3,7 @@ module Yggdrasil.IO.Outgoing
 open System
 open System.IO
 open NLog
+open Yggdrasil
 open Yggdrasil.Messages
 let Logger = LogManager.GetCurrentClassLogger()
 
@@ -17,12 +18,12 @@ let Dispatch (stream: Stream) (command: Command) =
     let bytes =
         match command with
         | DoneLoadingMap -> BitConverter.GetBytes 0x7dus
-        | RequestServerTick clientTick -> Array.concat [|
+        | RequestServerTick -> Array.concat [|
             BitConverter.GetBytes 0x0360us
-            BitConverter.GetBytes clientTick
+            BitConverter.GetBytes (Convert.ToUInt32(Types.GetCurrentTick()))
             |]
         | RequestMove (x, y, d) -> Array.concat [|
             BitConverter.GetBytes 0x035fus
             PackPosition (x, y, d)
-        |]        
+            |]
     stream.Write(bytes, 0, bytes.Length)

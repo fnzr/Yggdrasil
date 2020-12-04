@@ -4,7 +4,7 @@ open Yggdrasil.Types
 
 type Command =
     | DoneLoadingMap
-    | RequestServerTick of int32
+    | RequestServerTick
     | RequestMove of byte * byte * byte
 
 type Report =
@@ -25,6 +25,7 @@ type Report =
     | AddSkill of Skill
     | Print
     | Command of Command
+    | ServerTime of uint32
     
 type Mailbox = MailboxProcessor<Report>
     
