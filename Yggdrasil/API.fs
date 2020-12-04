@@ -1,7 +1,7 @@
 ﻿module Yggdrasil.API
 
 open System
-open System.Collections.Concurrent
+open System.Collections.Generic
 open System.IO
 open System.Net.Sockets
 open System.Reflection
@@ -12,37 +12,14 @@ open Yggdrasil.Types
 open Yggdrasil.Messages
 open Yggdrasil.AgentMailbox
 
-type GlobalCommand =
-    | List
-    | Create
-    | Delete
-    | Send
-
-LogManager.Setup() |> ignore
-let ReportCases = FSharpType.GetUnionCases(typeof<Report>)
-let CommandCases = FSharpType.GetUnionCases(typeof<Command>)
-let GlobalCommandUnionCases = FSharpType.GetUnionCases(typeof<GlobalCommand>)
 let Logger = LogManager.GetCurrentClassLogger()
-
-let Supervisor =
-    MailboxProcessor.Start(
-        fun (inbox:  MailboxProcessor<uint32 * Report>) ->
-            let rec loop() =  async {
-                let! msg = inbox.Receive()
-                match msg with
-                | (id, e) -> Logger.Info("[{id}] {event}", id, e)                            
-                return! loop()
-            }
-            loop()
-    )
-let PublishReport (mailbox: Mailbox) (report: Report) =  mailbox.Post report
-let onAuthenticationResult (office: ConcurrentDictionary<uint32, Mailbox>)
+let onAuthenticationResult (mailboxes: Dictionary<string, Mailbox>)
     (behaviorFactory: uint32 -> unit) (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
         //behaviorFactory info.AccountId
         let mailbox = MailboxFactory () 
-        office.[info.AccountId] <- mailbox
+        mailboxes.[info.CharacterName] <- mailbox
         
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
@@ -56,7 +33,7 @@ let onAuthenticationResult (office: ConcurrentDictionary<uint32, Mailbox>)
         async {
             try
                 try                
-                    let packetHandler = Incoming.ZonePacketHandler <| PublishReport mailbox
+                    let packetHandler = Incoming.ZonePacketHandler <| fun report -> mailbox.Post report
                     return! Array.empty |> IO.Stream.GetReader stream packetHandler
                 with
                 | :? IOException ->
@@ -66,65 +43,75 @@ let onAuthenticationResult (office: ConcurrentDictionary<uint32, Mailbox>)
                 mailbox.Post <| Disconnected
         }
     | Error error -> Logger.Error error
-
-let Login loginServer onAuthenticationResult username password =
-    Async.Start (Handshake.Connect  {
-        LoginServer = loginServer
-        Username = username
-        Password = password
-        CharacterSlot = 0uy
-    } onAuthenticationResult)
     
-let CreateServerOffice loginServer behaviorFactory =
-    let office = ConcurrentDictionary<uint32, Mailbox>()
-    office, Login loginServer <| onAuthenticationResult office behaviorFactory
+let CreateServerMailboxes loginServer behaviorFactory =
+    let mailboxes = Dictionary<string, Mailbox>()
+    mailboxes, Handshake.Login loginServer <| onAuthenticationResult mailboxes behaviorFactory
     
 let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>
     then Enum.Parse(typeof<Parameter>, value)
     else Convert.ChangeType(value, target)
     
-let FindMessage name =
-    let reportType = Array.tryFind
-                            (fun (u: UnionCaseInfo) -> u.Name.Equals name)
-                            ReportCases
-    match reportType with
-    | None -> false, Array.find
-                (fun (u: UnionCaseInfo) -> u.Name.Equals name)
-                CommandCases
-    | Some r -> true, r
+let FindUnionCase cases name =
+    Array.tryFind
+        (fun (u: UnionCaseInfo) ->
+                String.Equals(u.Name, name, StringComparison.OrdinalIgnoreCase))
+        cases
     
-let PostReport (office: ConcurrentDictionary<uint32, Mailbox>) (args: string[]) =
-    let source = Convert.ToUInt32 args.[0]    
-    
-    let isReport, messageType = FindMessage args.[1]
-    
-    let convert = fun i (p: PropertyInfo) -> ArgumentConverter args.[2+i] p.PropertyType
-    let values = Array.mapi convert <| messageType.GetFields()
-    
-    let message = FSharpValue.MakeUnion(messageType, values)
-    let mailbox = office.[source]
-    
-    if isReport
-        then mailbox.Post (message :?> Report)
-        else mailbox.Post (Command (message :?> Command))
-    
-(* 
-let RunGlobalCommand (args: string) =
-    let parts = args.Split(' ')
-    let unionCaseInfo = Array.find
-                            (fun (u: UnionCaseInfo) -> u.Name.Equals parts.[0])
-                            GlobalCommandUnionCases
-    let command = FSharpValue.MakeUnion(unionCaseInfo, [||]) :?> GlobalCommand
-    
-    match command with
-    | Create ->
-        let id =uint32 ReportPool.Count
-        AddReporter ReportPool id 
-        AddSubscriber ReportPool id Supervisor
-        Logger.Info("Reporter {id} created", id)
-    | Send -> PostMessage(parts.[1..])
-    | _ -> Logger.Error("Unhandled command")
+module CharacterAPI =
+    type CharacterMessage = | Help | Command | Report | Exit
+    let CharacterMessageCases = FSharpType.GetUnionCases(typeof<CharacterMessage>)
+    let ReportCases = FSharpType.GetUnionCases(typeof<Report>)
+    let CommandCases = FSharpType.GetUnionCases(typeof<Command>)    
+    let MakeMessage<'T> (case: UnionCaseInfo) (args: string[]) =
+        let convert = fun i (p: PropertyInfo) -> ArgumentConverter args.[i] p.PropertyType
+        let values = Array.mapi convert <| case.GetFields()    
+        FSharpValue.MakeUnion(case, values) :?> 'T
+        
+    let rec Handler character (mailbox: Mailbox) =
+        printf "%s>" character
+        
+        //0: command
+        //1: union case name
+        //2?..: args
+        let args = Console.ReadLine().Split(' ')
+        let messageCase = match FindUnionCase CharacterMessageCases args.[0] with
+                          | None -> Help
+                          | Some(case) ->
+                              FSharpValue.MakeUnion(case, [||]) :?> CharacterMessage
+        match messageCase with
+        | Command ->
+            match FindUnionCase CommandCases args.[1] with
+            | None -> printfn "Unknown command: %s" args.[1]
+            | Some (case) ->
+                mailbox.Post (Messages.Command <| MakeMessage<Messages.Command> case args.[2..])
+            Handler character mailbox
+        | Report ->
+            match FindUnionCase ReportCases args.[1] with
+            | None -> printfn "Unknown report: %s" args.[1]
+            | Some (case) ->
+                mailbox.Post <| MakeMessage<Messages.Report> case args.[2..]
+            Handler character mailbox
+        | Help -> Handler character mailbox
+        | Exit -> ()
 
-let RunCommand(args) = RunGlobalCommand(args)
-*)
+
+type MailboxesMessage = | Help | List | Select | Exit
+let MailboxesMessageCases = FSharpType.GetUnionCases(typeof<MailboxesMessage>)
+let rec CommandLineHandler (office: Dictionary<string, Mailbox>) =
+    printf ">"
+    let args = Console.ReadLine().Split(' ')
+    let messageCase = match FindUnionCase MailboxesMessageCases args.[0] with
+                      | None -> MailboxesMessage.Help
+                      | Some(case) ->
+                          FSharpValue.MakeUnion(case, [||]) :?> MailboxesMessage
+    match messageCase with
+    | List -> Seq.iter (printfn "%s") office.Keys; CommandLineHandler office
+    | Help -> CommandLineHandler office
+    | Select ->
+        if office.ContainsKey args.[1]
+            then CharacterAPI.Handler args.[1] office.[args.[1]]
+            else printfn "%s not found" args.[1]
+        CommandLineHandler office
+    | Exit -> ()

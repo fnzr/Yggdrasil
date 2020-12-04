@@ -29,11 +29,11 @@ let MailboxFactory () =
                 | AddSkill s -> state.Skills <- List.append [s] state.Skills
                 | NonPlayerSpawn u | PlayerSpawn u -> Logger.Info("Unit spawn: {unitName}", u.Name)
                 | ConnectionAccepted s ->
-                    Logger.Info ("{startData:A}", s)
                     state.posX <- s.X; state.posY <- s.Y
                     state.Dispatch Command.DoneLoadingMap
                     state.Dispatch <| Command.RequestServerTick 1
                 | Command c -> state.Dispatch c
+                | Print -> Logger.Info("{state:A}", state)
                 | e -> Logger.Info("Received report {id:A}", e)
                 return! loop state
             }            

@@ -92,7 +92,7 @@ let GetCharPacketHandler (stream: Stream) characterSlot (credentials: LoginServe
         match packetType with
         | 0x82dus | 0x9a0us | 0x20dus | 0x8b9us -> ()
         | 0x6bus ->
-            name <- data.[115..139] |> Encoding.UTF8.GetString
+            name <- (data.[115..139] |> Encoding.UTF8.GetString).TrimEnd [| '\x00'; '' |]
             stream.Write(CharSelect characterSlot)            
         | 0xac5us ->
             let span = new ReadOnlySpan<byte>(data)
@@ -171,3 +171,11 @@ and GetLoginPacketHandler stream credentials onReadyToEnterZone =
             Async.Start <| SelectCharacter credentials.CharacterSlot response onReadyToEnterZone
             stream.Close()
         | unknown -> Logger.Error("Unknown LoginServer packet {packetType:X}", unknown)
+
+let Login loginServer onAuthenticationResult username password =
+    Async.Start (Connect  {
+        LoginServer = loginServer
+        Username = username
+        Password = password
+        CharacterSlot = 0uy
+    } onAuthenticationResult)
