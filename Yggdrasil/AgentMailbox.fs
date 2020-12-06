@@ -1,7 +1,5 @@
 ﻿module Yggdrasil.AgentMailbox
 
-open System
-open System.Diagnostics
 open NLog
 open Yggdrasil.Messages
 open Yggdrasil.Types
@@ -21,8 +19,6 @@ type AgentState =
         PosY = 0uy
     }
     
-let mutable LastServerTime = 0u
-
 let MailboxFactory () =
     MailboxProcessor.Start(
         fun (inbox:  Mailbox) ->            

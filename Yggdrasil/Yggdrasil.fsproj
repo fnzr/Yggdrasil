@@ -4,6 +4,14 @@
         <TargetFramework>netcoreapp3.1</TargetFramework>
     </PropertyGroup>
 
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <PlatformTarget>x64</PlatformTarget>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <PlatformTarget>x64</PlatformTarget>
+    </PropertyGroup>
+
     <ItemGroup>        
         <Compile Include="Types.fs" />
         <Compile Include="Messages.fs" />
@@ -15,14 +23,12 @@
         <Compile Include="IO\Outgoing.fs" />
         <Compile Include="AgentMailbox.fs" />
         <Compile Include="API.fs" />
-        <Content Include="NLog.config">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
-        <Content Include="PacketMap.txt">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>                                               
-        
-        
+        <Compile Include="Navigation\Maps.fs" />
+        <Compile Include="Navigation\Pathfinding.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="../assets/**/*" Link="%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
     <ItemGroup>
