@@ -15,7 +15,11 @@ let main argv =
     
     let sw = Stopwatch()
     sw.Start()
-    Pathfinding.AStar map {X=150s;Y=90s} {X=35s;Y=208s} Pathfinding.ManhattanDistance
+    //Pathfinding.AStar map {X=150s;Y=90s} {X=35s;Y=208s}
+    Pathfinding.AStar map (150, 90) (150, 85)
+    //let p = (150, 90)
+    //let i = Pathfinding.ToIndex map p
+    //printfn "%A" <| Pathfinding.ToPoint map i
     printfn "%A" sw.ElapsedMilliseconds
     printf "Done"
     //let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)

@@ -1,102 +1,79 @@
 module Yggdrasil.Navigation.Pathfinding
 
 open System
+open System.Collections.Generic
 open FSharpx.Collections
+open Priority_Queue
 open Yggdrasil.Navigation.Maps
 
-[<CustomEquality; CustomComparison>]
-type Point =
-    {X: int16; Y: int16}
-    
+//Same as server (also same issue; see path.cpp:path_search)
+[<Literal>]
+let MAX_WALK_PATH = 32
+
+let ToPoint map index =
+    let y, x = Math.DivRem (index, int map.Width)
+    x, y
+
+let ToIndex map point = (int map.Width * snd point) + fst point
+
+let ManhattanDistance map a b =
+    let x1, y1 = ToPoint map a
+    let x2, y2 = ToPoint map b
+    Math.Abs(x1 - x2) + Math.Abs(y1 - y2)
+
+let Heuristics map a b = float32 <| ManhattanDistance map a b
+
+type Node(index: int, parent) =
+    inherit FastPriorityQueueNode()
+    member public this.Index = index
+    member public this.Parent = parent    
     interface IComparable with
-        member this.CompareTo other =
-            match other with
-            | :? Point as o ->
-                if this.Y = o.Y then this.X.CompareTo(o.X);
-                else this.Y.CompareTo(o.Y);
-            | _ -> invalidArg "other" "Invalid comparison for Node"
+        member this.CompareTo other = this.Index.CompareTo(other)     
     override this.Equals other =
         match other with
-        | :? Point as o -> this.X = o.X && this.Y = o.Y
-        | _ -> invalidArg "other" "Invalid equality for Point"
-        
-    override this.GetHashCode() = (this.X * this.Y).GetHashCode()
-
-
-type Node(point: Point, partialHeuristic: Point -> int16) =
-    member public this.Value = partialHeuristic point
-    member public this.Point = point
-    
-    interface IComparable with
-        member this.CompareTo other =
-            match other with
-            | :? Node as o -> this.Value.CompareTo(o.Value)
-            | _ -> invalidArg "other" "Invalid comparison for Node"
-            
-    override this.Equals other =
-        match other with
-        | :? Node as o -> this.Point = o.Point
+        | :? Node as o -> o.Index = this.Index
         | _ -> invalidArg "other" "Invalid equality for Node"
+    override this.GetHashCode() = this.Index.GetHashCode()
         
-    override this.GetHashCode() = this.Point.GetHashCode() 
-            
-let ManhattanDistance a b = Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y)
+let EnqueueIndex map (queue: FastPriorityQueue<Node>) (visited: Dictionary<int, float32>) goal parent index =    
+    if index < map.Cells.Length &&
+       map.Cells.[index].HasFlag(CellType.WALK) then
+       let cost = Heuristics map goal index
+       let oldCost = visited.GetValueOrDefault(index, Single.MaxValue)
+       if cost < oldCost then
+           visited.[index] <- cost
+           let node = Node(index, Some(parent))
+           if queue.Contains node
+            then queue.UpdatePriority (node, cost)
+            else queue.Enqueue (node, cost)
 
-let getScore (map: Map<Node, int16>) node =
-    match map.TryFind node with
-    | None -> Int16.MaxValue
-    | Some(score) -> score
-    
-let TryGetPoint (map: MapData) heuristic point =
-    let index = int (point.X * point.Y)
-    if index < map.Cells.Length && map.Cells.[index].HasFlag(CellType.WALK)
-    then Some(Node(point, heuristic))
-    else None
-        
-let Neighbours (map: MapData) heuristic (origin: Point) =
-    Array.choose (fun optNode -> optNode)
-        [|
-            TryGetPoint map heuristic {X=origin.X+1s;Y=origin.Y}; //north
-            TryGetPoint map heuristic {X=origin.X-1s;Y=origin.Y}; //south
-            TryGetPoint map heuristic {X=origin.X;Y=origin.Y-1s}; //west
-            TryGetPoint map heuristic {X=origin.X;Y=origin.Y+1s}; //east
-        |]    
-
-let rec Step map goal heuristic ((queue: Set<Node>), (path: Map<Node, Node>), (gScores: Map<Node, int16>), (fScores: Map<Node, int16>)) =
-    if queue.IsEmpty then Map.empty
+let rec FindPath map (queue: FastPriorityQueue<Node>) (visited: Dictionary<int, float32>) goal =
+    if queue.Count = 0 then None
     else
-        let current = queue.MinimumElement
-        if goal = current.Point then path //found
+        let node = queue.Dequeue()
+        if node.Index = goal then Some(node)
         else
-            let tentative = getScore gScores current + 1s //weight of the edge
-            let folder ((q: Set<Node>), (p: Map<Node,Node>),
-                        (g: Map<Node, int16>), (f: Map<Node, int16>)) (n: Node) =
-                if tentative < getScore gScores n then
-                    (if q.Contains n then q else q.Add n),
-                    p.Add(n, current),
-                    g.Add(n, tentative),
-                    f.Add(n, tentative + n.Value)
-                else q, p, g, f                    
-            let state = queue, path, gScores, fScores
-            Step map goal heuristic <| Array.fold folder state (Neighbours map heuristic current.Point)
-            
-let rec ReconstructPath (path: Map<Node, Node>) node =
-    if path.ContainsKey node then
-        //printfn "%A" node.Point
-        ReconstructPath path <| path.[node]
-    else ()
-        
-let AStar map start goal heuristic =
-    let h = heuristic goal
-    let node =Node(start, h)
-    let queue = Set.empty.Add(node)
+            Array.iter (EnqueueIndex map queue visited goal node)        
+                [|
+                    node.Index - int map.Width //north
+                    node.Index + int map.Width //south
+                    node.Index - 1 //west
+                    node.Index + 1 //east
+                |]
+            FindPath map queue visited goal
+
+let rec ReconstructPath map (node: Node) =
+    //printfn "%A" <| ToPoint map node.Index
+    match node.Parent with
+    | None -> ()
+    | Some (parent) -> ReconstructPath map parent
+let AStar map start goal =
+    let queue = FastPriorityQueue<Node>(MAX_WALK_PATH * MAX_WALK_PATH)
+    let s = ToIndex map start
+    let g = ToIndex map goal
     
-    let path = Map.empty
-    
-    let gScores = Map.empty.Add(node, 0s)
-    let fScores = Map.empty.Add(node, h start)
-    
-    let result = Step map goal h (queue, path, gScores, fScores)
-    if result.IsEmpty then printfn "No path found"
-    else ReconstructPath result <| Node(goal, h)
-    
+    queue.Enqueue (Node(s, None), 0.0f)
+    let result = FindPath map queue (Dictionary()) g
+    match result with
+    | Some(node) -> ReconstructPath map node
+    | None -> printfn "Path not found"
