@@ -29,14 +29,16 @@ let MailboxFactory () =
                 match msg with
                 | Dispatcher d -> state.Dispatch <- d
                 | AddSkill s -> state.Skills <- List.append [s] state.Skills
-                | NonPlayerSpawn u | PlayerSpawn u -> Logger.Info("Unit spawn: {unitName}", u.Name)
+                | NonPlayerSpawn u | PlayerSpawn u -> ()
                 | ConnectionAccepted s ->
                     state.PosX <- s.X; state.PosY <- s.Y
+                    printfn "Starting position: (%d, %d)" s.X s.Y
                     state.Dispatch Command.DoneLoadingMap
                     state.Dispatch <| Command.RequestServerTick
                 | Command c -> state.Dispatch c
                 | Print -> Logger.Info("{state:A}", state)
                 | ServerTick _ -> ()
+                | SelfIsWalking d -> printfn "%A" d
                 | e -> ()//Logger.Info("Received report {id:A}", e)
                 return! loop state
             }            

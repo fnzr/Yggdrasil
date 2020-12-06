@@ -39,23 +39,3 @@ type UnitRaw = {
 }
 
 type SkillRaw = Types.Skill
-    
-type MoveDataRaw = {
-    StartTime: uint32
-    StartX: byte
-    StartY: byte
-    EndX: byte
-    EndY: byte
-    SyX: byte
-    SyY: byte
-}
-
-type StartDataRaw = {
-    StartTime: uint32
-    p0: byte
-    p1: byte
-    p2: byte
-    SizeX: byte //ignored
-    SizeY: byte //ignored
-    Font: byte
-}

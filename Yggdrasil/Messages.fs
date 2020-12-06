@@ -26,6 +26,7 @@ type Report =
     | Print
     | Command of Command
     | ServerTick of uint32
+    | SelfIsWalking of WalkData
     
 type Mailbox = MailboxProcessor<Report>
     

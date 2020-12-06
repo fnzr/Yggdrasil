@@ -116,5 +116,12 @@ type StartData = {
     StartTime: uint32
     X: byte
     Y: byte
-    Direction: byte
+}
+
+type WalkData = {
+    StartTime: uint32
+    StartX: byte
+    StartY: byte
+    EndX: byte
+    EndY: byte
 }

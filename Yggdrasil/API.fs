@@ -82,7 +82,7 @@ module CharacterAPI =
         | Exit -> ()
         | _ ->
             let message = if args.Length > 1
-                            then FindUnionCase CommandCases args.[1]
+                            then FindUnionCase CommandCases args.[0]
                             else FindUnionCase CommandCases args.[0]
             match message with
             | None -> match FindUnionCase ReportCases args.[1] with

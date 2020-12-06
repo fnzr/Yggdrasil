@@ -82,18 +82,20 @@ let OnParameterChange (publish: Report -> unit) parameter value =
 let OnWeightSoftCap publish value = value |> ToInt32 |> WeightSoftCap |> publish
 
 let OnConnectionAccepted publish (value: byte[]) =
-    let (x, y, dir) = UnpackPosition value.[4..]
+    let (x, y, _) = UnpackPosition value.[4..]
     publish <| ConnectionAccepted {
         StartTime = ToUInt32 value.[0..]
         X = x
         Y = y
-        Direction = dir
     }
     
 let OnSelfStartWalking publish (data: byte[]) =
-    //TODO
-    let (x0, y0, x1, y1, sx, sy) = UnpackPosition2 data.[4..]
-    ()
+    let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[4..]
+    publish <| SelfIsWalking {
+        StartTime = ToUInt32 data
+        StartX = x0; StartY = y0
+        EndX = x1; EndY = y1
+    }
     
 let OnNonPlayerSpawn publish data = publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
 let OnPlayerSpawn publish data = publish <| PlayerSpawn (MakeRecord<Unit> data [|24|])
