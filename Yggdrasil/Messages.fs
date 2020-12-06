@@ -25,7 +25,7 @@ type Report =
     | AddSkill of Skill
     | Print
     | Command of Command
-    | ServerTime of uint32
+    | ServerTick of uint32
     
 type Mailbox = MailboxProcessor<Report>
     

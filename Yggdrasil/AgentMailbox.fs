@@ -19,6 +19,8 @@ type AgentState =
         PosY = 0uy
     }
     
+let mutable oldServerTime = 0u
+let mutable oldStopwatchTime = 0u 
 let MailboxFactory () =
     MailboxProcessor.Start(
         fun (inbox:  Mailbox) ->            
@@ -34,7 +36,7 @@ let MailboxFactory () =
                     state.Dispatch <| Command.RequestServerTick
                 | Command c -> state.Dispatch c
                 | Print -> Logger.Info("{state:A}", state)
-                | ServerTime _ -> ()
+                | ServerTick _ -> ()
                 | e -> ()//Logger.Info("Received report {id:A}", e)
                 return! loop state
             }            

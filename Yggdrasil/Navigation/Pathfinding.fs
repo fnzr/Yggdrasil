@@ -29,10 +29,7 @@ type Node(index: int, parent) =
     member public this.Parent = parent    
     interface IComparable with
         member this.CompareTo other = this.Index.CompareTo(other)     
-    override this.Equals other =
-        match other with
-        | :? Node as o -> o.Index = this.Index
-        | _ -> invalidArg "other" "Invalid equality for Node"
+    override this.Equals other = this.Index.Equals(other)
     override this.GetHashCode() = this.Index.GetHashCode()
         
 let EnqueueIndex map (queue: FastPriorityQueue<Node>) (visited: Dictionary<int, float32>) goal parent index =    

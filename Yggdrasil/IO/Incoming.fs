@@ -97,7 +97,7 @@ let OnSelfStartWalking publish (data: byte[]) =
     
 let OnNonPlayerSpawn publish data = publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
 let OnPlayerSpawn publish data = publish <| PlayerSpawn (MakeRecord<Unit> data [|24|])
-let OnServerTime publish data = publish <| ServerTime (ToUInt32 data)
+let OnServerTime publish data = publish <| ServerTick (ToUInt32 data)
 
 let AddSkill publish data =
     let rec ParseSkills (skillBytes: byte[]) =

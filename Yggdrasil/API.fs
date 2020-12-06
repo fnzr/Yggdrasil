@@ -81,12 +81,15 @@ module CharacterAPI =
         | Help -> Handler character mailbox
         | Exit -> ()
         | _ ->
-            match FindUnionCase CommandCases args.[1] with
+            let message = if args.Length > 1
+                            then FindUnionCase CommandCases args.[1]
+                            else FindUnionCase CommandCases args.[0]
+            match message with
             | None -> match FindUnionCase ReportCases args.[1] with
                       | None -> printfn "Unknown message: %s" args.[1] 
                       | Some (case) -> mailbox.Post <| MakeMessage<Messages.Report> case args.[2..]
             | Some (case) ->
-                mailbox.Post (Messages.Command <| MakeMessage<Messages.Command> case args.[2..])
+                mailbox.Post (Messages.Command <| MakeMessage<Messages.Command> case args.[1..])
             Handler character mailbox
 
 type MailboxesMessage = | Help | List | Select | Exit | Char of string
