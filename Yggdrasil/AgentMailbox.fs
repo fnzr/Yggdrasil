@@ -41,7 +41,7 @@ let MailboxFactory () =
                 | SelfIsWalking d -> printfn "%A" d
                 | e -> ()//Logger.Info("Received report {id:A}", e)
                 return! loop state
-            }            
+            }
             loop AgentState.Default
     )
     
