@@ -4,7 +4,6 @@ open System
 open System.Collections.Generic
 open System.Reflection
 open System.Runtime.InteropServices
-open System.Text
 open Microsoft.FSharp.Reflection
 open NLog
 open Yggdrasil.Messages
@@ -73,7 +72,7 @@ let OnParameterChange (publish: Report -> unit) parameter value =
     | Parameter.BaseExp | Parameter.NextJobExp -> publish <| Status64 (parameter, ToInt64 value)
     
     | Parameter.STR |Parameter.AGI |Parameter.DEX | Parameter.VIT
-    | Parameter.LUK |Parameter.INT -> publish <| StatusPair (parameter, ToUInt16 value.[2..], ToInt16 value.[6..])
+    | Parameter.LUK |Parameter.INT -> publish <| StatusPair (parameter, (ToUInt16 value.[2..], ToInt16 value.[6..]))
     
     | Parameter.Karma -> ()
     
@@ -84,22 +83,22 @@ let OnWeightSoftCap publish value = value |> ToInt32 |> WeightSoftCap |> publish
 let OnConnectionAccepted publish (value: byte[]) =
     let (x, y, _) = UnpackPosition value.[4..]
     publish <| ConnectionAccepted {
-        StartTime = ToUInt32 value.[0..]
-        X = x
-        Y = y
+        StartTime = Convert.ToInt64 (ToUInt32 value.[0..])
+        X = int x
+        Y = int y
     }
     
 let OnSelfStartWalking publish (data: byte[]) =
     let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[4..]
     publish <| SelfIsWalking {
-        StartTime = ToUInt32 data
-        StartX = x0; StartY = y0
-        EndX = x1; EndY = y1
+        StartTime = Convert.ToInt64 (ToUInt32 data)
+        StartX = int x0; StartY = int y0
+        EndX = int x1; EndY = int y1
     }
     
 let OnNonPlayerSpawn publish data = publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
 let OnPlayerSpawn publish data = publish <| PlayerSpawn (MakeRecord<Unit> data [|24|])
-let OnServerTime publish data = publish <| ServerTick (ToUInt32 data)
+let OnServerTime publish data = publish <| ServerTick (Convert.ToInt64(ToUInt32 data))
 
 let AddSkill publish data =
     let rec ParseSkills (skillBytes: byte[]) =

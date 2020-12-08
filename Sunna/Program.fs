@@ -9,8 +9,6 @@ let Logger = LogManager.GetCurrentClassLogger()
 
 let BehaviorFactory id = ()
 
-let TimedEvent current () = printfn "Timed: %d -> %d" current <| Scheduling.GetCurrentTick() 
-
 [<EntryPoint>]
 let main argv =
     //let map = Yggdrasil.Navigation.Maps.MapCacheParser()    
@@ -21,13 +19,14 @@ let main argv =
     //let i = Pathfinding.ToIndex map p
     //printfn "%A" <| Pathfinding.ToPoint map i
     //printfn "%A" sw.ElapsedMilliseconds
-    let dispatcher = Scheduling.DispatcherFactory()
-    let tick = Scheduling.GetCurrentTick()
-    dispatcher.Post <| (tick+500u, TimedEvent tick)
-    printf "Done"
-    //let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)
-    //let (mailboxes, login) = API.CreateServerMailboxes loginServer BehaviorFactory
-    //login "roboco" "111111"
-    //API.CommandLineHandler mailboxes
-    Console.ReadKey() |> ignore 
+    //let dispatcher = Scheduling.DispatcherFactory()
+    //let tick = Scheduling.GetCurrentTick()
+    //dispatcher.Post <| (tick+500u, TimedEvent tick)
+    //printf "Done"
+    Maps.LoadMaps()
+    let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)
+    let (mailboxes, login) = API.CreateServerMailboxes loginServer BehaviorFactory
+    login "roboco" "111111"
+    API.CommandLineHandler mailboxes
+    //Console.ReadKey() |> ignore 
     0 // return an integer exit code

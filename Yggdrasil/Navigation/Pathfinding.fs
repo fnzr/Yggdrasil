@@ -59,11 +59,11 @@ let rec FindPath map (queue: FastPriorityQueue<Node>) (visited: Dictionary<int, 
                 |]
             FindPath map queue visited goal
 
-let rec ReconstructPath map (node: Node) =
+let rec ReconstructPath map (node: Node) path =
     //printfn "%A" <| ToPoint map node.Index
     match node.Parent with
-    | None -> ()
-    | Some (parent) -> ReconstructPath map parent
+    | None -> path
+    | Some (parent) -> ReconstructPath map parent ((ToPoint map node.Index) :: path)
 let AStar map start goal =
     let queue = FastPriorityQueue<Node>(MAX_WALK_PATH * MAX_WALK_PATH)
     let s = ToIndex map start
@@ -72,5 +72,5 @@ let AStar map start goal =
     queue.Enqueue (Node(s, None), 0.0f)
     let result = FindPath map queue (Dictionary()) g
     match result with
-    | Some(node) -> ReconstructPath map node
-    | None -> printfn "Path not found"
+    | Some(node) -> ReconstructPath map node []
+    | None -> Logger.Error("Path not found"); []

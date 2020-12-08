@@ -4,40 +4,41 @@ open System
 open System.Diagnostics
 open Priority_Queue
 
-type TimedEventNode(time, callback) =
-    inherit FastPriorityQueueNode()
-    member public this.Callback = callback
-    member public this.Time = time
+type SchedulerMailbox = MailboxProcessor<int64 * Messages.Report>
 
-let QueueLock = obj()
+type TimedEventNode(time, event) =
+    inherit FastPriorityQueueNode()
+    member public this.Event = event
+    member public this.Time = time
 let Stopwatch = Stopwatch()
 Stopwatch.Start()
-let GetCurrentTick() = Convert.ToUInt32 (Stopwatch.ElapsedMilliseconds)
+let GetCurrentTick() = Stopwatch.ElapsedMilliseconds
 
-let TimedEventsQueue = FastPriorityQueue<TimedEventNode>(512)
-
-let OnTick _ =
+let OnTick (mailbox: Messages.Mailbox) queueLock (eventQueue: FastPriorityQueue<TimedEventNode>) _ =
     let tick = GetCurrentTick()
     let rec dequeue () =        
-        if TimedEventsQueue.Count > 0 &&
-           TimedEventsQueue.First.Time < tick
+        if eventQueue.Count > 0 &&
+           eventQueue.First.Time < tick
            then
-                let task = TimedEventsQueue.Dequeue()
-                Async.Start <| async { task.Callback() }
+                mailbox.Post <| eventQueue.Dequeue().Event 
                 dequeue()
-    lock QueueLock dequeue
+    lock queueLock dequeue
     
-let DispatcherFactory () =
+let ScheduledTimedCallback (scheduler: SchedulerMailbox) time event = scheduler.Post <| (time, event)
+    
+let SchedulerFactory mailbox =
     MailboxProcessor.Start(
         fun (inbox) ->
+            let timedEventsQueue = FastPriorityQueue<TimedEventNode>(32)
+            let queueLock = obj()
             let timer = new System.Timers.Timer(50.0)
-            timer.Elapsed.Add(OnTick)
+            timer.Elapsed.Add(OnTick mailbox queueLock timedEventsQueue)
             timer.Enabled <- true
             timer.AutoReset <- true
-            let rec loop tmr =  async {
-                let! (tick: uint32, cb) = inbox.Receive()
-                lock QueueLock (fun () -> TimedEventsQueue.Enqueue(TimedEventNode(tick, cb), Convert.ToSingle(tick)))
-                return! loop tmr
+            let rec loop queueLock (queue: FastPriorityQueue<TimedEventNode>) tmr =  async {
+                let! (tick, cb) = inbox.Receive()
+                lock queueLock (fun () -> queue.Enqueue(TimedEventNode(tick, cb), Convert.ToSingle(tick)))
+                return! loop queueLock queue tmr
             }
-            loop timer
+            loop queueLock timedEventsQueue timer
     )

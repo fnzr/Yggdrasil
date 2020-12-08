@@ -5,9 +5,11 @@ open Yggdrasil.Types
 type Command =
     | DoneLoadingMap
     | RequestServerTick
-    | RequestMove of byte * byte * byte
+    | RequestMove of byte * byte
+    
 
-type Report =
+type Mailbox = MailboxProcessor<Report>
+and Report =
     | Disconnected
     | ConnectionAccepted of StartData
     | Dispatcher of (Command -> unit)
@@ -17,7 +19,7 @@ type Report =
     | StatusI32 of Parameter * int
     | StatusU16 of Parameter * uint16
     | StatusI16 of Parameter * int16
-    | StatusPair of Parameter * uint16 * int16
+    | StatusPair of Parameter * (uint16 * int16)
     | Status64 of Parameter * int64
     | WeightSoftCap of int
     | NonPlayerSpawn of Unit
@@ -25,8 +27,10 @@ type Report =
     | AddSkill of Skill
     | Print
     | Command of Command
-    | ServerTick of uint32
+    | ServerTick of int64
     | SelfIsWalking of WalkData
-    
-type Mailbox = MailboxProcessor<Report>
+    | Mailbox of Mailbox
+    | Scheduler of (int64 -> Report -> unit)
+    | PerformStep
+   
     

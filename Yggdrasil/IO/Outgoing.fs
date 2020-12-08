@@ -20,10 +20,10 @@ let Dispatch (stream: Stream) (command: Command) =
         | DoneLoadingMap -> BitConverter.GetBytes 0x7dus
         | RequestServerTick -> Array.concat [|
             BitConverter.GetBytes 0x0360us
-            BitConverter.GetBytes (Scheduling.GetCurrentTick())
+            BitConverter.GetBytes (Convert.ToUInt32(Scheduling.GetCurrentTick()))
             |]
-        | RequestMove (x, y, d) -> Array.concat [|
+        | RequestMove (x, y) -> Array.concat [|
             BitConverter.GetBytes 0x035fus
-            PackPosition (x, y, d)
+            PackPosition (x, y, 1uy)
             |]
     stream.Write(bytes, 0, bytes.Length)

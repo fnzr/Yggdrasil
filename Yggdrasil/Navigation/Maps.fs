@@ -1,6 +1,7 @@
 module Yggdrasil.Navigation.Maps
 
 open System
+open System.Collections.Generic
 open System.IO
 open NLog
 open Yggdrasil.Utils
@@ -27,8 +28,10 @@ let ReadMap (bytes: byte[]) =
         Cells = Array.map (fun c -> Enum.Parse(typeof<CellType>, c.ToString()) :?> CellType) bytes.[4..]
     }
     
-let MapCacheParser () =
-    let data = File.ReadAllBytes ("maps/prontera.fld2")
-    let map = ReadMap data
-    map
+let Maps = Dictionary<string, MapData>()
+    
+let LoadMaps () =
+    let name = "maps/prontera.fld2"
+    let data = File.ReadAllBytes (name)
+    Maps.[name] <- ReadMap data 
     
