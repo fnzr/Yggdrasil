@@ -27,6 +27,7 @@ type LoginServerResponse = {
 
 type ZoneCredentials = {
     CharacterName: string
+    MapName: string
     ZoneServer: IPEndPoint
     AccountId: uint32
     LoginId1: uint32
@@ -95,16 +96,16 @@ let GetCharPacketHandler (stream: Stream) characterSlot (credentials: LoginServe
             name <- data.[115..139] |> ToString
             stream.Write(CharSelect characterSlot)            
         | 0xac5us ->
-            let span = new ReadOnlySpan<byte>(data)
             onReadyToEnterZone <| Ok {
                 AccountId = credentials.AccountId
                 CharacterName = name
+                MapName = ToString <| data.[6..22]
                 LoginId1 = credentials.LoginId1
                 Gender = credentials.Gender
-                CharId = BitConverter.ToUInt32(span.Slice(2, 4))                
+                CharId = ToUInt32 <| data.[2..]                
                 ZoneServer = IPEndPoint(
-                                Convert.ToInt64(BitConverter.ToInt32(span.Slice(22, 4))),
-                                Convert.ToInt32(BitConverter.ToUInt16(span.Slice(26, 2)))
+                                Convert.ToInt64(ToInt32 <| data.[22..]),
+                                Convert.ToInt32(ToUInt16 <| data.[26..])
                         )
             }
             stream.Close()

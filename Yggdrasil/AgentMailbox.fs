@@ -20,6 +20,8 @@ type AgentState =
         mutable TickOffset: int64
         mutable Parameters: Parameters
         mutable WalkPath: (int * int) list
+        mutable Map: string
+        mutable Name: string
     }
     static member Default = {
         Dispatch = fun _ -> Logger.Error("Called dispatch but there is none!")
@@ -31,6 +33,8 @@ type AgentState =
         Mailbox = EmptyMailbox
         TickOffset = 0L
         Parameters = Parameters.Default
+        Map = ""
+        Name = ""
     }
     
 let OnU32ParameterUpdate code value (parameters: Parameters) =
@@ -109,6 +113,8 @@ let MailboxFactory () =
                 | Scheduler s -> state.Scheduler <- s
                 | Mailbox mailbox -> state.Mailbox <- mailbox                
                 | Command c -> state.Dispatch c
+                | Map m -> state.Map <- m
+                | CharacterName n -> state.Name <- n
                 | AddSkill s -> state.Skills <- List.append [s] state.Skills
                 | StatusU16 (p, v) -> OnU16ParameterUpdate p v state.Parameters
                 | Status64 (p, v) -> On64ParameterUpdate p v state.Parameters

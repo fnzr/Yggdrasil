@@ -25,8 +25,10 @@ let onAuthenticationResult (mailboxes: Dictionary<string, Mailbox>)
         mailbox.Error.Add OnMailboxError
         
         mailbox.Post <| Mailbox(mailbox)
+        mailbox.Post <| CharacterName(info.CharacterName)
+        mailbox.Post <| Map(info.MapName.Substring(0, info.MapName.Length - 4))
         let scheduler = Scheduling.ScheduledTimedCallback <| Scheduling.SchedulerFactory(mailbox)
-        mailbox.Post <| Scheduler(scheduler)
+        mailbox.Post <| Scheduler(scheduler)        
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
         let stream = conn.GetStream()

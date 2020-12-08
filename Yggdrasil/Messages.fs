@@ -13,7 +13,8 @@ and Report =
     | Disconnected
     | ConnectionAccepted of StartData
     | Dispatcher of (Command -> unit)
-    | Name of string
+    | CharacterName of string
+    | Map of string
     | AccountId of uint32    
     | StatusU32 of Parameter * uint32
     | StatusI32 of Parameter * int
