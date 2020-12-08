@@ -20,7 +20,7 @@ let Dispatch (stream: Stream) (command: Command) =
         | DoneLoadingMap -> BitConverter.GetBytes 0x7dus
         | RequestServerTick -> Array.concat [|
             BitConverter.GetBytes 0x0360us
-            BitConverter.GetBytes (Utils.GetCurrentTick())
+            BitConverter.GetBytes (Scheduling.GetCurrentTick())
             |]
         | RequestMove (x, y, d) -> Array.concat [|
             BitConverter.GetBytes 0x035fus
