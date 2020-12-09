@@ -1,5 +1,6 @@
 ﻿module Yggdrasil.AgentMailbox
 
+open System
 open NLog
 open Yggdrasil.Messages
 open Yggdrasil.Navigation
@@ -60,8 +61,7 @@ let OnI16ParameterUpdate code value (parameters: Parameters) =
     | _ -> ()
     
 let OnU16ParameterUpdate code value (parameters: Parameters) =
-    match code with
-    | Parameter.Speed -> parameters.Speed <- value
+    match code with    
     | Parameter.AttackSpeed -> parameters.AttackSpeed <- value
     | Parameter.Attack1 -> parameters.Attack1 <- value
     | Parameter.Attack2 -> parameters.Attack2 <- value
@@ -72,6 +72,7 @@ let OnU16ParameterUpdate code value (parameters: Parameters) =
     | Parameter.MagicDefense1 -> parameters.MagicDefense1 <- value
     | Parameter.MagicDefense2 -> parameters.MagicDefense2 <- value
     | Parameter.AttackRange -> parameters.AttackRange <- value
+    | Parameter.Speed -> parameters.Speed <- Convert.ToInt64(value)
     | _ -> ()
     
 let OnI32ParameterUpdate code value (parameters: Parameters) =
@@ -113,7 +114,9 @@ let MailboxFactory () =
                 | Scheduler s -> state.Scheduler <- s
                 | Mailbox mailbox -> state.Mailbox <- mailbox                
                 | Command c -> state.Dispatch c
-                | Map m -> state.Map <- m
+                | Map m ->
+                    Maps.LoadMap m
+                    state.Map <- m
                 | CharacterName n -> state.Name <- n
                 | AddSkill s -> state.Skills <- List.append [s] state.Skills
                 | StatusU16 (p, v) -> OnU16ParameterUpdate p v state.Parameters
@@ -132,18 +135,15 @@ let MailboxFactory () =
                 | ServerTick t -> state.TickOffset <- t - GetCurrentTick()
                 | SelfIsWalking d ->
                     state.PosX <- d.StartX; state.PosY <- d.StartY
-                    //TODO when does server sends map name?
-                    state.WalkPath <- Pathfinding.AStar Maps.Maps.["maps/prontera.fld2"]
+                    state.WalkPath <- Pathfinding.AStar (Maps.GetMapData (state.Map))
                                           (state.PosX, state.PosY) (d.EndX, d.EndY)
-                    //TODO calculate speed 
-                    state.Scheduler (d.StartTime - state.TickOffset + 200L) PerformStep
+                    state.Scheduler (d.StartTime - state.TickOffset + state.Parameters.Speed) PerformStep
                 | Print -> Logger.Info("{state:A}", state)                
                 | PerformStep ->                    
                     match state.WalkPath with
                     | (x, y) :: path ->
                        state.PosX <- x; state.PosY <- y; state.WalkPath <- path
-                       //TODO calculate speed
-                       state.Scheduler (GetCurrentTick() + 200L) PerformStep
+                       state.Scheduler (GetCurrentTick() + state.Parameters.Speed) PerformStep
                     | [] -> ()
                 | e -> ()//Logger.Info("Received report {id:A}", e)
                 return! loop state

@@ -48,7 +48,7 @@ type Parameters =
         mutable Flee1: int16
         mutable Flee2: int16
         mutable Critical: int16
-        mutable Speed: uint16
+        mutable Speed: int64
         mutable STRUpgradeCost: int
         mutable AGIUpgradeCost: int
         mutable VITUpgradeCost: int
@@ -64,9 +64,10 @@ type Parameters =
         VITRaw=(0us,0s);INTRaw=(0us,0s);DEXRaw=(0us,0s);LUKRaw=(0us,0s)
         AttackRange=0us;AttackSpeed=0us;Attack1=0us;Attack2=0us;MagicAttack1=0us
         MagicAttack2=0us;Defense1=0us;Defense2=0us;MagicDefense1=0us
-        MagicDefense2=0us;Hit=0s;Flee1=0s;Flee2=0s;Critical=0s;Speed=0us
+        MagicDefense2=0us;Hit=0s;Flee1=0s;Flee2=0s;Critical=0s        
         STRUpgradeCost=0;AGIUpgradeCost=0;VITUpgradeCost=0;INTUpgradeCost=0
         DEXUpgradeCost=0;LUKUpgradeCost=0
+        Speed=150L //This is seems to be a constant that the server doesnt send
     }
 
 type Unit = {

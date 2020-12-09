@@ -29,9 +29,14 @@ let ReadMap (bytes: byte[]) =
     }
     
 let Maps = Dictionary<string, MapData>()
+
+let LoadMap name =
+    let filename = sprintf "maps/%s.fld2" name
+    let data = File.ReadAllBytes (filename)
+    Maps.[name] <- ReadMap data
+
+let GetMapData name =
+    if not <| Maps.ContainsKey name then LoadMap name
+    Maps.[name]
     
-let LoadMaps () =
-    let name = "maps/prontera.fld2"
-    let data = File.ReadAllBytes (name)
-    Maps.[name] <- ReadMap data 
     

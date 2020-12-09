@@ -23,7 +23,6 @@ let main argv =
     //let tick = Scheduling.GetCurrentTick()
     //dispatcher.Post <| (tick+500u, TimedEvent tick)
     //printf "Done"
-    Maps.LoadMaps()
     let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)
     let (mailboxes, login) = API.CreateServerMailboxes loginServer BehaviorFactory
     login "roboco" "111111"
