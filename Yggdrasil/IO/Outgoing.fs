@@ -4,7 +4,7 @@ open System
 open System.IO
 open NLog
 open Yggdrasil
-open Yggdrasil.Messages
+open Yggdrasil.Types
 let Logger = LogManager.GetCurrentClassLogger()
 
 let PackPosition (x, y, dir) =

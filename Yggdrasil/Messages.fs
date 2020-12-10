@@ -2,10 +2,6 @@
 
 open Yggdrasil.Types
 
-type Command =
-    | DoneLoadingMap
-    | RequestServerTick
-    | RequestMove of byte * byte
     
 
 type Mailbox = MailboxProcessor<Report>

@@ -14,7 +14,6 @@
 
     <ItemGroup>
         <Compile Include="Types.fs" />
-        <Compile Include="Messages.fs" />
         <Compile Include="Scheduling.fs" />
         <Compile Include="Utils.fs" />
         <Compile Include="Navigation\Maps.fs" />
@@ -24,7 +23,6 @@
         <Compile Include="IO\Handshake.fs" />
         <Compile Include="IO\Incoming.fs" />
         <Compile Include="IO\Outgoing.fs" />
-        <Compile Include="AgentMailbox.fs" />
         <Compile Include="API.fs" />        
     </ItemGroup>
 

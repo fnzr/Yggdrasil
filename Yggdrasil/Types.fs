@@ -137,3 +137,26 @@ type WalkData = {
     EndX: int
     EndY: int
 }
+type Command =
+    | DoneLoadingMap
+    | RequestServerTick
+    | RequestMove of byte * byte
+
+type Agent =
+    {
+        Name: string
+        Dispatch: Command -> unit
+        mutable MapName: string
+        mutable Skills: Skill list
+        mutable Parameters: Parameters
+        mutable WeightSoftCap: int
+        mutable Position: int * int
+        mutable Destination: (int * int) option
+        mutable TickOffset: int64    
+    }
+    static member Create name dispatcher = {
+        Name = name; Dispatch = dispatcher; MapName = "";Skills=List.empty
+        Parameters = Parameters.Default;WeightSoftCap=0
+        Position=(0, 0);Destination=None
+        TickOffset=0L
+    }

@@ -22,10 +22,10 @@ let main argv =
     //let dispatcher = Scheduling.DispatcherFactory()
     //let tick = Scheduling.GetCurrentTick()
     //dispatcher.Post <| (tick+500u, TimedEvent tick)
-    //printf "Done"
+    printf "Done"
     let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)
-    let (mailboxes, login) = API.CreateServerMailboxes loginServer BehaviorFactory
+    let (agents, login) = API.CreateServerMailboxes loginServer BehaviorFactory
     login "roboco" "111111"
-    API.CommandLineHandler mailboxes
+    API.CommandLineHandler agents
     //Console.ReadKey() |> ignore 
     0 // return an integer exit code

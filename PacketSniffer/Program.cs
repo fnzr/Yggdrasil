@@ -99,7 +99,7 @@ namespace PacketSniffer
                 else
                 {
                     var queue = _clientToMapQueue.Concat(tcpPacket.PayloadData).ToArray();
-                    _clientToMapQueue = Stream.Reader(queue, _clientToMapCallback);
+                    //_clientToMapQueue = Stream.Reader(queue, _clientToMapCallback);
                 }
             }
         }
@@ -122,18 +122,8 @@ namespace PacketSniffer
         private static byte[] _clientToMapQueue = new byte[] {};
         
         private static FSharpFunc<byte[], Unit> _blankWriter = FSharpFunc<byte[], Unit>.FromConverter(_ => null);
-
-        private static FSharpFunc<ushort, FSharpFunc<byte[], Unit>> _mapToClientCallback =
-            Incoming.ZonePacketHandler(FSharpFunc<Messages.Report, Unit>.FromConverter(Publish)); 
         
-        private static FSharpFunc<ushort, FSharpFunc<byte[], Unit>> _clientToMapCallback =
-            Incoming.ZonePacketHandler(FSharpFunc<Messages.Report, Unit>.FromConverter(Publish));
 
-
-        private static Unit Publish(Messages.Report report)
-        {
-            return null;
-        }
 
         private static Unit MapToClientCallbackNative(ushort packetType, byte[] data)
         {
