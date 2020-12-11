@@ -13,6 +13,7 @@
     </PropertyGroup>
 
     <ItemGroup>        
+        <Compile Include="BehaviorTree.fs" />        
         <Compile Include="Types.fs" />
         <Compile Include="Utils.fs" />
         <Compile Include="Navigation\Maps.fs" />
