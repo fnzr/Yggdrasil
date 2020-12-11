@@ -24,15 +24,15 @@ let CheckCount (state: MyState) =
     if state.Counter < 3 then Status.Success
     else Status.Success
     
-let Tree = Sequence([|Leaf <| Action(CheckCount)
-                      Leaf <| Action(IncreaseCounter)
-                      Leaf <| Action(IncreaseCounter)
-                      Leaf <| Action(CheckCount)
-                      Leaf <| Action(IncreaseCounter)
-                      Leaf <| Action(CheckCount)|])
+let Tree = Sequence([|Action(CheckCount)
+                      Action(IncreaseCounter)
+                      Action(IncreaseCounter)
+                      Action(CheckCount)
+                      Action(IncreaseCounter)
+                      Action(CheckCount)|])
 
-let RootFun _ status _ = ActionResult.Result status
-let Root : Node<MyState> = Branch <| RootFun
+let RootFun status = status
+let Root = Action(RootFun) :> INode
     
 let rec Run tree =
     let state = {Counter = 0}
@@ -40,7 +40,7 @@ let rec Run tree =
         match s with
         | Action a -> run <| a state
         | Result s -> printfn "Tree finished with status %A" s
-    run <| Tree [Root] Status.Initializing state 
+    run <| Tree.Step [Root] Status.Initializing state 
 
 [<EntryPoint>]
 let main argv =
