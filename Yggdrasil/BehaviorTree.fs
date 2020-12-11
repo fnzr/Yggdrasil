@@ -1,47 +1,85 @@
 ﻿module Yggdrasil.BehaviorTree
 
+open FSharpx.Collections
+
 type Status = Success | Failure | Initializing | Running
 
-type INode = interface end
+and ActionResult<'T> =
+    | Action of Node<'T> * Node<'T> list * Queue<Switch<'T>>
+    | Result of Status
+and Node<'T> =
+    abstract Step: Status -> Node<'T> list -> Queue<Switch<'T>> -> 'T -> ActionResult<'T>
+and Switch<'T> = 'T -> (Node<'T> * Node<'T> list) option
 
-type ActionResult<'T> =
-    |Action of ('T -> ActionResult<'T>)
-    |Result of Status
-and IBranch =
-    inherit INode
-    abstract Step: stack: INode list -> status: Status -> ('T -> ActionResult<'T>)
-and ILeaf<'T> =
-    inherit INode
-    abstract Step: stack: INode list -> 'T -> ActionResult<'T>
-    
-let Move (node: INode) (stack: INode list) status =
-    match node with
-    | :? IBranch as b -> b.Step stack status
-    | :? ILeaf<'T> as l -> l.Step stack
-    | _ -> invalidOp "Invalid subtype for node"    
+let NextStep (node: Node<'T>, stack, switches) state =
+    let rec checkSwitches (queue: Queue<Switch<'T>>) =
+        match queue.TryUncons with
+        | Some(switch, q) ->
+            match switch state with
+            | Some(newNode, newStack) -> newNode.Step Initializing newStack q state
+            | None -> checkSwitches q
+        | None -> node.Step Running stack switches state
+    checkSwitches switches
+
+type Root<'T>(node: Node<'T>) =
+    interface Node<'T> with
+        member this.Step status _ _ _ = ActionResult.Result status
+    member this.Start state = node.Step Initializing [this :> Node<'T>] Queue.empty state
 
 type Action<'T>(action: 'T -> Status) =
-    interface ILeaf<'T> with
-        member this.Step (stack: INode list) state =
-            let result = action state
-            match result with
-            | Running -> ActionResult.Action <| (this :> ILeaf<'T>).Step stack
-            | status -> Move stack.Head stack.Tail status state
+    interface Node<'T> with
+        member this.Step status stack queue state =
+            match action state with
+            | Running -> ActionResult.Action <| (this :> Node<'T>, stack, queue)
+            | status -> stack.Head.Step status stack.Tail queue state
 
-type Sequence(children: INode[]) =
-    interface IBranch with
-        member this.Step stack status =
+type Sequence<'T>(children: Node<'T>[]) =
+    interface Node<'T> with
+        member this.Step status stack queue state =
             match status with
             | Initializing ->
-                let s = (Sequence children.[1..]) :> INode :: stack
-                Move children.[0] s Initializing
-            | Failure -> Move stack.Head stack.Tail Failure
+                let s = Sequence(children.[1..]) :> Node<'T> :: stack
+                children.[0].Step Initializing s queue state
+            | Failure ->stack.Head.Step Failure stack.Tail queue state
             | Success ->
                 match children with
-                | [||] -> Move stack.Head stack.Tail Success                  
+                | [||] -> stack.Head.Step Success stack.Tail queue state
                 | remaining ->
-                    let s = Sequence(children.[1..]) :> INode :: stack
-                    Move remaining.[0] s Initializing
+                    let s = Sequence(children.[1..]) :> Node<'T> :: stack
+                    remaining.[0].Step Initializing s queue state
             | Running -> invalidOp "Invalid status for Sequence"
-    member this.Step = (this :> IBranch).Step
+    member this.Step = (this :> Node<'T>).Step
+    
+type Selector<'T>(children: Node<'T>[]) =
+    interface Node<'T> with
+        member this.Step status stack queue state =
+            match status with
+            | Initializing ->
+                let s = Selector(children.[1..]) :> Node<'T> :: stack
+                children.[0].Step Initializing s queue state
+            | Success ->stack.Head.Step Success stack.Tail queue state
+            | Failure ->
+                match children with
+                | [||] -> stack.Head.Step Failure stack.Tail queue state
+                | remaining ->
+                    let s = Selector(children.[1..]) :> Node<'T> :: stack
+                    remaining.[0].Step Initializing s queue state
+            | Running -> invalidOp "Invalid status for Selector"
+    member this.Step = (this :> Node<'T>).Step
+    
+type ActiveSelector<'T>(switch, high: Node<'T>, low: Node<'T>) =
+    let ShouldSwitch stack state =
+        if switch state then Some(high, stack)
+        else None
+    
+    interface Node<'T> with
+        member this.Step status stack queue state =            
+            match status with
+            | Initializing ->
+                if switch state then high.Step status stack queue state
+                else
+                    let newQ = queue.Conj <| ShouldSwitch stack
+                    low.Step status stack newQ state
+            | _ -> invalidOp "Invalid status for ActiveSelector"
+                    
     

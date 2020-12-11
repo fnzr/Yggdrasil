@@ -24,27 +24,39 @@ let CheckCount (state: MyState) =
     if state.Counter < 3 then Status.Success
     else Status.Success
     
-let Tree = Sequence([|Action(CheckCount)
-                      Action(IncreaseCounter)
-                      Action(IncreaseCounter)
-                      Action(CheckCount)
-                      Action(IncreaseCounter)
-                      Action(CheckCount)|])
-
-let RootFun status = status
-let Root = Action(RootFun) :> INode
+let Stuck _ =
+    printfn "Stuck!"
+    Status.Running
+let Terminate _ =
+    printfn "Reached end!"
+    Status.Success
     
-let rec Run tree =
-    let state = {Counter = 0}
+let HighPriority (state: MyState) =
+    printfn "Reached high priority node. Count: %d" state.Counter
+    Status.Success
+
+let LowPriority = Sequence([|
+                              Action(CheckCount)
+                              Action(IncreaseCounter)
+                              Action(IncreaseCounter)
+                              Action(CheckCount)
+                              Action(IncreaseCounter)
+                              Action(IncreaseCounter)
+                              Action(Stuck)
+                              Action(Terminate)|])    
+let Switch state = state.Counter > 2  
+let ASelector = ActiveSelector(Switch, Action(HighPriority), LowPriority)
+
+let rec Run (tree: Root<'T>) state =    
     let rec run s =
         match s with
-        | Action a -> run <| a state
+        | Action (node, stack, queue) -> run <| NextStep (node, stack, queue) state
         | Result s -> printfn "Tree finished with status %A" s
-    run <| Tree.Step [Root] Status.Initializing state 
+    run <| tree.Start state 
 
 [<EntryPoint>]
 let main argv =
-    Run Tree
+    Run (Root(ASelector)) {Counter = 0}
     //let map = Yggdrasil.Navigation.Maps.MapCacheParser()    
     //let sw = Stopwatch()
     //sw.Start()
