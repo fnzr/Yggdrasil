@@ -1,5 +1,7 @@
 module Yggdrasil.Types
 
+open System.Threading
+
 type Parameter =
     |Speed=0us|Karma=3us|Manner=4us|HP=5us|MaxHP=6us|SP=7us|MaxSP=8us
     |StatusPoints=9us|BaseLevel=11us|SkillPoints=12us
@@ -11,56 +13,50 @@ type Parameter =
     |AttackRange=1000us|BaseExp=1us|JobExp=2us|NextBaseExp=22us
     |NextJobExp=23us|USTR=32us|UAGI=33us|UVIT=34us|UINT=35us|UDEX=36us|ULUK=37us
 
-type Parameters =
+type BattleParameters =
     {
-        mutable BaseLevel: uint32
-        mutable JobLevel: uint32
-        mutable HP: uint32
-        mutable MaxHP: uint32
-        mutable SP: uint32
-        mutable MaxSP: uint32
-        mutable BaseExp: int64
-        mutable JobExp: int64
-        mutable NextBaseExp: int64
-        mutable NextJobExp: int64
-        mutable StatusPoints: uint32
-        mutable SkillPoints: uint32
-        mutable Weight: uint32
-        mutable MaxWeight: uint32
-        mutable Zeny: int
-        mutable STRRaw: uint16 * int16
-        mutable AGIRaw: uint16 * int16
-        mutable VITRaw: uint16 * int16
-        mutable INTRaw: uint16 * int16
-        mutable DEXRaw: uint16 * int16
-        mutable LUKRaw: uint16 * int16
-        mutable AttackRange: uint16
-        mutable AttackSpeed: uint16
-        mutable Attack1: uint16
-        mutable Attack2: uint16
-        mutable MagicAttack1: uint16
-        mutable MagicAttack2: uint16
-        mutable Defense1: uint16
-        mutable Defense2: uint16
-        mutable MagicDefense1: uint16
-        mutable MagicDefense2: uint16
-        mutable Hit: int16
-        mutable Flee1: int16
-        mutable Flee2: int16
-        mutable Critical: int16
-        mutable Speed: int64
-        mutable STRUpgradeCost: int
-        mutable AGIUpgradeCost: int
-        mutable VITUpgradeCost: int
-        mutable INTUpgradeCost: int
-        mutable DEXUpgradeCost: int
-        mutable LUKUpgradeCost: int
+        //BaseLevel: uint32
+        //JobLevel: uint32
+        //HP: uint32
+        //MaxHP: uint32
+        //SP: uint32
+        //MaxSP: uint32
+        //BaseExp: int64
+        //JobExp: int64
+        //NextBaseExp: int64
+        //NextJobExp: int64
+        //StatusPoints: uint32
+        //SkillPoints: uint32        
+        STRRaw: uint16 * int16
+        AGIRaw: uint16 * int16
+        VITRaw: uint16 * int16
+        INTRaw: uint16 * int16
+        DEXRaw: uint16 * int16
+        LUKRaw: uint16 * int16
+        AttackRange: uint16
+        AttackSpeed: uint16
+        Attack1: uint16
+        Attack2: uint16
+        MagicAttack1: uint16
+        MagicAttack2: uint16
+        Defense1: uint16
+        Defense2: uint16
+        MagicDefense1: uint16
+        MagicDefense2: uint16
+        Hit: int16
+        Flee1: int16
+        Flee2: int16
+        Critical: int16
+        Speed: int64
+        STRUpgradeCost: int
+        AGIUpgradeCost: int
+        VITUpgradeCost: int
+        INTUpgradeCost: int
+        DEXUpgradeCost: int
+        LUKUpgradeCost: int
     }
     static member Default = {
-        BaseLevel=0u;JobLevel=0u
-        HP=0u;MaxHP=0u;SP=0u;MaxSP=0u;BaseExp=0L;JobExp=0L
-        NextBaseExp=0L;NextJobExp=0L;StatusPoints=0u;SkillPoints=0u
-        Weight=0u;MaxWeight=0u;Zeny=0;STRRaw=(0us,0s);AGIRaw=(0us,0s)
+        STRRaw=(0us,0s);AGIRaw=(0us,0s)
         VITRaw=(0us,0s);INTRaw=(0us,0s);DEXRaw=(0us,0s);LUKRaw=(0us,0s)
         AttackRange=0us;AttackSpeed=0us;Attack1=0us;Attack2=0us;MagicAttack1=0us
         MagicAttack2=0us;Defense1=0us;Defense2=0us;MagicDefense1=0us
@@ -69,6 +65,42 @@ type Parameters =
         DEXUpgradeCost=0;LUKUpgradeCost=0
         Speed=150L //This is seems to be a constant that the server doesnt send
     }
+    
+type Level =
+    {
+        BaseLevel: uint32
+        JobLevel: uint32
+        BaseExp: int64
+        JobExp: int64
+        NextBaseExp: int64
+        NextJobExp: int64
+        StatusPoints: uint32
+        SkillPoints: uint32
+    }
+    
+    static member Default = {
+        BaseLevel=0u;JobLevel=0u;BaseExp=0L;JobExp=0L
+        NextBaseExp=0L;NextJobExp=0L;StatusPoints=0u;SkillPoints=0u
+    }
+    
+type HPSP =
+    {
+        HP: uint32
+        MaxHP: uint32
+        SP: uint32
+        MaxSP: uint32
+    }    
+    static member Default = {HP=0u;MaxHP=0u;SP=0u;MaxSP=0u;}
+    
+type Inventory =
+    {
+        WeightSoftCap: int
+        Weight: uint32
+        MaxWeight: uint32
+        Zeny: int
+    }
+    
+    static member Default = {WeightSoftCap=0;Weight=0u;MaxWeight=0u;Zeny=0}
 
 type Unit = {
     ObjectType: byte
@@ -145,18 +177,70 @@ type Command =
 type Agent =
     {
         Name: string
+        Position: int * int
+        Destination: (int * int) option
+        Inventory: Inventory
+        BattleParameters: BattleParameters
+        Level: Level
+        Skills: Skill list
+        HPSP: HPSP
+        Map: string
+    }
+    static member Default = {
+        Name="";Position=(0,0);Destination=None;Inventory=Inventory.Default
+        BattleParameters=BattleParameters.Default;Level=Level.Default
+        Skills=[];HPSP=HPSP.Default;Map=""
+    }
+
+type State =
+    {
+        BehaviorMailbox: MailboxProcessor<StateMessage>
+        
+        //i want to remove this from here, but not sure...
+        //used only (for now) on OnConnectionAccepted
         Dispatch: Command -> unit
+        
+        //necessary for pathfinding
         mutable MapName: string
-        mutable Skills: Skill list
-        mutable Parameters: Parameters
-        mutable WeightSoftCap: int
-        mutable Position: int * int
-        mutable Destination: (int * int) option
-        mutable TickOffset: int64    
+        
+        //Internal control
+        mutable TickOffset: int64
+        mutable WalkCancellationToken: CancellationTokenSource option
+        
+        //"stacking" states
+        //changes are applied and posted as immutable structures to Behavior
+        //these *references* are mutable, but the structures arent.
+        mutable HPSP: HPSP
+        mutable Level: Level
+        mutable BattleParameters: BattleParameters
+        mutable Inventory: Inventory       
+        
     }
-    static member Create name dispatcher = {
-        Name = name; Dispatch = dispatcher; MapName = "";Skills=List.empty
-        Parameters = Parameters.Default;WeightSoftCap=0
-        Position=(0, 0);Destination=None
-        TickOffset=0L
+    static member Create dispatcher mailbox = {
+        BehaviorMailbox = mailbox; Level = Level.Default; HPSP = HPSP.Default
+        Inventory=Inventory.Default;MapName = ""
+        Dispatch = dispatcher;
+        BattleParameters = BattleParameters.Default;
+        TickOffset=0L; WalkCancellationToken=None
     }
+    
+    member this.PostPosition position = this.BehaviorMailbox.Post <| Position position
+    member this.PostDestination dest = this.BehaviorMailbox.Post <| Destination dest
+    member this.PostNewSkill skill = this.BehaviorMailbox.Post <| NewSkill skill
+    member this.PostInventory () = this.BehaviorMailbox.Post <| Inventory this.Inventory
+    member this.PostBattleParameters () = this.BehaviorMailbox.Post <| BattleParameters this.BattleParameters
+    member this.PostLevel () = this.BehaviorMailbox.Post <| Level this.Level
+    member this.PostHPSP () = this.BehaviorMailbox.Post <| HPSP this.HPSP
+    member this.PostMap name = this.BehaviorMailbox.Post <| Map name
+and
+    StateMessage =
+    | Position of (int * int)
+    | Destination of (int * int) option
+    | Inventory of Inventory
+    | BattleParameters of BattleParameters
+    | Level of Level
+    | NewSkill of Skill
+    | HPSP of HPSP
+    | Map of string
+    | Name of string
+    | GetState of AsyncReplyChannel<Agent>

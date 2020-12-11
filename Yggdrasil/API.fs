@@ -12,30 +12,33 @@ open Yggdrasil.Types
 
 let Logger = LogManager.GetCurrentClassLogger()
 
-let Agents = Dictionary<string, Agent>()
+let Agents = Dictionary<string, State>()
 let mutable ActiveAgent = None
 
-let onAuthenticationResult (agents: Dictionary<string, Agent>)
+let onAuthenticationResult (states: Dictionary<string, State>)
     (behaviorFactory: uint32 -> unit) (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
         //behaviorFactory info.AccountId
         //let scheduler = Scheduling.ScheduledTimedCallback <| Scheduling.SchedulerFactory(mailbox)
-        //mailbox.Post <| Scheduler(scheduler)        
+        //mailbox.Post <| Scheduler(scheduler)
+        let behavior = Mailbox.BehaviorFactory()
+        behavior.Post <| Name info.CharacterName
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
         let stream = conn.GetStream()
-        let agent = Agent.Create info.CharacterName (Outgoing.Dispatch stream)
-        agents.[info.CharacterName] <- agent
-        agent.MapName <- info.MapName.Substring(0, info.MapName.Length - 4)
+        let state = State.Create (Outgoing.Dispatch stream) behavior
+        states.[info.CharacterName] <- state
+        state.MapName <- info.MapName.Substring(0, info.MapName.Length - 4)
+        behavior.Post <| Map state.MapName
         stream.Write(Handshake.WantToConnect info)
         
-        ActiveAgent <- Some(agent)
+        ActiveAgent <- Some(state)
         Async.Start <|
         async {
             try
                 try                
-                    let packetHandler = Incoming.OnPacketReceived agent
+                    let packetHandler = Incoming.OnPacketReceived state
                     return! Array.empty |> IO.Stream.GetReader stream packetHandler
                 with
                 | :? IOException ->
@@ -68,7 +71,7 @@ let MakeMessage<'T> (case: UnionCaseInfo) (args: string[]) =
         let convert = fun i (p: PropertyInfo) -> ArgumentConverter args.[i] p.PropertyType
         let values = Array.mapi convert <| case.GetFields()    
         FSharpValue.MakeUnion(case, values) :?> 'T
-let rec CommandLineHandler (agents: Dictionary<string, Agent>) =
+let rec CommandLineHandler (agents: Dictionary<string, State>) =
     printf ">"
     let CommandCases = FSharpType.GetUnionCases(typeof<Command>)
     
