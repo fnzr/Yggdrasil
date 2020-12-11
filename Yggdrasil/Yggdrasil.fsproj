@@ -14,7 +14,6 @@
 
     <ItemGroup>        
         <Compile Include="Types.fs" />
-        <Compile Include="Scheduling.fs" />
         <Compile Include="Utils.fs" />
         <Compile Include="Navigation\Maps.fs" />
         <Compile Include="Navigation\Pathfinding.fs" />

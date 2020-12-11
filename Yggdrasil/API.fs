@@ -19,21 +19,19 @@ let onAuthenticationResult (states: Dictionary<string, State>)
     (behaviorFactory: uint32 -> unit) (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
-        //behaviorFactory info.AccountId
-        //let scheduler = Scheduling.ScheduledTimedCallback <| Scheduling.SchedulerFactory(mailbox)
-        //mailbox.Post <| Scheduler(scheduler)
-        let behavior = Mailbox.BehaviorFactory()
-        behavior.Post <| Name info.CharacterName
+        let map = info.MapName.Substring(0, info.MapName.Length - 4)
+        let behavior = Mailbox.BehaviorFactory info.CharacterName map
+        
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
         let stream = conn.GetStream()
+        
         let state = State.Create (Outgoing.Dispatch stream) behavior
         states.[info.CharacterName] <- state
-        state.MapName <- info.MapName.Substring(0, info.MapName.Length - 4)
-        behavior.Post <| Map state.MapName
         stream.Write(Handshake.WantToConnect info)
         
         ActiveAgent <- Some(state)
+        
         Async.Start <|
         async {
             try

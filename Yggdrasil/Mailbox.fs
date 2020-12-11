@@ -12,10 +12,9 @@ let ProcessMessage agent message =
     | NewSkill s -> {agent with Skills = s :: agent.Skills}
     | HPSP hs -> {agent with HPSP = hs}
     | Map m -> {agent with Map = m}
-    | Name n -> {agent with Name = n}
     | GetState channel -> channel.Reply(agent); agent 
     
-let BehaviorFactory () =
+let BehaviorFactory name map =
     MailboxProcessor.Start(
         fun inbox ->
             let rec loop agent = async {
@@ -25,5 +24,5 @@ let BehaviorFactory () =
                     printfn "Starting position: %A" newAgent.Position
                 return! loop newAgent
             }
-            loop Agent.Default
+            loop <| Agent.Create name map
     )

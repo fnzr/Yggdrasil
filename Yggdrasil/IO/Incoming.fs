@@ -7,7 +7,6 @@ open System.Runtime.InteropServices
 open System.Threading
 open Microsoft.FSharp.Reflection
 open NLog
-open Yggdrasil
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 open Yggdrasil.Utils
@@ -217,7 +216,7 @@ let OnAgentStartedWalking state (data: byte[]) =
          )
 let OnConnectionAccepted state (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]
-    state.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Scheduling.GetCurrentTick()
+    state.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Handshake.GetCurrentTick()
     state.PostPosition (Convert.ToInt32 x, Convert.ToInt32 y)
     //Logger.Info("Starting position: {pos}", agent.Position)
     state.Dispatch Command.DoneLoadingMap
@@ -246,7 +245,7 @@ let OnPacketReceived state packetType (data: byte[]) =
         | 0x0a9bus (* list of items in the equip switch window *) -> ()
         | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> ()
         | 0x0091us (* ZC_NPCACK_MAPMOVE *) -> ()
-        | 0x007fus -> state.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - Scheduling.GetCurrentTick()
+        | 0x007fus -> state.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - Handshake.GetCurrentTick()
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()
         | 0x00b7us (* ZC_MENU_LIST *) -> ()

@@ -174,6 +174,8 @@ type Command =
     | RequestServerTick
     | RequestMove of byte * byte
 
+//this should be used in a single thread, in the behavior mailbox.
+//it should be fine to make it mutable if needed...
 type Agent =
     {
         Name: string
@@ -186,10 +188,10 @@ type Agent =
         HPSP: HPSP
         Map: string
     }
-    static member Default = {
-        Name="";Position=(0,0);Destination=None;Inventory=Inventory.Default
+    static member Create name map = {
+        Name=name;Position=(0,0);Destination=None;Inventory=Inventory.Default
         BattleParameters=BattleParameters.Default;Level=Level.Default
-        Skills=[];HPSP=HPSP.Default;Map=""
+        Skills=[];HPSP=HPSP.Default;Map=map
     }
 
 type State =
@@ -242,5 +244,4 @@ and
     | NewSkill of Skill
     | HPSP of HPSP
     | Map of string
-    | Name of string
     | GetState of AsyncReplyChannel<Agent>

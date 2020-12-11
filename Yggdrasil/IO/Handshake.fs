@@ -2,6 +2,7 @@ module Yggdrasil.IO.Handshake
 
 open System
 open System
+open System.Diagnostics
 open System.IO
 open System.Net
 open System.Net.Sockets
@@ -9,6 +10,10 @@ open System.Text
 open NLog
 open Yggdrasil.Utils
 open Yggdrasil.IO.Stream
+
+let Stopwatch = Stopwatch()
+Stopwatch.Start()
+let GetCurrentTick() = Stopwatch.ElapsedMilliseconds
 
 type LoginCredentials = {
     LoginServer: IPEndPoint
