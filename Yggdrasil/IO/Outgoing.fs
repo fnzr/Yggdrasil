@@ -23,6 +23,7 @@ let Dispatch (stream: Stream) (command: Command) =
             |]
         | RequestMove (x, y) -> Array.concat [|
             BitConverter.GetBytes 0x035fus
-            PackPosition (x, y, 1uy)
+            PackPosition (Convert.ToByte x, Convert.ToByte y, 1uy)
             |]
+    printfn "Dispatching"
     stream.Write(bytes, 0, bytes.Length)

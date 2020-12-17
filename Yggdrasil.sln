@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PacketSniffer", "PacketSnif
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Sunna", "Sunna\Sunna.fsproj", "{B570F867-323D-4040-8316-06D1D3C69EEA}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Tests", "Tests\Tests.fsproj", "{856EF70B-C304-4ABD-B165-60AC68626CC2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{B570F867-323D-4040-8316-06D1D3C69EEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B570F867-323D-4040-8316-06D1D3C69EEA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B570F867-323D-4040-8316-06D1D3C69EEA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{856EF70B-C304-4ABD-B165-60AC68626CC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{856EF70B-C304-4ABD-B165-60AC68626CC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{856EF70B-C304-4ABD-B165-60AC68626CC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{856EF70B-C304-4ABD-B165-60AC68626CC2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

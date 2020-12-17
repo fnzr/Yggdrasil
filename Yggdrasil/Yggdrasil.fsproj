@@ -13,6 +13,7 @@
     </PropertyGroup>
 
     <ItemGroup>        
+        <Compile Include="BehaviorParser.fs" />        
         <Compile Include="BehaviorTree.fs" />        
         <Compile Include="Types.fs" />
         <Compile Include="Utils.fs" />
@@ -35,6 +36,7 @@
       <PackageReference Include="FSharpx.Collections" Version="2.1.3" />
       <PackageReference Include="NLog" Version="4.7.5" />
       <PackageReference Include="OptimizedPriorityQueue" Version="5.0.0" />
+      <PackageReference Include="YamlDotNet" Version="9.1.0" />
     </ItemGroup>
 
     <ItemGroup>

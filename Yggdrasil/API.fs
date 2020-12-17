@@ -7,6 +7,7 @@ open System.Net.Sockets
 open System.Reflection
 open Microsoft.FSharp.Reflection
 open NLog
+open Yggdrasil.BehaviorTree
 open Yggdrasil.IO
 open Yggdrasil.Types
 
@@ -16,17 +17,19 @@ let Agents = Dictionary<string, State>()
 let mutable ActiveAgent = None
 
 let onAuthenticationResult (states: Dictionary<string, State>)
-    (behaviorFactory: uint32 -> unit) (result:  Result<Handshake.ZoneCredentials, string>) =
+    (behaviorFactory: string -> unit) (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
         let map = info.MapName.Substring(0, info.MapName.Length - 4)
-        let behavior = Mailbox.BehaviorFactory info.CharacterName map
+        let behaviorTree = behaviorFactory info.CharacterName        
         
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
         let stream = conn.GetStream()
+        let dispatcher = (Outgoing.Dispatch stream)
         
-        let state = State.Create (Outgoing.Dispatch stream) behavior
+        let mailbox = Mailbox.MailboxFactory info.CharacterName map dispatcher
+        let state = State.Create dispatcher map mailbox
         states.[info.CharacterName] <- state
         stream.Write(Handshake.WantToConnect info)
         
@@ -39,8 +42,8 @@ let onAuthenticationResult (states: Dictionary<string, State>)
                     let packetHandler = Incoming.OnPacketReceived state
                     return! Array.empty |> IO.Stream.GetReader stream packetHandler
                 with
-                | :? IOException ->
-                    Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)                
+                //| :? IOException ->
+                  //  Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)                
                 | :? ObjectDisposedException -> ()
             finally
                 //mailbox.Post <| Disconnected

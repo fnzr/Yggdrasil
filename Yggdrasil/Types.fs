@@ -172,8 +172,14 @@ type WalkData = {
 type Command =
     | DoneLoadingMap
     | RequestServerTick
-    | RequestMove of byte * byte
-
+    | RequestMove of int * int
+    
+type Goals =
+    {
+        mutable Position: (int * int) option
+    }
+    static member Default = {Position=None}
+    
 //this should be used in a single thread, in the behavior mailbox.
 //it should be fine to make it mutable if needed...
 type Agent =
@@ -187,14 +193,17 @@ type Agent =
         Skills: Skill list
         HPSP: HPSP
         Map: string
+        Goals: Goals
+        IsConnected: bool
+        Mailbox: MailboxProcessor<StateMessage>
+        Dispatcher: Command -> unit
     }
-    static member Create name map = {
-        Name=name;Position=(0,0);Destination=None;Inventory=Inventory.Default
+    static member Create name map mailbox dispatcher = {
+        Name=name;Map=map;Mailbox=mailbox;Dispatcher=dispatcher;Position=(0,0);Destination=None;Inventory=Inventory.Default
         BattleParameters=BattleParameters.Default;Level=Level.Default
-        Skills=[];HPSP=HPSP.Default;Map=map
+        Skills=[];HPSP=HPSP.Default;Goals=Goals.Default;IsConnected=false
     }
-
-type State =
+and State =
     {
         BehaviorMailbox: MailboxProcessor<StateMessage>
         
@@ -218,9 +227,9 @@ type State =
         mutable Inventory: Inventory       
         
     }
-    static member Create dispatcher mailbox = {
+    static member Create dispatcher map mailbox = {
         BehaviorMailbox = mailbox; Level = Level.Default; HPSP = HPSP.Default
-        Inventory=Inventory.Default;MapName = ""
+        Inventory=Inventory.Default;MapName = map
         Dispatch = dispatcher;
         BattleParameters = BattleParameters.Default;
         TickOffset=0L; WalkCancellationToken=None
@@ -234,6 +243,7 @@ type State =
     member this.PostLevel () = this.BehaviorMailbox.Post <| Level this.Level
     member this.PostHPSP () = this.BehaviorMailbox.Post <| HPSP this.HPSP
     member this.PostMap name = this.BehaviorMailbox.Post <| Map name
+    member this.PostConnectionAccepted = this.BehaviorMailbox.Post ConnectionAccepted
 and
     StateMessage =
     | Position of (int * int)
@@ -244,4 +254,6 @@ and
     | NewSkill of Skill
     | HPSP of HPSP
     | Map of string
+    | ConnectionAccepted
     | GetState of AsyncReplyChannel<Agent>
+    | Ping

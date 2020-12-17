@@ -185,13 +185,17 @@ let AddSkill (state: State) data =
 
 let WalkDataLock = obj()
 let rec TryTakeStep (cancelToken: CancellationToken) delay (state: State) (path: (int * int) list) = async {
-    Async.Sleep delay |> ignore
-    if not cancelToken.IsCancellationRequested then
-        lock WalkDataLock
-            (fun () ->
+    do! Async.Sleep delay
+    //
+    lock WalkDataLock
+        (fun () ->
+        if cancelToken.IsCancellationRequested then ()
+        else
             state.PostPosition (fst path.Head, snd path.Head)
             match List.tail path with
-            | [] -> state.WalkCancellationToken <- None
+            | [] ->
+                state.PostDestination None
+                state.WalkCancellationToken <- None
             | p ->
                 let speed = Convert.ToInt32 state.BattleParameters.Speed
                 Async.StartImmediate <| TryTakeStep cancelToken speed state p
@@ -206,6 +210,7 @@ let OnAgentStartedWalking state (data: byte[]) =
             | Some (token) -> token.Cancel()
             | None -> ()
             let destination = (Convert.ToInt32 x1, Convert.ToInt32 y1)
+            state.PostDestination None
             state.PostDestination <| Some(destination)
             let path = Pathfinding.AStar (Maps.GetMapData (state.MapName))
                                           (Convert.ToInt32 x0, Convert.ToInt32 y0) destination
@@ -218,6 +223,7 @@ let OnConnectionAccepted state (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]
     state.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Handshake.GetCurrentTick()
     state.PostPosition (Convert.ToInt32 x, Convert.ToInt32 y)
+    state.BehaviorMailbox.Post ConnectionAccepted
     //Logger.Info("Starting position: {pos}", agent.Position)
     state.Dispatch Command.DoneLoadingMap
     
