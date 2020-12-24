@@ -2,81 +2,160 @@
 
 open FSharpx.Collections
 
-type Status = Success | Failure | Running
+type Status = Success | Failure | Running | Aborted
 type SuccessCondition = SuccessOne | SuccessAll
 type FailureCondition = FailureOne | FailureAll
 
-(*
-module Nodes =
-    type Node<'T> =
-        abstract member Cancel: unit -> unit
-        abstract member Terminate: Status -> unit
-        abstract member Update: 'T -> Status
-        //abstract member Start: Branch<'T> option -> BehaviorQueue<'T> -> unit
-    and Branch<'T> =
-        abstract member OnChildComplete: Status -> unit    
-    and BehaviorQueue<'T> = Queue<Node<'T>>
-    and NodeFactory<'T> = Branch<'T> option -> BehaviorQueue<'T> -> unit
-    
-    let ReportToParent (parent: Branch<'T> option) status =
-        match parent with
-        | Some(p) -> p.OnChildComplete status
-        | None -> ()
-        
-    type SequenceNode<'T>(parent: Branch<'T> option, queue: BehaviorQueue<'T>, children: NodeFactory<'T>[]) =
-        interface Branch<'T> with
-            member this.OnChildComplete status =
-                match status with
-                | Failure -> (this :> Node<'T>).Terminate Failure
-                | Success ->
-                    match children with
-                    | [||] -> (this :> Node<'T>).Terminate Success
-                    | _ -> SequenceNode.Setup parent queue children
-                | _ -> invalidArg "Status" "Invalid termination Status for Sequence"
-                
-        interface Node<'T> with
-            member this.Cancel () = ()
-            member this.Update _ = invalidOp "Update is not defined for Sequence"
-            member this.Terminate status = ReportToParent parent status
-            
-        static member Setup parent queue (children: NodeFactory<'T>[]) =
-            let seq = Some(SequenceNode(parent, queue, children.[1..]) :> Branch<'T>)
-            children.[0] seq queue
-                
-    type Action<'T>(action, parent: Branch<'T> option) =
-        interface Node<'T> with
-            member this.Terminate status = ReportToParent parent status
-            member this.Cancel () = ()
-            member this.Update s = action s
-            
-    type ActiveSelector<'T>(switch, parent: Branch<'T> option, queue: BehaviorQueue<'T>, high: NodeFactory<'T>, low: NodeFactory<'T>) =
-        interface Node<'T> with
-            member this.Cancel () = ()
-            member this.Update state =
-                if switch state then
-                    high parent queue
-                    Success
-                else
-                    //queue.Enqueue <| (this :> Node<'T>)
-                    low parent queue
-                    Running
-            member this.Terminate status = ReportToParent parent status
-            
-        static member Setup switch parent (queue: BehaviorQueue<'T>) high low =
-            let sel = ActiveSelector(switch, parent, queue, high, low) :> Node<'T>
-            queue.Enqueue sel
-            
-                    
-let Sequence (children: Nodes.NodeFactory<'T>[]) =
-    fun parent queue -> Nodes.SequenceNode.Setup parent queue children
-let Action<'T> action =
-    fun parent (queue: Nodes.BehaviorQueue<'T>) -> queue.Enqueue <| Nodes.Action(action, parent)
-*)
-// ChildComplete: Queue -> Status -> Queue
-// Sequence: Node[] -> Queue -> Callback -> _ -> Queue
-// Action: Queue -> Callback -> state -> Queue
-// ActiveSelector: Queue -> Callback -> state -> Queue
+type State =
+    abstract member Increase: unit -> unit
+    abstract member Fail: unit -> unit
+type CompleteCallback = Status -> unit
+
 [<AbstractClass>]
+type Node(onComplete: OnCompleteCallback) =
+    abstract member OnComplete: OnCompleteCallback
+    abstract member Update: State -> unit    
+    abstract member Status: Status with get, set
+    default this.OnComplete = onComplete
+    default val Status = Running with get, set
+    
+and OnCompleteCallback = Status -> Q -> Q
+and Q = Queue<Node>
+and Factory = OnCompleteCallback -> Node
+
+//let FlagNode = {new Node(BlankBranch) with member this.Update _ = Running}
+
+(*
+let UpdateNode (queue: Q) state =
+    match queue.TryDequeue() with
+    | true, node ->
+        if node = FlagNode then Some(Running) 
+        else
+            let status = node.Update(state)
+            match status with
+                | Aborted -> queue.Clear()
+                | Running -> queue.Enqueue node
+                | result -> node.Parent.OnChildCompleted result
+            Some(status)
+    | false, _ -> None
+    
+let Step (queue: Q) state =
+    queue.Enqueue FlagNode
+    let rec update s =
+        match queue.TryDequeue() with
+        | true, node ->
+            if node = FlagNode then Some(Running) 
+            else
+                if node.Status = Running then node.Update(state) |> ignore                
+                match node.Status with
+                    | Aborted -> queue.Clear()
+                    | Running -> queue.Enqueue node
+                    | result -> node.Parent.OnChildCompleted result
+                update <| Some(node.Status)
+        | false, _ -> s
+    update None
+*)
+
+let RootComplete _ q = q
+let InitTree (tree: Factory) = Queue.empty.Conj <| tree RootComplete
+
+let rec Tick (queue: Q) (nextQueue: Q) state =
+    let (node, tail) = queue.Uncons 
+    if node.Status = Running then node.Update state
+    if node.Status = Aborted then Queue.empty, Aborted            
+    else
+        let next = match node.Status with
+                    | Running -> nextQueue.Conj node
+                    | Success | Failure -> node.OnComplete node.Status nextQueue
+                    | _ -> invalidArg (string node.Status) "Invalid status for node.Update"
+        if tail.IsEmpty then next, if next.IsEmpty then node.Status else Running
+        else Tick tail next state 
+            
+let rec AllTicks (queue: Q) state status =
+    if queue.IsEmpty then status
+    else
+        let (nextQueue, nextStatus) = Tick queue Queue.empty state
+        AllTicks nextQueue state nextStatus
+         
+let Execute (tree: Factory) state =
+    let rootComplete _ q = q
+    let queue = Queue.empty.Conj <| tree rootComplete
+    AllTicks queue state Running
+    
+
+let Monitor(condition: Factory, node: Factory) =    
+    fun onComplete ->
+        let mutable subtree =  InitTree node
+        {
+            new Node(onComplete) with
+                member this.Update state =
+                    let conditionOk = Execute condition state = Success
+                    if conditionOk then
+                        let (next, status) = Tick subtree Queue.empty state
+                        subtree <- next
+                        this.Status <- status
+                    else this.Status <- Aborted
+        }
+    
+    (*
+let Run (tree: Factory) state =
+    let queue = Queue<Node>()
+    tree BlankBranch queue
+    let rec allSteps (q: Q) s =
+        if q.Count > 0 then allSteps q (Step q state)
+        else s
+    allSteps queue None
+*)
+
+module SequenceNode =
+    let rec OnChildCompleted children parentCallback status (queue: Q) =
+        match status with
+            | Failure -> parentCallback Failure queue
+            | Success ->
+                match children with
+                | [||] -> parentCallback Success queue
+                | _ -> queue.Conj <| Build children parentCallback                    
+            | _ -> invalidArg "Status" "Invalid termination Status for Sequence"            
+    and Build (children: Factory[]) parentCallback =
+        let callback = OnChildCompleted children.[1..] parentCallback
+        children.[0] callback
+        
+let Sequence (children: Factory[]) = SequenceNode.Build children
+
+(*        
+type MonitorNode(parent, queue: Q, condition: Factory) as this =
+    inherit Node(parent)
+        
+    interface Branch with
+        member this.OnChildCompleted status = this.Status <- status
+    override this.Update state =
+        if this.Status = Running then
+            this.Status <- match Run condition state with
+                            | Some(result) ->
+                                match result with
+                                | Failure -> Aborted
+                                | Success -> Running
+                                | s -> invalidArg (string s) "Invalid result for Condition subtree"
+                            | None -> invalidArg "condition" "Invalid Condition for MonitorNode"
+        this.Status
+        
+let Monitor(condition: Factory, node: Factory) =    
+    fun parent queue ->
+        let monitor = MonitorNode(parent, queue, condition)
+        queue.Enqueue monitor
+        node monitor queue
+        //monitor :> Node
+*)
+    
+let Action (action) =
+    fun onComplete ->
+        let node = {
+            new Node(onComplete) with
+            member this.Update state = this.Status <- action state}
+        node
+
+(*
+[<AbstractClass>]self
 type Node(parent: Node option) =    
     abstract member Init: Node option -> Node
     abstract member Update: S -> NodeResult
@@ -192,3 +271,4 @@ type Action(parent, action) =
     override this.Init parent = Action(parent, action) :> Node
     override this.Update state = Status <| action state
     new(action) = Action(None, action)
+*)

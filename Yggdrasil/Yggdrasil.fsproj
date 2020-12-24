@@ -13,7 +13,6 @@
     </PropertyGroup>
 
     <ItemGroup>        
-        <Compile Include="BehaviorParser.fs" />        
         <Compile Include="BehaviorTree.fs" />        
         <Compile Include="Types.fs" />
         <Compile Include="Utils.fs" />
