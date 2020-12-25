@@ -13,7 +13,9 @@
     </PropertyGroup>
 
     <ItemGroup>        
-        <Compile Include="BehaviorTree.fs" />        
+        <Compile Include="Behavior\BehaviorTree.fs" />        
+        <Compile Include="Behavior\StateMachine.fs" />        
+        <Compile Include="Behavior\Trees.fs" />        
         <Compile Include="Types.fs" />
         <Compile Include="Utils.fs" />
         <Compile Include="Navigation\Maps.fs" />
@@ -41,6 +43,7 @@
     <ItemGroup>
       <EmbeddedResource Remove="IO\**" />
       <EmbeddedResource Remove="Mailbox\**" />
+      <EmbeddedResource Remove="BehaviorTree\**" />
     </ItemGroup>
     
 </Project>

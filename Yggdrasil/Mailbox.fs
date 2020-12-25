@@ -1,7 +1,6 @@
 module Yggdrasil.Mailbox
 
 open System.Timers
-open Yggdrasil.BehaviorTree
 open Yggdrasil.Types
 
 let ProcessMessage (agent: Agent) message =

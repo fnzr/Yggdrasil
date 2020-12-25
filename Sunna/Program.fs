@@ -104,9 +104,6 @@ let main argv =
     //let dispatcher = Scheduling.DispatcherFactory()
     //let tick = Scheduling.GetCurrentTick()
     //dispatcher.Post <| (tick+500u, TimedEvent tick)    
-    let state = {Counter = 0}
-    let latestQ = Run Tree state 
-    printfn "%A" state
     //printfn "%A" latestQ.Length
     //printfn "%A" BehaviorParser.behavior
     //printf "Done"

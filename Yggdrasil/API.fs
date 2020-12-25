@@ -7,7 +7,6 @@ open System.Net.Sockets
 open System.Reflection
 open Microsoft.FSharp.Reflection
 open NLog
-open Yggdrasil.BehaviorTree
 open Yggdrasil.IO
 open Yggdrasil.Types
 
