@@ -1,43 +1,65 @@
 module Yggdrasil.Behavior.StateMachine
 
+open System
 open FSharpx.Collections
 
-type Transition<'T> = {
-    Condition: 'T -> bool
-    OnTransit: ('T -> unit) option
-    State: State<'T>
-}
-and State<'T> = {
-    Condition: 'T -> bool
-    Transitions: Transition<'T>[]
-    BehaviorRoot: BehaviorTree.Factory<'T>
-}
-and ActiveState<'T> =
+type State<'T> =
+    {
+        Tag: string
+        Condition: 'T -> bool
+        OnEnter: 'T -> unit
+        BehaviorRoot: BehaviorTree.Factory<'T>
+    }
+    override this.Equals o =
+        match o with
+        | :? State<'T> as y -> this.Tag.Equals(y.Tag)
+        | _ -> false
+    override this.GetHashCode () = this.Tag.GetHashCode()
+    interface IComparable with
+        override this.CompareTo o =
+            match o with
+            | :? State<'T> as y -> this.Tag.CompareTo(y.Tag)
+            | _ -> invalidArg (string o) "Invalid comparison for State"
+    
+    
+type ActiveState<'T> =
     {
         State: State<'T>
         BehaviorQueue: Queue<BehaviorTree.Node<'T>>
+        Status: BehaviorTree.Status
     }
     static member Create state = {
         State = state
-        BehaviorQueue = BehaviorTree.InitTree state.BehaviorRoot
-    }    
-
-let FindTransition data (transition: Transition<'T>) =
-    transition.Condition data && transition.State.Condition data
-let Tick (activeState: ActiveState<'T>) data =
-    let next = match Array.tryFind (FindTransition data) activeState.State.Transitions with
-                | Some(t) -> ActiveState<'T>.Create t.State
-                | None -> activeState
-    let (queue, status) = BehaviorTree.Tick next.BehaviorQueue data
+        BehaviorQueue = Queue.empty
+        Status = BehaviorTree.Running
+    }
+type TransitionsMap<'T> = Map<State<'T>,(State<'T> * ('T -> BehaviorTree.Status -> bool)) []>
+let FindTransition data status (state: State<'T>, condition: 'T -> BehaviorTree.Status -> bool) =
+    state.Condition data && condition data status
     
-    if status = BehaviorTree.Running
-        then {activeState with BehaviorQueue = queue}
-    else ActiveState<'T>.Create activeState.State
+let Tick (transitionsMap: TransitionsMap<'T>) (activeState: ActiveState<'T>) data =
+    let transitions = match transitionsMap.TryFind activeState.State with
+                        | Some (t) -> t
+                        | None -> [||]
+    let next = match Array.tryFind (FindTransition data activeState.Status) transitions with
+                | Some(state, _) ->
+                    printfn "Entering state %s" state.Tag
+                    state.OnEnter data
+                    ActiveState<'T>.Create state                    
+                | None -> activeState
+    let q = if next.BehaviorQueue.IsEmpty then
+                BehaviorTree.InitTree next.State.BehaviorRoot
+            else next.BehaviorQueue
+    let (queue, status) = BehaviorTree.Tick q data
+    { next with
+        BehaviorQueue = queue
+        Status = status
+    }
 
-(*
-let IdleState = {
-    Condition = fun _ -> true
-    Transitions = [||]
-    BehaviorRoot = BehaviorTree.Action IncreaseSuccessNode
-}
-*)
+let InvalidState: State<obj> =
+    {
+        Tag = "InvalidState"
+        Condition = fun _ -> invalidOp "Called function on InvalidState"
+        OnEnter = fun _ -> invalidOp "Called function on InvalidState"
+        BehaviorRoot = invalidOp "Called function on InvalidState"
+    }

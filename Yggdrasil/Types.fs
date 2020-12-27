@@ -184,7 +184,7 @@ type Goals =
 //it should be fine to make it mutable if needed...
 type Agent =
     {
-        Name: string
+        Name: string        
         Position: int * int
         Destination: (int * int) option
         Inventory: Inventory

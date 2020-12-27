@@ -25,5 +25,5 @@ let Dispatch (stream: Stream) (command: Command) =
             BitConverter.GetBytes 0x035fus
             PackPosition (Convert.ToByte x, Convert.ToByte y, 1uy)
             |]
-    printfn "Dispatching"
+    //printfn "Dispatching"
     stream.Write(bytes, 0, bytes.Length)

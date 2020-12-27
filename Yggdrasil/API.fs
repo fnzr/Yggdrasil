@@ -7,6 +7,7 @@ open System.Net.Sockets
 open System.Reflection
 open Microsoft.FSharp.Reflection
 open NLog
+open Yggdrasil.Behavior
 open Yggdrasil.IO
 open Yggdrasil.Types
 
@@ -16,18 +17,18 @@ let Agents = Dictionary<string, State>()
 let mutable ActiveAgent = None
 
 let onAuthenticationResult (states: Dictionary<string, State>)
-    (behaviorFactory: string -> unit) (result:  Result<Handshake.ZoneCredentials, string>) =
+    (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
         let map = info.MapName.Substring(0, info.MapName.Length - 4)
-        let behaviorTree = behaviorFactory info.CharacterName        
         
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
         let stream = conn.GetStream()
         let dispatcher = (Outgoing.Dispatch stream)
         
-        let mailbox = Mailbox.MailboxFactory info.CharacterName map dispatcher
+        let mailbox = Mailbox.MailboxFactory info.CharacterName map dispatcher Machines.IdleState
+        mailbox.Error.Add (printfn "Mailbox error: %A")
         let state = State.Create dispatcher map mailbox
         states.[info.CharacterName] <- state
         stream.Write(Handshake.WantToConnect info)
@@ -50,8 +51,8 @@ let onAuthenticationResult (states: Dictionary<string, State>)
         }
     | Error error -> Logger.Error error
     
-let CreateServerMailboxes loginServer behaviorFactory =
-    Agents, Handshake.Login loginServer <| onAuthenticationResult Agents behaviorFactory
+let CreateServerMailboxes loginServer =
+    Agents, Handshake.Login loginServer <| onAuthenticationResult Agents
     
 let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>

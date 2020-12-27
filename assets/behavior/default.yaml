@@ -1,6 +1,0 @@
-Root:
-  - Sequence:
-    - Action:
-      - OnAction
-    - Action:
-      -OnAction

@@ -186,19 +186,18 @@ let AddSkill (state: State) data =
 let WalkDataLock = obj()
 let rec TryTakeStep (cancelToken: CancellationToken) delay (state: State) (path: (int * int) list) = async {
     do! Async.Sleep delay
-    //
     lock WalkDataLock
         (fun () ->
         if cancelToken.IsCancellationRequested then ()
         else
             state.PostPosition (fst path.Head, snd path.Head)
-            match List.tail path with
-            | [] ->
+            match path.Tail.Length with
+            | 0 ->
                 state.PostDestination None
                 state.WalkCancellationToken <- None
-            | p ->
+            | _ ->
                 let speed = Convert.ToInt32 state.BattleParameters.Speed
-                Async.StartImmediate <| TryTakeStep cancelToken speed state p
+                Async.StartImmediate <| TryTakeStep cancelToken speed state path.Tail
             )
 }
 
@@ -209,15 +208,17 @@ let OnAgentStartedWalking state (data: byte[]) =
             match state.WalkCancellationToken with
             | Some (token) -> token.Cancel()
             | None -> ()
-            let destination = (Convert.ToInt32 x1, Convert.ToInt32 y1)
             state.PostDestination None
-            state.PostDestination <| Some(destination)
+            
+            let destination = (Convert.ToInt32 x1, Convert.ToInt32 y1)            
             let path = Pathfinding.AStar (Maps.GetMapData (state.MapName))
                                           (Convert.ToInt32 x0, Convert.ToInt32 y0) destination
-            let delay = Convert.ToInt64 (ToUInt32 data) - state.TickOffset// - agent.Parameters.Speed
-            let tokenSource = new CancellationTokenSource()
-            state.WalkCancellationToken <- Some(tokenSource)
-            Async.Start (TryTakeStep tokenSource.Token (Convert.ToInt32 delay) state path) |> ignore
+            if path.Length > 0 then
+                state.PostDestination <| Some(destination)
+                let delay = Convert.ToInt64 (ToUInt32 data) - state.TickOffset// - agent.Parameters.Speed
+                let tokenSource = new CancellationTokenSource()
+                state.WalkCancellationToken <- Some(tokenSource)
+                Async.Start (TryTakeStep tokenSource.Token (Convert.ToInt32 delay) state path)
          )
 let OnConnectionAccepted state (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]

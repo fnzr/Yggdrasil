@@ -62,12 +62,15 @@ let Loop node =
                 Running
         }
 
-let Action (action) =
-    fun onComplete -> {
-        OnComplete = onComplete
-        OnTick = action
-    }
 
+let Action (action) =
+    fun onComplete ->
+        let node = {        
+            OnComplete = onComplete
+            OnTick = action
+        }
+        node
+    
 module SequenceNode =
     let rec OnChildCompleted children parentCallback status (queue: Queue<Node<'T>>) =
         match status with

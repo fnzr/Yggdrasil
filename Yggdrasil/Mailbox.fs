@@ -1,6 +1,8 @@
 module Yggdrasil.Mailbox
 
 open System.Timers
+open Yggdrasil.Behavior
+open Yggdrasil.Behavior.StateMachine
 open Yggdrasil.Types
 
 let ProcessMessage (agent: Agent) message =
@@ -19,19 +21,22 @@ let ProcessMessage (agent: Agent) message =
     
 let Ping (mailbox: MailboxProcessor<StateMessage>) _ = mailbox.Post Ping
     
-let MailboxFactory name map dispatcher =    
+let MailboxFactory name map dispatcher machineState =    
     MailboxProcessor.Start(
+        let MachineTick = Tick Machines.TransitionsMap
         fun inbox ->
-            let rec loop agent = async {
+            let rec loop agent machine = async {
                 let! msg = inbox.Receive()
                 let newAgent = ProcessMessage agent msg
-                return! loop newAgent
+                let newMachine = MachineTick machine newAgent
+                return! loop newAgent newMachine
             }
             let timer = new Timer(1000.0)
             timer.Elapsed.Add(Ping inbox)
             timer.Enabled <- true
             timer.AutoReset <- true
             let initialAgent = Agent.Create name map inbox dispatcher
+            let activeState = ActiveState<Agent>.Create machineState
             //let initialTreeState = behaviorTree.Start initialAgent 
-            loop initialAgent //initialTreeState
+            loop initialAgent activeState //initialTreeState
     )

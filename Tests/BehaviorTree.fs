@@ -1,4 +1,6 @@
-﻿open Moq
+﻿module BehaviorTree
+
+open Moq
 open NUnit.Framework
 open Yggdrasil.Behavior.BehaviorTree
 
@@ -57,10 +59,7 @@ let ``Monitor Aborts if Condition Fails`` () =
     let result = Execute (Monitor (Action FailureNode) (Action IncreaseSuccessNode)) mock.Object    
     mock.Verify((fun x -> x.Increase()), Times.Never)
     Assert.AreEqual(Aborted, result)
-    
-[<EntryPoint>]
-let main argv =
-    0
+
     (*
     let mock = Mock<State>()
     let a = Sequence([|Action(a); Action(a); Action(a); Action(a); Action(a)|])

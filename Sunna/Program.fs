@@ -4,7 +4,6 @@ open System.Diagnostics
 open System.Net
 open NLog
 open Yggdrasil
-open Yggdrasil.BehaviorTree
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 
@@ -107,9 +106,9 @@ let main argv =
     //printfn "%A" latestQ.Length
     //printfn "%A" BehaviorParser.behavior
     //printf "Done"
-    //let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)
-    //let (agents, login) = API.CreateServerMailboxes loginServer BehaviorFactory
-    //login "roboco" "111111"
+    let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)
+    let (agents, login) = API.CreateServerMailboxes loginServer
+    login "roboco" "111111"
     //API.CommandLineHandler agents
-    //Console.ReadKey() |> ignore 
+    Console.ReadKey() |> ignore 
     0 // return an integer exit code
