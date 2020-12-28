@@ -1,6 +1,9 @@
 module Yggdrasil.Types
 
 open System.Threading
+open NLog
+
+let Logger = LogManager.GetLogger("Types") 
 
 type Parameter =
     |Speed=0us|Karma=3us|Manner=4us|HP=5us|MaxHP=6us|SP=7us|MaxSP=8us
@@ -174,42 +177,12 @@ type Command =
     | RequestServerTick
     | RequestMove of int * int
     
-type Goals =
-    {
-        mutable Position: (int * int) option
-    }
-    static member Default = {Position=None}
-    
 //this should be used in a single thread, in the behavior mailbox.
 //it should be fine to make it mutable if needed...
-type Agent =
-    {
-        Name: string        
-        Position: int * int
-        Destination: (int * int) option
-        Inventory: Inventory
-        BattleParameters: BattleParameters
-        Level: Level
-        Skills: Skill list
-        HPSP: HPSP
-        Map: string
-        Goals: Goals
-        IsConnected: bool
-        Mailbox: MailboxProcessor<StateMessage>
-        Dispatcher: Command -> unit
-    }
-    static member Create name map mailbox dispatcher = {
-        Name=name;Map=map;Mailbox=mailbox;Dispatcher=dispatcher;Position=(0,0);Destination=None;Inventory=Inventory.Default
-        BattleParameters=BattleParameters.Default;Level=Level.Default
-        Skills=[];HPSP=HPSP.Default;Goals=Goals.Default;IsConnected=false
-    }
+
 and State =
     {
         BehaviorMailbox: MailboxProcessor<StateMessage>
-        
-        //i want to remove this from here, but not sure...
-        //used only (for now) on OnConnectionAccepted
-        Dispatch: Command -> unit
         
         //necessary for pathfinding
         mutable MapName: string
@@ -224,13 +197,12 @@ and State =
         mutable HPSP: HPSP
         mutable Level: Level
         mutable BattleParameters: BattleParameters
-        mutable Inventory: Inventory       
+        mutable Inventory: Inventory
         
     }
-    static member Create dispatcher map mailbox = {
+    static member Create map mailbox = {
         BehaviorMailbox = mailbox; Level = Level.Default; HPSP = HPSP.Default
         Inventory=Inventory.Default;MapName = map
-        Dispatch = dispatcher;
         BattleParameters = BattleParameters.Default;
         TickOffset=0L; WalkCancellationToken=None
     }
@@ -255,5 +227,5 @@ and
     | HPSP of HPSP
     | Map of string
     | ConnectionAccepted
-    | GetState of AsyncReplyChannel<Agent>
     | Ping
+

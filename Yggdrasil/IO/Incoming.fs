@@ -10,7 +10,7 @@ open NLog
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 open Yggdrasil.Utils
-let Logger = LogManager.GetCurrentClassLogger()
+let Logger = LogManager.GetLogger("RawState")
 
 let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
     let queue = Queue<obj>()
@@ -197,7 +197,7 @@ let rec TryTakeStep (cancelToken: CancellationToken) delay (state: State) (path:
                 state.WalkCancellationToken <- None
             | _ ->
                 let speed = Convert.ToInt32 state.BattleParameters.Speed
-                Async.StartImmediate <| TryTakeStep cancelToken speed state path.Tail
+                Async.Start <| TryTakeStep cancelToken speed state path.Tail
             )
 }
 
@@ -215,18 +215,17 @@ let OnAgentStartedWalking state (data: byte[]) =
                                           (Convert.ToInt32 x0, Convert.ToInt32 y0) destination
             if path.Length > 0 then
                 state.PostDestination <| Some(destination)
-                let delay = Convert.ToInt64 (ToUInt32 data) - state.TickOffset// - agent.Parameters.Speed
+                let delay = Convert.ToInt64 (ToUInt32 data) - Handshake.GetCurrentTick() - state.TickOffset// - agent.Parameters.Speed
                 let tokenSource = new CancellationTokenSource()
                 state.WalkCancellationToken <- Some(tokenSource)
-                Async.Start (TryTakeStep tokenSource.Token (Convert.ToInt32 delay) state path)
+                let naturalDelay = if delay < 0L then 0 else Convert.ToInt32 delay
+                Async.Start (TryTakeStep tokenSource.Token (naturalDelay) state path)
          )
 let OnConnectionAccepted state (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]
     state.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Handshake.GetCurrentTick()
     state.PostPosition (Convert.ToInt32 x, Convert.ToInt32 y)
     state.BehaviorMailbox.Post ConnectionAccepted
-    //Logger.Info("Starting position: {pos}", agent.Position)
-    state.Dispatch Command.DoneLoadingMap
     
 let OnWeightSoftCap state (data: byte[]) =
     state.Inventory <- {state.Inventory with WeightSoftCap = ToInt32 data}

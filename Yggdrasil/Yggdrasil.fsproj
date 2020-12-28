@@ -13,9 +13,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="Types.fs" />
         <Compile Include="Behavior\BehaviorTree.fs" />
         <Compile Include="Behavior\StateMachine.fs" />
-        <Compile Include="Types.fs" />
+        <Compile Include="Agent.fs" />        
         <Compile Include="Utils.fs" />        
         <Compile Include="Navigation\Maps.fs" />
         <Compile Include="Navigation\Pathfinding.fs" />        
@@ -23,7 +24,7 @@
         <Compile Include="IO\Stream.fs" />        
         <Compile Include="IO\Handshake.fs" />
         <Compile Include="IO\Incoming.fs" />
-        <Compile Include="IO\Outgoing.fs" />
+        <Compile Include="IO\Outgoing.fs" />        
         <Compile Include="Behavior\Trees.fs" />
         <Compile Include="Behavior\Machines.fs" />
         <Compile Include="Mailbox.fs" />

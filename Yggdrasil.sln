@@ -10,6 +10,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Sunna", "Sunna\Sunna.fsproj
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Tests", "Tests\Tests.fsproj", "{856EF70B-C304-4ABD-B165-60AC68626CC2}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "YTrace", "YTrace\YTrace.fsproj", "{BCA18C59-0E27-48E1-9C43-3E0422F7932D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,5 +38,9 @@ Global
 		{856EF70B-C304-4ABD-B165-60AC68626CC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{856EF70B-C304-4ABD-B165-60AC68626CC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{856EF70B-C304-4ABD-B165-60AC68626CC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BCA18C59-0E27-48E1-9C43-3E0422F7932D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BCA18C59-0E27-48E1-9C43-3E0422F7932D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BCA18C59-0E27-48E1-9C43-3E0422F7932D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BCA18C59-0E27-48E1-9C43-3E0422F7932D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

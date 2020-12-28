@@ -7,6 +7,7 @@ open System.Net.Sockets
 open System.Reflection
 open Microsoft.FSharp.Reflection
 open NLog
+open Yggdrasil.Agent
 open Yggdrasil.Behavior
 open Yggdrasil.IO
 open Yggdrasil.Types
@@ -14,7 +15,6 @@ open Yggdrasil.Types
 let Logger = LogManager.GetCurrentClassLogger()
 
 let Agents = Dictionary<string, State>()
-let mutable ActiveAgent = None
 
 let onAuthenticationResult (states: Dictionary<string, State>)
     (result:  Result<Handshake.ZoneCredentials, string>) =
@@ -27,13 +27,11 @@ let onAuthenticationResult (states: Dictionary<string, State>)
         let stream = conn.GetStream()
         let dispatcher = (Outgoing.Dispatch stream)
         
-        let mailbox = Mailbox.MailboxFactory info.CharacterName map dispatcher Machines.IdleState
+        let mailbox = Mailbox.MailboxFactory info.CharacterName map dispatcher Machines.InitialState
         mailbox.Error.Add (printfn "Mailbox error: %A")
-        let state = State.Create dispatcher map mailbox
-        states.[info.CharacterName] <- state
-        stream.Write(Handshake.WantToConnect info)
-        
-        ActiveAgent <- Some(state)
+        let agent = Agent(info.CharacterName, map, inbox, dispatcher, activeState)
+        //let state = State.Create map mailbox
+        stream.Write (Handshake.WantToConnect info)
         
         Async.Start <|
         async {
@@ -74,15 +72,18 @@ let MakeMessage<'T> (case: UnionCaseInfo) (args: string[]) =
         FSharpValue.MakeUnion(case, values) :?> 'T
 let rec CommandLineHandler (agents: Dictionary<string, State>) =
     printf ">"
+    (*
     let CommandCases = FSharpType.GetUnionCases(typeof<Command>)
     
     let args = Console.ReadLine().Split(' ')
+    
     if args.[0].Equals "print" then printfn "%A" ActiveAgent
     else
         let agent = match ActiveAgent with
                         | Some(m) -> m
                         | None -> raise <| InvalidOperationException()
         match FindUnionCase CommandCases args.[0] with
-            | Some (com) -> agent.Dispatch <| MakeMessage<Command> com args.[1..]
+            | Some (com) -> agent.Dispatcher <| MakeMessage<Command> com args.[1..]
             | None -> printfn "Message not found"
     CommandLineHandler agents
+    *)

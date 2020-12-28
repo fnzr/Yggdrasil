@@ -1,80 +1,73 @@
 module Yggdrasil.Behavior.Machines
 
+open NLog
 open Yggdrasil.Behavior.BehaviorTree
 open Yggdrasil.Types
 open Yggdrasil.Behavior.StateMachine
 open Yggdrasil.Behavior.Trees
-let IdleState = {
-    Tag = "IdleState"
-    Condition = fun _ -> true    
-    BehaviorRoot = IsConnected
-    OnEnter =  fun _ -> ()
-}
-let WalkState = {
-    Tag = "WalkState"
-    Condition = fun _ -> true
-    BehaviorRoot = Walk
-    OnEnter = fun agent ->
-        let (x, y) = agent.Position
-        agent.Goals.Position <- Some(x, y + 5)
-}
+open Yggdrasil.Agent
+let Logger = LogManager.GetLogger("Machines")
 
-let WalkNorthState = {
-    Tag = "WalkNorthState"
-    Condition = fun _ -> true
-    BehaviorRoot = Walk
-    OnEnter = fun agent ->
-        let (x, y) = agent.Position
-        agent.Goals.Position <- Some(x, y + 5)
-}
-let WalkSouthState = {
-    Tag = "WalkSouthState"
-    Condition = fun _ -> true
-    BehaviorRoot = Walk
-    OnEnter = fun agent ->
-        let (x, y) = agent.Position
-        agent.Goals.Position <- Some(x, y - 5)
-}
+let DefaultState = {
+        Tag = "InvalidState"
+        Condition = fun _ -> true
+        OnEnter = fun _ -> ()
+        OnLeave = fun _ -> ()
+        Behavior = Action (fun _ -> invalidOp "Invalid Node")
+    }
 
-let StandingState = {
-    Tag = "StandingState"
-    Condition = fun _ -> true
-    BehaviorRoot = Wait 5000L
-    OnEnter = fun _ -> ()
-}
+let InitialState =
+    { DefaultState with
+        Tag = "InitialState"
+        Behavior = IsConnected
+        OnLeave = fun agent ->
+            agent.Dispatcher DoneLoadingMap
+    }
 
-let StopState = {
-    Tag = "StopState"
-    Condition = fun (_: Agent) -> true
-    BehaviorRoot = Action (fun _ -> Status.Success)
-    OnEnter = fun _ -> ()
-}
+let IdleState =
+    { DefaultState with
+        Tag = "IdleState"
+        Behavior = Wait 5000L
+    }
 
-let IdleTransitions: (State<Agent> * (Agent -> Status -> bool))[]  = [|
-    //WalkState, fun agent _ -> agent.IsConnected
-    WalkNorthState, fun agent _ -> agent.IsConnected
+let WalkNorthState =
+    { DefaultState with
+        Tag = "WalkNorthState"
+        Behavior = Walk
+        OnEnter =
+            fun agent ->
+                let (x, y) = agent.Position
+                agent.Goals.Position <- Some(x, y + 5)
+    }
+let WalkSouthState =
+    { DefaultState with
+        Tag = "WalkSouthState"
+        Behavior = Walk
+        OnEnter = fun agent ->
+            let (x, y) = agent.Position
+            agent.Goals.Position <- Some(x, y - 5)
+    }
+
+type Transitions = (MachineState<Agent> * (Agent -> Status -> bool))
+let InitialStateTransitions: Transitions[]  = [|
+    IdleState, fun agent _ -> agent.IsConnected
 |]
 
-let WalkTransitions: (State<Agent> * (Agent -> Status -> bool))[]  = [|
-    StopState, fun agent _ -> agent.Destination = None
-|]
-
-let WalkNorthTransitions: (State<Agent> * (Agent -> Status -> bool))[]  = [|
-    WalkSouthState, fun _ status -> status = Success
-|]
-
-let StandingTransitions: (State<Agent> * (Agent -> Status -> bool))[]  = [|
+let IdleTransitions: Transitions[]  = [|
     WalkNorthState, fun _ status -> status = Success
 |]
 
-let WalkSouthTransitions: (State<Agent> * (Agent -> Status -> bool))[]  = [|
-    StandingState, fun _ status -> status = Success
+let WalkNorthTransitions: Transitions[]  = [|
+    WalkSouthState, fun _ status -> status = Success
+|]
+
+let WalkSouthTransitions: Transitions[]  = [|
+    IdleState, fun _ status -> status = Success
 |]
 
 let TransitionsMap =
     Map.empty
         .Add(IdleState, IdleTransitions)
-        .Add(WalkState, WalkTransitions)
         .Add(WalkNorthState, WalkNorthTransitions)
         .Add(WalkSouthState, WalkSouthTransitions)
-        .Add(StandingState, StandingTransitions)
+        .Add(InitialState, InitialStateTransitions)

@@ -3,8 +3,8 @@ module Yggdrasil.Behavior.Trees
 open Yggdrasil.Behavior.BehaviorTree
 open Yggdrasil.Types
 open Yggdrasil.IO
-
-let Walk =
+open Yggdrasil.Agent
+let Walk: Factory<Agent> =
     let DispatchWalk (agent: Agent) =
         match agent.Goals.Position with
         | Some (x, y) ->
@@ -19,7 +19,7 @@ let Walk =
         
     let StoppedWalking (agent: Agent) =
         match agent.Destination with
-        | Some(_) -> Status.Running
+        | Some _ -> Status.Running
         | None -> Status.Success
         
     Sequence[|Action DispatchWalk; Action WaitWalkAck; Action StoppedWalking|]

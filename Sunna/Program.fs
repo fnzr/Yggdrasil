@@ -7,7 +7,7 @@ open Yggdrasil
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 
-let Logger = LogManager.GetCurrentClassLogger()
+let Logger = LogManager.GetLogger("Sunna")
 (*
 type MyState = {
     mutable Counter: int
