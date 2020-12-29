@@ -1,9 +1,9 @@
 module Yggdrasil.Types
 
+open System.Collections.Generic
 open System.Threading
 open NLog
 
-let Logger = LogManager.GetLogger("Types") 
 
 type Parameter =
     |Speed=0us|Karma=3us|Manner=4us|HP=5us|MaxHP=6us|SP=7us|MaxSP=8us
@@ -15,6 +15,105 @@ type Parameter =
     |Flee2=51us|Critical=52us|AttackSpeed=53us|JobLevel=55us
     |AttackRange=1000us|BaseExp=1us|JobExp=2us|NextBaseExp=22us
     |NextJobExp=23us|USTR=32us|UAGI=33us|UVIT=34us|UINT=35us|UDEX=36us|ULUK=37us
+
+type Unit = {
+    ObjectType: byte
+    AID: uint32
+    GUI: uint32
+    Speed: int16
+    BodyState: int16
+    HealthState: int16
+    EffectState : int
+    Job: int16
+    Head: uint16
+    Weapon: uint32
+    Accessory1: uint16
+    Accessory2: uint16
+    Accessory3: uint16
+    HeadPalette: int16
+    BodyPalette: int16
+    HeadDir: int16
+    Robe: uint16
+    GUID: uint32
+    GEmblemVer: int16
+    Honor: int16
+    Virtue : int
+    IsPKModeOn : byte
+    Gender : byte
+    PosX : byte
+    PosY : byte
+    Direction : byte
+    xSize : byte
+    State : byte
+    CLevel: int16
+    Font: int16
+    MaxHP : int
+    HP : int
+    IsBoss : byte
+    Body: uint16
+    Name: string
+}
+
+type RequestMove = {
+    x: sbyte
+    y: sbyte
+    dir: sbyte
+}
+
+type Skill = {
+    Id: int
+    Type: int
+    Level: byte
+    SpCost: byte
+    AttackRange: byte
+    Name: string
+    Upgradable: byte
+}
+
+type StartData = {
+    StartTime: int64
+    X: int
+    Y: int
+}
+
+type WalkData = {
+    StartTime: int64
+    StartX: int
+    StartY: int
+    EndX: int
+    EndY: int
+}
+type Command =
+    | DoneLoadingMap
+    | RequestServerTick
+    | RequestMove of int * int
+    
+type AgentEvent =
+    | PositionChanged
+    | ConnectionStatusChanged
+    | InventoryChanged
+    | BattleParametersChanged
+    | LevelChanged
+    | SkillsChanged
+    | HPSPChanged
+    | MapChanged
+    | DestinationChanged
+    | BTStatusChanged
+    
+[<AbstractClass>]
+type EventDispatcher () =
+    let ev = new Event<_>()
+    abstract member Logger: Logger
+    abstract member SetValue: byref<'T> * 'T * AgentEvent -> unit
+    abstract member OnEventDispatched: IEvent<AgentEvent>
+    
+    default this.OnEventDispatched = ev.Publish
+    
+    default this.SetValue(field, value, event) =
+        if not <| EqualityComparer.Default.Equals(field, value) then
+            this.Logger.Debug("{event}", string event)
+            field <- value
+            ev.Trigger event
 
 type BattleParameters =
     {
@@ -104,128 +203,19 @@ type Inventory =
     }
     
     static member Default = {WeightSoftCap=0;Weight=0u;MaxWeight=0u;Zeny=0}
-
-type Unit = {
-    ObjectType: byte
-    AID: uint32
-    GUI: uint32
-    Speed: int16
-    BodyState: int16
-    HealthState: int16
-    EffectState : int
-    Job: int16
-    Head: uint16
-    Weapon: uint32
-    Accessory1: uint16
-    Accessory2: uint16
-    Accessory3: uint16
-    HeadPalette: int16
-    BodyPalette: int16
-    HeadDir: int16
-    Robe: uint16
-    GUID: uint32
-    GEmblemVer: int16
-    Honor: int16
-    Virtue : int
-    IsPKModeOn : byte
-    Gender : byte
-    PosX : byte
-    PosY : byte
-    Direction : byte
-    xSize : byte
-    State : byte
-    CLevel: int16
-    Font: int16
-    MaxHP : int
-    HP : int
-    IsBoss : byte
-    Body: uint16
-    Name: string
-}
-
-type RequestMove = {
-    x: sbyte
-    y: sbyte
-    dir: sbyte
-}
-
-type Skill = {
-    Id: int
-    Type: int
-    Level: byte
-    SpCost: byte
-    AttackRange: byte
-    Name: string
-    Upgradable: byte
-}
-
-type StartData = {
-    StartTime: int64
-    X: int
-    Y: int
-}
-
-type WalkData = {
-    StartTime: int64
-    StartX: int
-    StartY: int
-    EndX: int
-    EndY: int
-}
-type Command =
-    | DoneLoadingMap
-    | RequestServerTick
-    | RequestMove of int * int
     
-//this should be used in a single thread, in the behavior mailbox.
-//it should be fine to make it mutable if needed...
-
-and State =
-    {
-        BehaviorMailbox: MailboxProcessor<StateMessage>
-        
-        //necessary for pathfinding
-        mutable MapName: string
-        
-        //Internal control
-        mutable TickOffset: int64
-        mutable WalkCancellationToken: CancellationTokenSource option
-        
-        //"stacking" states
-        //changes are applied and posted as immutable structures to Behavior
-        //these *references* are mutable, but the structures arent.
-        mutable HPSP: HPSP
-        mutable Level: Level
-        mutable BattleParameters: BattleParameters
-        mutable Inventory: Inventory
-        
-    }
-    static member Create map mailbox = {
-        BehaviorMailbox = mailbox; Level = Level.Default; HPSP = HPSP.Default
-        Inventory=Inventory.Default;MapName = map
-        BattleParameters = BattleParameters.Default;
-        TickOffset=0L; WalkCancellationToken=None
-    }
-    
-    member this.PostPosition position = this.BehaviorMailbox.Post <| Position position
-    member this.PostDestination dest = this.BehaviorMailbox.Post <| Destination dest
-    member this.PostNewSkill skill = this.BehaviorMailbox.Post <| NewSkill skill
-    member this.PostInventory () = this.BehaviorMailbox.Post <| Inventory this.Inventory
-    member this.PostBattleParameters () = this.BehaviorMailbox.Post <| BattleParameters this.BattleParameters
-    member this.PostLevel () = this.BehaviorMailbox.Post <| Level this.Level
-    member this.PostHPSP () = this.BehaviorMailbox.Post <| HPSP this.HPSP
-    member this.PostMap name = this.BehaviorMailbox.Post <| Map name
-    member this.PostConnectionAccepted = this.BehaviorMailbox.Post ConnectionAccepted
-and
-    StateMessage =
-    | Position of (int * int)
-    | Destination of (int * int) option
-    | Inventory of Inventory
-    | BattleParameters of BattleParameters
-    | Level of Level
-    | NewSkill of Skill
-    | HPSP of HPSP
-    | Map of string
-    | ConnectionAccepted
-    | Ping
-
+type Location (map) =
+    inherit EventDispatcher()
+    let mutable map: string = map
+    let mutable position = 0, 0
+    let mutable destination: (int * int) option = None
+    override this.Logger = LogManager.GetLogger("Agent")
+    member this.Map
+        with get() = map
+        and set v = this.SetValue(&map, v, AgentEvent.MapChanged)
+    member this.Destination
+        with get() = destination
+        and set v = this.SetValue(&destination, v, AgentEvent.DestinationChanged)
+    member this.Position
+        with get() = position
+        and set v = this.SetValue(&position, v, AgentEvent.PositionChanged)

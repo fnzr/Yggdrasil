@@ -48,6 +48,29 @@ let WalkSouthState =
             agent.Goals.Position <- Some(x, y - 5)
     }
 
+let InitStateTransitions: Transition<Agent>[] = [|
+    IdleState, AgentEvent.ConnectionStatusChanged, fun agent -> agent.IsConnected
+|]
+
+let IStateTransitions: Transition<Agent>[] = [|
+    WalkNorthState, AgentEvent.BTStatusChanged, fun agent -> agent.MachineState.Status = Success
+|]
+
+let WNorthTransitions: Transition<Agent>[] = [|
+    WalkSouthState, AgentEvent.BTStatusChanged, fun agent -> agent.MachineState.Status = Success
+|]
+
+let WSouthTransitions: Transition<Agent>[] = [|
+    IdleState, AgentEvent.BTStatusChanged, fun agent -> agent.MachineState.Status = Success
+|]
+
+let TMap =
+    Map.empty
+        .Add(IdleState, IStateTransitions)
+        .Add(WalkNorthState, WNorthTransitions)
+        .Add(WalkSouthState, WSouthTransitions)
+        .Add(InitialState, InitStateTransitions)
+
 type Transitions = (MachineState<Agent> * (Agent -> Status -> bool))
 let InitialStateTransitions: Transitions[]  = [|
     IdleState, fun agent _ -> agent.IsConnected

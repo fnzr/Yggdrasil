@@ -7,6 +7,7 @@ open System.Runtime.InteropServices
 open System.Threading
 open Microsoft.FSharp.Reflection
 open NLog
+open Yggdrasil.Agent
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 open Yggdrasil.Utils
@@ -51,64 +52,60 @@ let UnpackPosition2 (data: byte[]) =
      (data.[5] &&& 0x3uy)//(data.[5] <<< 8)  //this doesnt work //dirY
     )
 
-let OnU32ParameterUpdate code value (state: State) =
+let OnU32ParameterUpdate code value (agent: Agent) =
     let p = match code with
-            | Parameter.Weight -> { state.Inventory with Weight = value }
-            | Parameter.MaxWeight -> { state.Inventory with MaxWeight = value }
-            | _ -> state.Inventory
-    if p <> state.Inventory then
-        state.Inventory <- p
-        state.PostInventory()
+            | Parameter.Weight -> { agent.Inventory with Weight = value }
+            | Parameter.MaxWeight -> { agent.Inventory with MaxWeight = value }
+            | _ -> agent.Inventory
+    if p <> agent.Inventory then
+        agent.Inventory <- p
     else
         let p = match code with
-                | Parameter.SkillPoints -> { state.Level with SkillPoints = value }
-                | Parameter.JobLevel -> { state.Level with JobLevel = value }
-                | Parameter.BaseLevel -> { state.Level with BaseLevel = value }
-                | _ -> state.Level
-        if p <> state.Level then
-                state.Level <- p
-                state.PostLevel()
+                | Parameter.SkillPoints -> { agent.Level with SkillPoints = value }
+                | Parameter.JobLevel -> { agent.Level with JobLevel = value }
+                | Parameter.BaseLevel -> { agent.Level with BaseLevel = value }
+                | _ -> agent.Level
+        if p <> agent.Level then
+                agent.Level <- p
         else
             let p = match code with
-                    | Parameter.MaxHP -> { state.HPSP with MaxHP = value }
-                    | Parameter.MaxSP -> { state.HPSP with MaxSP = value }
-                    | Parameter.SP -> { state.HPSP with SP = value }
-                    | Parameter.HP -> { state.HPSP with HP = value }
-                    | _ -> state.HPSP
-            if p <> state.HPSP then
-                state.HPSP <- p
-                state.PostHPSP()
+                    | Parameter.MaxHP -> { agent.HPSP with MaxHP = value }
+                    | Parameter.MaxSP -> { agent.HPSP with MaxSP = value }
+                    | Parameter.SP -> { agent.HPSP with SP = value }
+                    | Parameter.HP -> { agent.HPSP with HP = value }
+                    | _ -> agent.HPSP
+            if p <> agent.HPSP then
+                agent.HPSP <- p
     
-let OnI16ParameterUpdate code value (state: State) =
+let OnI16ParameterUpdate code value (agent: Agent) =
     let p = match code with
     //| Parameter.Manner -> { agent.Parameters with Manner = value }
-            | Parameter.Hit -> { state.BattleParameters with Hit = value }
-            | Parameter.Flee1 -> { state.BattleParameters with Flee1 = value }
-            | Parameter.Flee2 -> { state.BattleParameters with Flee2 = value }
-            | Parameter.Critical -> { state.BattleParameters with Critical = value }
-            | _ -> state.BattleParameters
-    state.BattleParameters <- p
+            | Parameter.Hit -> { agent.BattleParameters with Hit = value }
+            | Parameter.Flee1 -> { agent.BattleParameters with Flee1 = value }
+            | Parameter.Flee2 -> { agent.BattleParameters with Flee2 = value }
+            | Parameter.Critical -> { agent.BattleParameters with Critical = value }
+            | _ -> agent.BattleParameters
+    agent.BattleParameters <- p
     
-let OnU16ParameterUpdate code value (state: State) =
+let OnU16ParameterUpdate code value (agent: Agent) =
     let p = match code with    
-            | Parameter.AttackSpeed -> { state.BattleParameters with AttackSpeed = value }
-            | Parameter.Attack1 -> { state.BattleParameters with Attack1 = value }
-            | Parameter.Attack2 -> { state.BattleParameters with Attack2 = value }
-            | Parameter.Defense1 -> { state.BattleParameters with Defense1 = value }
-            | Parameter.Defense2 -> { state.BattleParameters with Defense2 = value }
-            | Parameter.MagicAttack1 -> { state.BattleParameters with MagicAttack1 = value }
-            | Parameter.MagicAttack2 -> { state.BattleParameters with MagicAttack2 = value }
-            | Parameter.MagicDefense1 -> { state.BattleParameters with MagicDefense1 = value }
-            | Parameter.MagicDefense2 -> { state.BattleParameters with MagicDefense2 = value }
-            | Parameter.AttackRange -> { state.BattleParameters with AttackRange = value }
-            | Parameter.Speed -> { state.BattleParameters with Speed = Convert.ToInt64(value) }
-            | _ -> state.BattleParameters
-    state.BattleParameters <- p
+            | Parameter.AttackSpeed -> { agent.BattleParameters with AttackSpeed = value }
+            | Parameter.Attack1 -> { agent.BattleParameters with Attack1 = value }
+            | Parameter.Attack2 -> { agent.BattleParameters with Attack2 = value }
+            | Parameter.Defense1 -> { agent.BattleParameters with Defense1 = value }
+            | Parameter.Defense2 -> { agent.BattleParameters with Defense2 = value }
+            | Parameter.MagicAttack1 -> { agent.BattleParameters with MagicAttack1 = value }
+            | Parameter.MagicAttack2 -> { agent.BattleParameters with MagicAttack2 = value }
+            | Parameter.MagicDefense1 -> { agent.BattleParameters with MagicDefense1 = value }
+            | Parameter.MagicDefense2 -> { agent.BattleParameters with MagicDefense2 = value }
+            | Parameter.AttackRange -> { agent.BattleParameters with AttackRange = value }
+            | Parameter.Speed -> { agent.BattleParameters with Speed = Convert.ToInt64(value) }
+            | _ -> agent.BattleParameters
+    agent.BattleParameters <- p
     
-let OnI32ParameterUpdate code value (agent: State) =
+let OnI32ParameterUpdate code value (agent: Agent) =
     if code = Parameter.Zeny then
         agent.Inventory <- {agent.Inventory with Zeny = value}
-        agent.PostInventory()
     else
         let p = match code with
                 | Parameter.USTR -> { agent.BattleParameters with STRUpgradeCost = value }
@@ -120,51 +117,50 @@ let OnI32ParameterUpdate code value (agent: State) =
                 | _ -> agent.BattleParameters
         if p <> agent.BattleParameters then
             agent.BattleParameters <- p
-            agent.PostBattleParameters()
         
 
-let On64ParameterUpdate code value state =
+let On64ParameterUpdate code value (agent: Agent) =
     let p = match code with
-            | Parameter.BaseExp -> { state.Level with BaseExp = value }
-            | Parameter.JobExp -> { state.Level with JobExp = value }
-            | Parameter.NextBaseExp -> { state.Level with NextBaseExp = value }
-            | Parameter.NextJobExp -> { state.Level with NextJobExp = value }
-            | _ -> state.Level
-    state.Level <- p
+            | Parameter.BaseExp -> { agent.Level with BaseExp = value }
+            | Parameter.JobExp -> { agent.Level with JobExp = value }
+            | Parameter.NextBaseExp -> { agent.Level with NextBaseExp = value }
+            | Parameter.NextJobExp -> { agent.Level with NextJobExp = value }
+            | _ -> agent.Level
+    agent.Level <- p
     
-let OnPairParameterUpdate code value (state: State) =
+let OnPairParameterUpdate code value (agent: Agent) =
     let p = match code with
-            | Parameter.STR -> { state.BattleParameters with STRRaw = value }
-            | Parameter.AGI -> { state.BattleParameters with AGIRaw = value }
-            | Parameter.DEX -> { state.BattleParameters with DEXRaw = value }
-            | Parameter.VIT -> { state.BattleParameters with VITRaw = value }
-            | Parameter.LUK -> { state.BattleParameters with LUKRaw = value }
-            | Parameter.INT -> { state.BattleParameters with INTRaw = value }
-            | _ -> state.BattleParameters
-    state.BattleParameters <- p
+            | Parameter.STR -> { agent.BattleParameters with STRRaw = value }
+            | Parameter.AGI -> { agent.BattleParameters with AGIRaw = value }
+            | Parameter.DEX -> { agent.BattleParameters with DEXRaw = value }
+            | Parameter.VIT -> { agent.BattleParameters with VITRaw = value }
+            | Parameter.LUK -> { agent.BattleParameters with LUKRaw = value }
+            | Parameter.INT -> { agent.BattleParameters with INTRaw = value }
+            | _ -> agent.BattleParameters
+    agent.BattleParameters <- p
 
-let OnParameterChange state parameter value =
+let OnParameterChange (agent: Agent) parameter value =
     match parameter with
     | Parameter.Weight | Parameter.MaxWeight | Parameter.SkillPoints | Parameter.StatusPoints
     | Parameter.JobLevel | Parameter.BaseLevel | Parameter.MaxHP | Parameter.MaxSP
-    | Parameter.SP | Parameter.HP -> OnU32ParameterUpdate parameter (ToUInt32 value) state
+    | Parameter.SP | Parameter.HP -> OnU32ParameterUpdate parameter (ToUInt32 value) agent
     
     | Parameter.Manner | Parameter.Hit | Parameter.Flee1
-    | Parameter.Flee2 | Parameter.Critical -> OnI16ParameterUpdate parameter (ToInt16 value) state
+    | Parameter.Flee2 | Parameter.Critical -> OnI16ParameterUpdate parameter (ToInt16 value) agent
     
     | Parameter.Speed | Parameter.AttackSpeed | Parameter.Attack1 | Parameter.Attack2
     | Parameter.Defense1 | Parameter.Defense2 | Parameter.MagicAttack1
     | Parameter.MagicAttack2 | Parameter.MagicDefense1 | Parameter.MagicDefense2
-    | Parameter.AttackRange -> OnU16ParameterUpdate parameter (ToUInt16 value) state
+    | Parameter.AttackRange -> OnU16ParameterUpdate parameter (ToUInt16 value) agent
     
     | Parameter.Zeny | Parameter.USTR |Parameter.UAGI |Parameter.UDEX
-    | Parameter.UVIT |Parameter.ULUK |Parameter.UINT -> OnI32ParameterUpdate parameter (ToInt32 value) state
+    | Parameter.UVIT |Parameter.ULUK |Parameter.UINT -> OnI32ParameterUpdate parameter (ToInt32 value) agent
     
     | Parameter.JobExp | Parameter.NextBaseExp
-    | Parameter.BaseExp | Parameter.NextJobExp -> On64ParameterUpdate parameter (ToInt64 value) state
+    | Parameter.BaseExp | Parameter.NextJobExp -> On64ParameterUpdate parameter (ToInt64 value) agent
     
     | Parameter.STR |Parameter.AGI |Parameter.DEX | Parameter.VIT
-    | Parameter.LUK |Parameter.INT -> OnPairParameterUpdate parameter (ToUInt16 value.[2..], ToInt16 value.[6..]) state
+    | Parameter.LUK |Parameter.INT -> OnPairParameterUpdate parameter (ToUInt16 value.[2..], ToInt16 value.[6..]) agent
     
     | Parameter.Karma -> ()
     
@@ -173,85 +169,85 @@ let OnParameterChange state parameter value =
 let OnNonPlayerSpawn agent data = ()//publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
 let OnPlayerSpawn agent data =()// publish <| PlayerSpawn (MakeRecord<Unit> data [|24|])
 
-let AddSkill (state: State) data =
+let AddSkill (agent: Agent) data =
     let rec ParseSkills (skillBytes: byte[]) =
         match skillBytes with
         | [||] -> ()
         | bytes ->
             //TODO SkillRaw -> Skill
-            state.PostNewSkill <| MakeRecord<Skill> data [|24|]
+            let skill = MakeRecord<Skill> data [|24|]
+            agent.Skills <- skill :: agent.Skills
             ParseSkills bytes.[37..]
     ParseSkills data
 
 let WalkDataLock = obj()
-let rec TryTakeStep (cancelToken: CancellationToken) delay (state: State) (path: (int * int) list) = async {
+let rec TryTakeStep (cancelToken: CancellationToken) delay (agent: Agent) (path: (int * int) list) = async {
     do! Async.Sleep delay
     lock WalkDataLock
         (fun () ->
         if cancelToken.IsCancellationRequested then ()
         else
-            state.PostPosition (fst path.Head, snd path.Head)
+            agent.Position <- fst path.Head, snd path.Head
             match path.Tail.Length with
             | 0 ->
-                state.PostDestination None
-                state.WalkCancellationToken <- None
+                agent.Destination <- None
+                agent.WalkCancellationToken <- None
             | _ ->
-                let speed = Convert.ToInt32 state.BattleParameters.Speed
-                Async.Start <| TryTakeStep cancelToken speed state path.Tail
+                let speed = Convert.ToInt32 agent.BattleParameters.Speed
+                Async.Start <| TryTakeStep cancelToken speed agent path.Tail
             )
 }
 
-let OnAgentStartedWalking state (data: byte[]) =
+let OnAgentStartedWalking (agent: Agent) (data: byte[]) =
     let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[4..]
     lock WalkDataLock
          (fun () ->
-            match state.WalkCancellationToken with
+            match agent.WalkCancellationToken with
             | Some (token) -> token.Cancel()
             | None -> ()
-            state.PostDestination None
+            agent.Destination <- None
             
             let destination = (Convert.ToInt32 x1, Convert.ToInt32 y1)            
-            let path = Pathfinding.AStar (Maps.GetMapData (state.MapName))
+            let path = Pathfinding.AStar (Maps.GetMapData (agent.Map))
                                           (Convert.ToInt32 x0, Convert.ToInt32 y0) destination
             if path.Length > 0 then
-                state.PostDestination <| Some(destination)
-                let delay = Convert.ToInt64 (ToUInt32 data) - Handshake.GetCurrentTick() - state.TickOffset// - agent.Parameters.Speed
+                agent.Destination <- Some(destination)
+                let delay = Convert.ToInt64 (ToUInt32 data) - Handshake.GetCurrentTick() - agent.TickOffset// - agent.Parameters.Speed
                 let tokenSource = new CancellationTokenSource()
-                state.WalkCancellationToken <- Some(tokenSource)
+                agent.WalkCancellationToken <- Some(tokenSource)
                 let naturalDelay = if delay < 0L then 0 else Convert.ToInt32 delay
-                Async.Start (TryTakeStep tokenSource.Token (naturalDelay) state path)
+                Async.Start (TryTakeStep tokenSource.Token (naturalDelay) agent path)
          )
-let OnConnectionAccepted state (data: byte[]) =
+let OnConnectionAccepted (agent: Agent) (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]
-    state.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Handshake.GetCurrentTick()
-    state.PostPosition (Convert.ToInt32 x, Convert.ToInt32 y)
-    state.BehaviorMailbox.Post ConnectionAccepted
+    agent.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Handshake.GetCurrentTick()
+    agent.Position <- (Convert.ToInt32 x, Convert.ToInt32 y)
+    agent.IsConnected <- true
     
-let OnWeightSoftCap state (data: byte[]) =
-    state.Inventory <- {state.Inventory with WeightSoftCap = ToInt32 data}
-    state.PostInventory()
+let OnWeightSoftCap (agent: Agent) (data: byte[]) =
+    agent.Inventory <- {agent.Inventory with WeightSoftCap = ToInt32 data}
 
-let OnPacketReceived state packetType (data: byte[]) =
+let OnPacketReceived (agent: Agent) packetType (data: byte[]) =
     match packetType with
-        | 0x13aus -> OnParameterChange state Parameter.AttackRange data.[2..]
-        | 0x00b0us -> OnParameterChange state (data.[2..] |> ToParameter)  data.[4..] 
-        | 0x0141us -> OnParameterChange state (data.[2..] |> ToParameter)  data.[4..]
-        | 0xacbus -> OnParameterChange state (data.[2..] |> ToParameter)  data.[4..]
-        | 0xadeus -> OnWeightSoftCap state data.[2..]         
-        | 0x9ffus -> OnNonPlayerSpawn state data.[4..]
-        | 0x9feus -> OnPlayerSpawn state data.[4..]
-        | 0x10fus -> AddSkill state data.[4..]
-        | 0x0087us -> OnAgentStartedWalking state data.[2..]
+        | 0x13aus -> OnParameterChange agent Parameter.AttackRange data.[2..]
+        | 0x00b0us -> OnParameterChange agent (data.[2..] |> ToParameter)  data.[4..] 
+        | 0x0141us -> OnParameterChange agent (data.[2..] |> ToParameter)  data.[4..]
+        | 0xacbus -> OnParameterChange agent (data.[2..] |> ToParameter)  data.[4..]
+        | 0xadeus -> OnWeightSoftCap agent data.[2..]         
+        | 0x9ffus -> OnNonPlayerSpawn agent data.[4..]
+        | 0x9feus -> OnPlayerSpawn agent data.[4..]
+        | 0x10fus -> AddSkill agent data.[4..]
+        | 0x0087us -> OnAgentStartedWalking agent data.[2..]
         | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> ()        
         | 0x0bdus (* ZC_STATUS *) -> ()
         | 0x0086us (* ZC_NOTIFY_PLAYERMOVE *) -> ()
-        | 0x2ebus -> OnConnectionAccepted state data.[2..]
+        | 0x2ebus -> OnConnectionAccepted agent data.[2..]
         | 0x121us (* cart info *) -> ()
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> ()
         | 0x0a9bus (* list of items in the equip switch window *) -> ()
         | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> ()
         | 0x0091us (* ZC_NPCACK_MAPMOVE *) -> ()
-        | 0x007fus -> state.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - Handshake.GetCurrentTick()
+        | 0x007fus -> agent.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - Handshake.GetCurrentTick()
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()
         | 0x00b7us (* ZC_MENU_LIST *) -> ()

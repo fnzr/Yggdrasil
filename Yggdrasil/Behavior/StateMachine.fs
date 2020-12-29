@@ -3,8 +3,11 @@ module Yggdrasil.Behavior.StateMachine
 open System
 open FSharpx.Collections
 open NLog
+open Yggdrasil.Types
 
 let Logger = LogManager.GetLogger("StateMachine")
+
+let checkTransition data e (_, event, condition) = e = event && condition data
 
 type MachineState<'T> =
     {
@@ -14,7 +17,6 @@ type MachineState<'T> =
         OnLeave: 'T -> unit
         Behavior: BehaviorTree.Factory<'T>
     }
-    
     override this.Equals o =
             match o with
             | :? MachineState<'T> as y -> this.Tag.Equals(y.Tag)
@@ -25,7 +27,9 @@ type MachineState<'T> =
                 match o with
                 | :? MachineState<'T> as y -> this.Tag.CompareTo(y.Tag)
                 | _ -> invalidArg (string o) "Invalid comparison for State"
-    
+
+type Transition<'T> = MachineState<'T> * AgentEvent * ('T -> bool)
+type TMap<'T> = Map<MachineState<'T>,Transition<'T> []>
 type ActiveMachineState<'T> =
     {
         State: MachineState<'T>
@@ -37,26 +41,17 @@ type ActiveMachineState<'T> =
         BehaviorQueue = Queue.empty
         Status = BehaviorTree.Running
     }
-type TransitionsMap<'T> = Map<MachineState<'T>,(MachineState<'T> * ('T -> BehaviorTree.Status -> bool)) []>
-let FindTransition data status (state: MachineState<'T>, condition: 'T -> BehaviorTree.Status -> bool) =
-    state.Condition data && condition data status
     
-let Tick (transitionsMap: TransitionsMap<'T>) (activeState: ActiveMachineState<'T>) data =
-    let transitions = match transitionsMap.TryFind activeState.State with
-                        | Some (t) -> t
-                        | None -> [||]
-    let next = match Array.tryFind (FindTransition data activeState.Status) transitions with
-                | Some(state, _) ->
-                    Logger.Info ("{oldState} => {newState}", activeState.State.Tag, state.Tag)
-                    activeState.State.OnLeave data
-                    state.OnEnter data
-                    ActiveMachineState<'T>.Create state                    
-                | None -> activeState
-    let q = if next.BehaviorQueue.IsEmpty then
-                BehaviorTree.InitTree next.State.Behavior
-            else next.BehaviorQueue
-    let (queue, status) = BehaviorTree.Tick q data
-    { next with
-        BehaviorQueue = queue
-        Status = status
-    }
+    member this.Transition (transitionsMap: TMap<'T>) event data =
+        let transitions = match transitionsMap.TryFind this.State with
+                            | Some (t) -> t
+                            | None -> [||]
+        match Array.tryFind (checkTransition data event) transitions with
+        | Some(state, _, _) ->
+            Logger.Info ("{oldState} => {newState}", this.State.Tag, state.Tag)
+            this.State.OnLeave data
+            state.OnEnter data
+            ActiveMachineState<'T>.Create state
+        | None -> this
+        
+type TransitionsMap<'T> = Map<MachineState<'T>,(MachineState<'T> * ('T -> BehaviorTree.Status -> bool)) []>

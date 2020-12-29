@@ -35,7 +35,6 @@ let Wait milliseconds =
                     else Running
         }
         
-        
 let IsConnected =
     Action <| fun (agent: Agent) ->
                 if agent.IsConnected then Success else Failure

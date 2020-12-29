@@ -107,7 +107,7 @@ let main argv =
     //printfn "%A" BehaviorParser.behavior
     //printf "Done"
     let loginServer = IPEndPoint  (IPAddress.Parse "127.0.0.1", 6900)
-    let (agents, login) = API.CreateServerMailboxes loginServer
+    let login = API.CreateServerMailboxes loginServer
     login "roboco" "111111"
     //API.CommandLineHandler agents
     Console.ReadKey() |> ignore 

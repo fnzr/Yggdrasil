@@ -14,9 +14,9 @@ open Yggdrasil.Types
 
 let Logger = LogManager.GetCurrentClassLogger()
 
-let Agents = Dictionary<string, State>()
+//let Agents = Dictionary<string, State>()
 
-let onAuthenticationResult (states: Dictionary<string, State>)
+let onAuthenticationResult
     (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
@@ -24,20 +24,19 @@ let onAuthenticationResult (states: Dictionary<string, State>)
         
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
+        
         let stream = conn.GetStream()
         let dispatcher = (Outgoing.Dispatch stream)
         
-        let mailbox = Mailbox.MailboxFactory info.CharacterName map dispatcher Machines.InitialState
-        mailbox.Error.Add (printfn "Mailbox error: %A")
-        let agent = Agent(info.CharacterName, map, inbox, dispatcher, activeState)
-        //let state = State.Create map mailbox
+        let machineState = StateMachine.ActiveMachineState<Agent>.Create Machines.InitialState
+        let agent = Agent(info.CharacterName, map, dispatcher, machineState, Machines.TMap)
         stream.Write (Handshake.WantToConnect info)
         
         Async.Start <|
         async {
             try
                 try                
-                    let packetHandler = Incoming.OnPacketReceived state
+                    let packetHandler = Incoming.OnPacketReceived agent
                     return! Array.empty |> IO.Stream.GetReader stream packetHandler
                 with
                 //| :? IOException ->
@@ -50,7 +49,7 @@ let onAuthenticationResult (states: Dictionary<string, State>)
     | Error error -> Logger.Error error
     
 let CreateServerMailboxes loginServer =
-    Agents, Handshake.Login loginServer <| onAuthenticationResult Agents
+    Handshake.Login loginServer <| onAuthenticationResult
     
 let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>
@@ -70,20 +69,3 @@ let MakeMessage<'T> (case: UnionCaseInfo) (args: string[]) =
         let convert = fun i (p: PropertyInfo) -> ArgumentConverter args.[i] p.PropertyType
         let values = Array.mapi convert <| case.GetFields()    
         FSharpValue.MakeUnion(case, values) :?> 'T
-let rec CommandLineHandler (agents: Dictionary<string, State>) =
-    printf ">"
-    (*
-    let CommandCases = FSharpType.GetUnionCases(typeof<Command>)
-    
-    let args = Console.ReadLine().Split(' ')
-    
-    if args.[0].Equals "print" then printfn "%A" ActiveAgent
-    else
-        let agent = match ActiveAgent with
-                        | Some(m) -> m
-                        | None -> raise <| InvalidOperationException()
-        match FindUnionCase CommandCases args.[0] with
-            | Some (com) -> agent.Dispatcher <| MakeMessage<Command> com args.[1..]
-            | None -> printfn "Message not found"
-    CommandLineHandler agents
-    *)
