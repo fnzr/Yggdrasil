@@ -27,7 +27,7 @@ let InitialState =
 let IdleState =
     { DefaultState with
         Tag = "IdleState"
-        Behavior = Wait 5000L
+        Behavior = Wait 5000.0
     }
 
 let WalkNorthState =
@@ -36,7 +36,7 @@ let WalkNorthState =
         Behavior = Walk
         OnEnter =
             fun agent ->
-                let (x, y) = agent.Position
+                let (x, y) = agent.Location.Position
                 agent.Goals.Position <- Some(x, y + 5)
     }
 let WalkSouthState =
@@ -44,53 +44,29 @@ let WalkSouthState =
         Tag = "WalkSouthState"
         Behavior = Walk
         OnEnter = fun agent ->
-            let (x, y) = agent.Position
+            let (x, y) = agent.Location.Position
             agent.Goals.Position <- Some(x, y - 5)
     }
 
-let InitStateTransitions: Transition<Agent>[] = [|
+let InitialStateTransitions: Transition<Agent>[] = [|
     IdleState, AgentEvent.ConnectionStatusChanged, fun agent -> agent.IsConnected
 |]
 
-let IStateTransitions: Transition<Agent>[] = [|
-    WalkNorthState, AgentEvent.BTStatusChanged, fun agent -> agent.MachineState.Status = Success
+let IdleStateTransitions: Transition<Agent>[] = [|
+    WalkNorthState, AgentEvent.BTStatusChanged, fun agent -> agent.BTStatus = Success
 |]
 
-let WNorthTransitions: Transition<Agent>[] = [|
-    WalkSouthState, AgentEvent.BTStatusChanged, fun agent -> agent.MachineState.Status = Success
+let WalkNorthTransitions: Transition<Agent>[] = [|
+    WalkSouthState, AgentEvent.BTStatusChanged, fun agent -> agent.BTStatus = Success
 |]
 
-let WSouthTransitions: Transition<Agent>[] = [|
-    IdleState, AgentEvent.BTStatusChanged, fun agent -> agent.MachineState.Status = Success
+let WalkSouthTransitions: Transition<Agent>[] = [|
+    IdleState, AgentEvent.BTStatusChanged, fun agent -> agent.BTStatus = Success
 |]
 
-let TMap =
+let DefaultStateMachine =
     Map.empty
-        .Add(IdleState, IStateTransitions)
-        .Add(WalkNorthState, WNorthTransitions)
-        .Add(WalkSouthState, WSouthTransitions)
-        .Add(InitialState, InitStateTransitions)
-
-type Transitions = (MachineState<Agent> * (Agent -> Status -> bool))
-let InitialStateTransitions: Transitions[]  = [|
-    IdleState, fun agent _ -> agent.IsConnected
-|]
-
-let IdleTransitions: Transitions[]  = [|
-    WalkNorthState, fun _ status -> status = Success
-|]
-
-let WalkNorthTransitions: Transitions[]  = [|
-    WalkSouthState, fun _ status -> status = Success
-|]
-
-let WalkSouthTransitions: Transitions[]  = [|
-    IdleState, fun _ status -> status = Success
-|]
-
-let TransitionsMap =
-    Map.empty
-        .Add(IdleState, IdleTransitions)
+        .Add(IdleState, IdleStateTransitions)
         .Add(WalkNorthState, WalkNorthTransitions)
         .Add(WalkSouthState, WalkSouthTransitions)
         .Add(InitialState, InitialStateTransitions)

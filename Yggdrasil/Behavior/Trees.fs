@@ -13,12 +13,12 @@ let Walk: Factory<Agent> =
         | None -> Failure
         
     let WaitWalkAck (agent: Agent) =
-        match agent.Destination with
+        match agent.Location.Destination with
         | Some _ -> Status.Success
         | None -> Status.Running
         
     let StoppedWalking (agent: Agent) =
-        match agent.Destination with
+        match agent.Location.Destination with
         | Some _ -> Status.Running
         | None -> Status.Success
         

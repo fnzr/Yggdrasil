@@ -53,91 +53,73 @@ let UnpackPosition2 (data: byte[]) =
     )
 
 let OnU32ParameterUpdate code value (agent: Agent) =
-    let p = match code with
-            | Parameter.Weight -> { agent.Inventory with Weight = value }
-            | Parameter.MaxWeight -> { agent.Inventory with MaxWeight = value }
-            | _ -> agent.Inventory
-    if p <> agent.Inventory then
-        agent.Inventory <- p
-    else
-        let p = match code with
-                | Parameter.SkillPoints -> { agent.Level with SkillPoints = value }
-                | Parameter.JobLevel -> { agent.Level with JobLevel = value }
-                | Parameter.BaseLevel -> { agent.Level with BaseLevel = value }
-                | _ -> agent.Level
-        if p <> agent.Level then
-                agent.Level <- p
-        else
-            let p = match code with
-                    | Parameter.MaxHP -> { agent.HPSP with MaxHP = value }
-                    | Parameter.MaxSP -> { agent.HPSP with MaxSP = value }
-                    | Parameter.SP -> { agent.HPSP with SP = value }
-                    | Parameter.HP -> { agent.HPSP with HP = value }
-                    | _ -> agent.HPSP
-            if p <> agent.HPSP then
-                agent.HPSP <- p
+    match code with
+        | Parameter.Weight -> agent.Inventory.Weight <- value
+        | Parameter.MaxWeight -> agent.Inventory.MaxWeight <- value
+    
+        | Parameter.SkillPoints -> agent.Level.SkillPoints <- value
+        | Parameter.JobLevel -> agent.Level.JobLevel <- value
+        | Parameter.BaseLevel -> agent.Level.BaseLevel <- value
+    
+        | Parameter.MaxHP -> agent.Health.MaxHP <- value
+        | Parameter.MaxSP -> agent.Health.MaxSP <- value
+        | Parameter.SP -> agent.Health.SP <- value
+        | Parameter.HP -> agent.Health.HP <- value
+        | _ -> ()
     
 let OnI16ParameterUpdate code value (agent: Agent) =
-    let p = match code with
-    //| Parameter.Manner -> { agent.Parameters with Manner = value }
-            | Parameter.Hit -> { agent.BattleParameters with Hit = value }
-            | Parameter.Flee1 -> { agent.BattleParameters with Flee1 = value }
-            | Parameter.Flee2 -> { agent.BattleParameters with Flee2 = value }
-            | Parameter.Critical -> { agent.BattleParameters with Critical = value }
-            | _ -> agent.BattleParameters
-    agent.BattleParameters <- p
+    match code with
+    //| Parameter.Manner -> agent.Parameters.Manner <- value
+        | Parameter.Hit -> agent.BattleParameters.Hit <- value
+        | Parameter.Flee1 -> agent.BattleParameters.Flee1 <- value
+        | Parameter.Flee2 -> agent.BattleParameters.Flee2 <- value
+        | Parameter.Critical -> agent.BattleParameters.Critical <- value
+        | _ -> ()
     
 let OnU16ParameterUpdate code value (agent: Agent) =
-    let p = match code with    
-            | Parameter.AttackSpeed -> { agent.BattleParameters with AttackSpeed = value }
-            | Parameter.Attack1 -> { agent.BattleParameters with Attack1 = value }
-            | Parameter.Attack2 -> { agent.BattleParameters with Attack2 = value }
-            | Parameter.Defense1 -> { agent.BattleParameters with Defense1 = value }
-            | Parameter.Defense2 -> { agent.BattleParameters with Defense2 = value }
-            | Parameter.MagicAttack1 -> { agent.BattleParameters with MagicAttack1 = value }
-            | Parameter.MagicAttack2 -> { agent.BattleParameters with MagicAttack2 = value }
-            | Parameter.MagicDefense1 -> { agent.BattleParameters with MagicDefense1 = value }
-            | Parameter.MagicDefense2 -> { agent.BattleParameters with MagicDefense2 = value }
-            | Parameter.AttackRange -> { agent.BattleParameters with AttackRange = value }
-            | Parameter.Speed -> { agent.BattleParameters with Speed = Convert.ToInt64(value) }
-            | _ -> agent.BattleParameters
-    agent.BattleParameters <- p
+    match code with    
+        | Parameter.AttackSpeed -> agent.BattleParameters.AttackSpeed <- value
+        | Parameter.Attack1 -> agent.BattleParameters.Attack1 <- value
+        | Parameter.Attack2 -> agent.BattleParameters.Attack2 <- value
+        | Parameter.Defense1 -> agent.BattleParameters.Defense1 <- value
+        | Parameter.Defense2 -> agent.BattleParameters.Defense2 <- value
+        | Parameter.MagicAttack1 -> agent.BattleParameters.MagicAttack1 <- value
+        | Parameter.MagicAttack2 -> agent.BattleParameters.MagicAttack2 <- value
+        | Parameter.MagicDefense1 -> agent.BattleParameters.MagicDefense1 <- value
+        | Parameter.MagicDefense2 -> agent.BattleParameters.MagicDefense2 <- value
+        | Parameter.AttackRange -> agent.BattleParameters.AttackRange <- value
+        | Parameter.Speed -> agent.BattleParameters.Speed <- Convert.ToInt64(value)
+        | _ -> ()
     
 let OnI32ParameterUpdate code value (agent: Agent) =
-    if code = Parameter.Zeny then
-        agent.Inventory <- {agent.Inventory with Zeny = value}
-    else
-        let p = match code with
-                | Parameter.USTR -> { agent.BattleParameters with STRUpgradeCost = value }
-                | Parameter.UAGI -> { agent.BattleParameters with AGIUpgradeCost = value }
-                | Parameter.UDEX -> { agent.BattleParameters with DEXUpgradeCost = value }
-                | Parameter.UVIT -> { agent.BattleParameters with VITUpgradeCost = value }
-                | Parameter.ULUK -> { agent.BattleParameters with LUKUpgradeCost = value }
-                | Parameter.UINT -> { agent.BattleParameters with INTUpgradeCost = value }
-                | _ -> agent.BattleParameters
-        if p <> agent.BattleParameters then
-            agent.BattleParameters <- p
+    match code with
+        | Parameter.Zeny -> agent.Inventory.Zeny <- value
+        | Parameter.USTR -> agent.BattleParameters.STRUpgradeCost <- value
+        | Parameter.UAGI -> agent.BattleParameters.AGIUpgradeCost <- value
+        | Parameter.UDEX -> agent.BattleParameters.DEXUpgradeCost <- value
+        | Parameter.UVIT -> agent.BattleParameters.VITUpgradeCost <- value
+        | Parameter.ULUK -> agent.BattleParameters.LUKUpgradeCost <- value
+        | Parameter.UINT -> agent.BattleParameters.INTUpgradeCost <- value
+        | _ -> ()
         
 
 let On64ParameterUpdate code value (agent: Agent) =
-    let p = match code with
-            | Parameter.BaseExp -> { agent.Level with BaseExp = value }
-            | Parameter.JobExp -> { agent.Level with JobExp = value }
-            | Parameter.NextBaseExp -> { agent.Level with NextBaseExp = value }
-            | Parameter.NextJobExp -> { agent.Level with NextJobExp = value }
-            | _ -> agent.Level
-    agent.Level <- p
+    match code with
+        | Parameter.BaseExp -> agent.Level.BaseExp <- value
+        | Parameter.JobExp -> agent.Level.JobExp <- value
+        | Parameter.NextBaseExp -> agent.Level.NextBaseExp <- value
+        | Parameter.NextJobExp -> agent.Level.NextJobExp <- value
+        | _ -> ()
     
 let OnPairParameterUpdate code value (agent: Agent) =
-    let p = match code with
-            | Parameter.STR -> { agent.BattleParameters with STRRaw = value }
-            | Parameter.AGI -> { agent.BattleParameters with AGIRaw = value }
-            | Parameter.DEX -> { agent.BattleParameters with DEXRaw = value }
-            | Parameter.VIT -> { agent.BattleParameters with VITRaw = value }
-            | Parameter.LUK -> { agent.BattleParameters with LUKRaw = value }
-            | Parameter.INT -> { agent.BattleParameters with INTRaw = value }
-            | _ -> agent.BattleParameters
-    agent.BattleParameters <- p
+    match code with
+        | Parameter.STR -> agent.BattleParameters.STRRaw <- value
+        | Parameter.AGI -> agent.BattleParameters.AGIRaw <- value
+        | Parameter.DEX -> agent.BattleParameters.DEXRaw <- value
+        | Parameter.VIT -> agent.BattleParameters.VITRaw <- value
+        | Parameter.LUK -> agent.BattleParameters.LUKRaw <- value
+        | Parameter.INT -> agent.BattleParameters.INTRaw <- value
+        | _ -> ()
 
 let OnParameterChange (agent: Agent) parameter value =
     match parameter with
@@ -187,10 +169,10 @@ let rec TryTakeStep (cancelToken: CancellationToken) delay (agent: Agent) (path:
         (fun () ->
         if cancelToken.IsCancellationRequested then ()
         else
-            agent.Position <- fst path.Head, snd path.Head
+            agent.Location.Position <- fst path.Head, snd path.Head
             match path.Tail.Length with
             | 0 ->
-                agent.Destination <- None
+                agent.Location.Destination <- None
                 agent.WalkCancellationToken <- None
             | _ ->
                 let speed = Convert.ToInt32 agent.BattleParameters.Speed
@@ -205,13 +187,13 @@ let OnAgentStartedWalking (agent: Agent) (data: byte[]) =
             match agent.WalkCancellationToken with
             | Some (token) -> token.Cancel()
             | None -> ()
-            agent.Destination <- None
+            agent.Location.Destination <- None
             
             let destination = (Convert.ToInt32 x1, Convert.ToInt32 y1)            
-            let path = Pathfinding.AStar (Maps.GetMapData (agent.Map))
+            let path = Pathfinding.AStar (Maps.GetMapData (agent.Location.Map))
                                           (Convert.ToInt32 x0, Convert.ToInt32 y0) destination
             if path.Length > 0 then
-                agent.Destination <- Some(destination)
+                agent.Location.Destination <- Some(destination)
                 let delay = Convert.ToInt64 (ToUInt32 data) - Handshake.GetCurrentTick() - agent.TickOffset// - agent.Parameters.Speed
                 let tokenSource = new CancellationTokenSource()
                 agent.WalkCancellationToken <- Some(tokenSource)
@@ -221,11 +203,11 @@ let OnAgentStartedWalking (agent: Agent) (data: byte[]) =
 let OnConnectionAccepted (agent: Agent) (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]
     agent.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Handshake.GetCurrentTick()
-    agent.Position <- (Convert.ToInt32 x, Convert.ToInt32 y)
+    agent.Location.Position <- (Convert.ToInt32 x, Convert.ToInt32 y)
     agent.IsConnected <- true
     
 let OnWeightSoftCap (agent: Agent) (data: byte[]) =
-    agent.Inventory <- {agent.Inventory with WeightSoftCap = ToInt32 data}
+    agent.Inventory.WeightSoftCap <- ToInt32 data
 
 let OnPacketReceived (agent: Agent) packetType (data: byte[]) =
     match packetType with

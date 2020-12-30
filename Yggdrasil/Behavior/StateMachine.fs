@@ -7,9 +7,9 @@ open Yggdrasil.Types
 
 let Logger = LogManager.GetLogger("StateMachine")
 
-let checkTransition data e (_, event, condition) = e = event && condition data
-
-type MachineState<'T> =
+type Transition<'T> = MachineState<'T> * AgentEvent * ('T -> bool)
+and StateMachine<'T> = Map<MachineState<'T>, Transition<'T> []>
+and MachineState<'T> =
     {
         Tag: string
         Condition: 'T -> bool
@@ -28,8 +28,6 @@ type MachineState<'T> =
                 | :? MachineState<'T> as y -> this.Tag.CompareTo(y.Tag)
                 | _ -> invalidArg (string o) "Invalid comparison for State"
 
-type Transition<'T> = MachineState<'T> * AgentEvent * ('T -> bool)
-type TMap<'T> = Map<MachineState<'T>,Transition<'T> []>
 type ActiveMachineState<'T> =
     {
         State: MachineState<'T>
@@ -42,16 +40,17 @@ type ActiveMachineState<'T> =
         Status = BehaviorTree.Running
     }
     
-    member this.Transition (transitionsMap: TMap<'T>) event data =
+    static member CheckTransition data e (_, event, condition) =
+        e = event && condition data
+    
+    member this.Transition (transitionsMap: StateMachine<'T>) event data =
         let transitions = match transitionsMap.TryFind this.State with
                             | Some (t) -> t
                             | None -> [||]
-        match Array.tryFind (checkTransition data event) transitions with
+        match Array.tryFind (ActiveMachineState<'T>.CheckTransition data event) transitions with
         | Some(state, _, _) ->
             Logger.Info ("{oldState} => {newState}", this.State.Tag, state.Tag)
             this.State.OnLeave data
             state.OnEnter data
             ActiveMachineState<'T>.Create state
         | None -> this
-        
-type TransitionsMap<'T> = Map<MachineState<'T>,(MachineState<'T> * ('T -> BehaviorTree.Status -> bool)) []>

@@ -28,8 +28,8 @@ let onAuthenticationResult
         let stream = conn.GetStream()
         let dispatcher = (Outgoing.Dispatch stream)
         
-        let machineState = StateMachine.ActiveMachineState<Agent>.Create Machines.InitialState
-        let agent = Agent(info.CharacterName, map, dispatcher, machineState, Machines.TMap)
+        let agent = Agent(info.CharacterName, map, dispatcher)
+        SetupAgentBehavior Machines.DefaultStateMachine Machines.InitialState agent
         stream.Write (Handshake.WantToConnect info)
         
         Async.Start <|

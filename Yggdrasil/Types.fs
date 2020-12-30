@@ -99,117 +99,106 @@ type AgentEvent =
     | MapChanged
     | DestinationChanged
     | BTStatusChanged
+    | RequestBTTick
     
 [<AbstractClass>]
 type EventDispatcher () =
-    let ev = new Event<_>()
     abstract member Logger: Logger
     abstract member SetValue: byref<'T> * 'T * AgentEvent -> unit
-    abstract member OnEventDispatched: IEvent<AgentEvent>
-    
-    default this.OnEventDispatched = ev.Publish
-    
+    abstract member Dispatch: AgentEvent -> unit 
     default this.SetValue(field, value, event) =
         if not <| EqualityComparer.Default.Equals(field, value) then
             this.Logger.Debug("{event}", string event)
             field <- value
-            ev.Trigger event
+            this.Dispatch event
 
-type BattleParameters =
-    {
-        //BaseLevel: uint32
-        //JobLevel: uint32
-        //HP: uint32
-        //MaxHP: uint32
-        //SP: uint32
-        //MaxSP: uint32
-        //BaseExp: int64
-        //JobExp: int64
-        //NextBaseExp: int64
-        //NextJobExp: int64
-        //StatusPoints: uint32
-        //SkillPoints: uint32        
-        STRRaw: uint16 * int16
-        AGIRaw: uint16 * int16
-        VITRaw: uint16 * int16
-        INTRaw: uint16 * int16
-        DEXRaw: uint16 * int16
-        LUKRaw: uint16 * int16
-        AttackRange: uint16
-        AttackSpeed: uint16
-        Attack1: uint16
-        Attack2: uint16
-        MagicAttack1: uint16
-        MagicAttack2: uint16
-        Defense1: uint16
-        Defense2: uint16
-        MagicDefense1: uint16
-        MagicDefense2: uint16
-        Hit: int16
-        Flee1: int16
-        Flee2: int16
-        Critical: int16
-        Speed: int64
-        STRUpgradeCost: int
-        AGIUpgradeCost: int
-        VITUpgradeCost: int
-        INTUpgradeCost: int
-        DEXUpgradeCost: int
-        LUKUpgradeCost: int
-    }
-    static member Default = {
-        STRRaw=(0us,0s);AGIRaw=(0us,0s)
-        VITRaw=(0us,0s);INTRaw=(0us,0s);DEXRaw=(0us,0s);LUKRaw=(0us,0s)
-        AttackRange=0us;AttackSpeed=0us;Attack1=0us;Attack2=0us;MagicAttack1=0us
-        MagicAttack2=0us;Defense1=0us;Defense2=0us;MagicDefense1=0us
-        MagicDefense2=0us;Hit=0s;Flee1=0s;Flee2=0s;Critical=0s        
-        STRUpgradeCost=0;AGIUpgradeCost=0;VITUpgradeCost=0;INTUpgradeCost=0
-        DEXUpgradeCost=0;LUKUpgradeCost=0
-        Speed=150L //This is seems to be a constant that the server doesnt send
-    }
+type BattleParameters() =
+    inherit EventDispatcher()
+    let ev = Event<_>()
+    override this.Logger = LogManager.GetLogger("BattleParameters")
+    override this.Dispatch e = ev.Trigger e
+    [<CLIEvent>]
+    member this.OnEventDispatched = ev.Publish
+    member val STRRaw = 0us, 0s with get, set
+    member val AGIRaw = 0us, 0s with get, set
+    member val VITRaw = 0us, 0s with get, set
+    member val INTRaw = 0us, 0s with get, set
+    member val DEXRaw = 0us, 0s with get, set
+    member val LUKRaw = 0us, 0s with get, set
+    member val AttackRange = 0us with get, set
+    member val AttackSpeed = 0us with get, set
+    member val Attack1 = 0us with get, set
+    member val Attack2 = 0us with get, set
+    member val MagicAttack1 = 0us with get, set
+    member val MagicAttack2 = 0us with get, set
+    member val Defense1 = 0us with get, set
+    member val Defense2 = 0us with get, set
+    member val MagicDefense1 = 0us with get, set
+    member val MagicDefense2 = 0us with get, set
+    member val Hit = 0s with get, set
+    member val Flee1 = 0s with get, set
+    member val Flee2 = 0s with get, set
+    member val Critical = 0s with get, set
+    member val Speed = 150L with get, set
+    member val STRUpgradeCost = 0 with get, set
+    member val AGIUpgradeCost = 0 with get, set
+    member val VITUpgradeCost = 0 with get, set
+    member val INTUpgradeCost = 0 with get, set
+    member val DEXUpgradeCost = 0 with get, set
+    member val LUKUpgradeCost = 0 with get, set
     
-type Level =
-    {
-        BaseLevel: uint32
-        JobLevel: uint32
-        BaseExp: int64
-        JobExp: int64
-        NextBaseExp: int64
-        NextJobExp: int64
-        StatusPoints: uint32
-        SkillPoints: uint32
-    }
+type Level() =
+    inherit EventDispatcher()
+    let ev = Event<_>()
+    [<CLIEvent>]
+    member this.OnEventDispatched = ev.Publish
+    override this.Dispatch e = ev.Trigger e
+    override this.Logger = LogManager.GetLogger("Level")
+    member val BaseLevel = 0u with get, set
+    member val JobLevel = 0u with get, set
+    member val BaseExp = 0L with get, set
+    member val JobExp = 0L with get, set
+    member val NextBaseExp = 0L with get, set
+    member val NextJobExp = 0L with get, set
+    member val StatusPoints = 0u with get, set
+    member val SkillPoints = 0u with get, set
     
-    static member Default = {
-        BaseLevel=0u;JobLevel=0u;BaseExp=0L;JobExp=0L
-        NextBaseExp=0L;NextJobExp=0L;StatusPoints=0u;SkillPoints=0u
-    }
+type Health() =
+    inherit EventDispatcher()
+    let ev = Event<_>()
+    [<CLIEvent>]
+    member this.OnEventDispatched = ev.Publish
+    override this.Dispatch e = ev.Trigger(e)
+    override this.Logger = LogManager.GetLogger("HPSP")
+    member val HP = 0u with get, set
+    member val MaxHP = 0u with get, set
+    member val SP = 0u with get, set
+    member val MaxSP = 0u with get, set
+        
     
-type HPSP =
-    {
-        HP: uint32
-        MaxHP: uint32
-        SP: uint32
-        MaxSP: uint32
-    }    
-    static member Default = {HP=0u;MaxHP=0u;SP=0u;MaxSP=0u;}
-    
-type Inventory =
-    {
-        WeightSoftCap: int
-        Weight: uint32
-        MaxWeight: uint32
-        Zeny: int
-    }
-    
-    static member Default = {WeightSoftCap=0;Weight=0u;MaxWeight=0u;Zeny=0}
+type Inventory() =
+    inherit EventDispatcher()
+    let ev = Event<_>()
+    [<CLIEvent>]
+    member this.OnEventDispatched = ev.Publish
+    override this.Dispatch e = ev.Trigger e
+    override this.Logger = LogManager.GetLogger("Inventory")
+    member val WeightSoftCap = 0 with get, set
+    member val Weight = 0u with get, set
+    member val MaxWeight = 0u with get, set
+    member val Zeny = 0 with get, set
     
 type Location (map) =
     inherit EventDispatcher()
+    let ev = Event<_>()    
     let mutable map: string = map
     let mutable position = 0, 0
     let mutable destination: (int * int) option = None
-    override this.Logger = LogManager.GetLogger("Agent")
+    
+    [<CLIEvent>]
+    member this.OnEventDispatched = ev.Publish
+    override this.Dispatch e = ev.Trigger(e)
+    override this.Logger = LogManager.GetLogger("Location")
     member this.Map
         with get() = map
         and set v = this.SetValue(&map, v, AgentEvent.MapChanged)
