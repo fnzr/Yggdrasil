@@ -1,7 +1,6 @@
 module Yggdrasil.Behavior.StateMachine
 
 open System
-open FSharpx.Collections
 open NLog
 open Yggdrasil.Types
 
@@ -31,12 +30,12 @@ and MachineState<'T> =
 type ActiveMachineState<'T> =
     {
         State: MachineState<'T>
-        BehaviorQueue: Queue<BehaviorTree.Node<'T>>
+        //BehaviorQueue: BehaviorTree.Queue<'T>
         Status: BehaviorTree.Status
     }
     static member Create state = {
         State = state
-        BehaviorQueue = Queue.empty
+        //BehaviorQueue = BehaviorTree.Queue<'T>.empty()
         Status = BehaviorTree.Running
     }
     
@@ -52,5 +51,5 @@ type ActiveMachineState<'T> =
             Logger.Info ("{oldState} => {newState}", this.State.Tag, state.Tag)
             this.State.OnLeave data
             state.OnEnter data
-            ActiveMachineState<'T>.Create state
-        | None -> this
+            Some (ActiveMachineState<'T>.Create state)
+        | None -> None

@@ -7,14 +7,14 @@ open Yggdrasil.Behavior.BehaviorTree
 type State =
     abstract member Increase: unit -> unit
     abstract member Fail: unit -> unit
-let IncreaseSuccessNode (s: State) = s.Increase(); Success
-let IncreaseFailureNode (s: State) = s.Increase(); Failure
-let SuccessNode (_: State) = Success
-let FailureNode (_: State) = Failure
+let IncreaseSuccessNode = InertAction (fun (s: State) -> s.Increase(); Success)
+let IncreaseFailureNode = InertAction (fun (s: State) -> s.Increase(); Failure)
+let SuccessNode = InertAction (fun _ -> Success)
+let FailureNode = InertAction (fun _ -> Failure)
 [<Test>]
 let ``Sequence Executes All Children`` () =
     let mock = Mock<State>()
-    let seq = Sequence([|Action IncreaseSuccessNode;Action IncreaseSuccessNode;Action IncreaseSuccessNode;|])
+    let seq = Sequence([|IncreaseSuccessNode; IncreaseSuccessNode; IncreaseSuccessNode;|])
     let result = Execute seq mock.Object    
     mock.Verify((fun x -> x.Increase()), Times.Exactly(3))
     Assert.AreEqual(Success, result)
@@ -22,7 +22,7 @@ let ``Sequence Executes All Children`` () =
 [<Test>]
 let ``Sequence Exits Early if Child Fails`` () =
     let mock = Mock<State>()
-    let seq = Sequence([|Action IncreaseSuccessNode;Action FailureNode;Action IncreaseSuccessNode;|])
+    let seq = Sequence([|IncreaseSuccessNode; FailureNode; IncreaseSuccessNode;|])
     let result = Execute seq mock.Object
     mock.Verify((fun x -> x.Increase()), Times.Exactly(1))
     Assert.AreEqual (Failure, result)
@@ -30,7 +30,7 @@ let ``Sequence Exits Early if Child Fails`` () =
 [<Test>]
 let ``Selector Executes All Children`` () =
     let mock = Mock<State>()
-    let sel = Selector([|Action IncreaseFailureNode;Action IncreaseFailureNode;Action IncreaseFailureNode;|])
+    let sel = Selector([|IncreaseFailureNode; IncreaseFailureNode; IncreaseFailureNode;|])
     let result = Execute sel mock.Object    
     mock.Verify((fun x -> x.Increase()), Times.Exactly(3))
     Assert.AreEqual(Failure, result)
@@ -38,36 +38,59 @@ let ``Selector Executes All Children`` () =
 [<Test>]
 let ``Selector Exits Early if Child Succeeds`` () =
     let mock = Mock<State>()
-    let sel = Selector([|Action IncreaseSuccessNode;Action IncreaseFailureNode;|])
+    let sel = Selector([| IncreaseSuccessNode; IncreaseFailureNode;|])
     let result = Execute sel mock.Object
     mock.Verify((fun x -> x.Increase()), Times.Exactly(1))
     Assert.AreEqual (Success, result)
     
 [<Test>]
-let ``Monitor Returns Child result if Condition ok`` () =
+let ``Parallel returns first child result if OneSuccess OneFail``() =
     let mock = Mock<State>()
+    let pal = Parallel([|FailureNode; IncreaseSuccessNode|], ParallelFlag.OneSuccess ||| ParallelFlag.OneFailure)
+    let result = Execute pal mock.Object    
+    Assert.AreEqual(Failure, result)
     
-    let result1 = Execute (Monitor (Action SuccessNode) (Action SuccessNode)) mock.Object
-    Assert.AreEqual(Success, result1)
+    let pal2 = Parallel([|SuccessNode; IncreaseFailureNode|], ParallelFlag.OneSuccess ||| ParallelFlag.OneFailure)
+    let result2 = Execute pal2 mock.Object
+    Assert.AreEqual(Success, result2)
     
-    let result2 = Execute (Monitor (Action SuccessNode) (Action FailureNode)) mock.Object
-    Assert.AreEqual(Failure, result2)
-
-[<Test>]
-let ``Monitor Aborts if Condition Fails`` () =
-    let mock = Mock<State>()
-    let result = Execute (Monitor (Action FailureNode) (Action IncreaseSuccessNode)) mock.Object    
     mock.Verify((fun x -> x.Increase()), Times.Never)
-    Assert.AreEqual(Aborted, result)
-
-    (*
-    let mock = Mock<State>()
-    let a = Sequence([|Action(a); Action(a); Action(a); Action(a); Action(a)|])
-    let tree = Monitor(ConditionFactory, a)
-                       
     
-    printfn "%A" <| Execute tree mock.Object 
-    mock.Verify((fun x -> x.Increase()), Times.Exactly(3))
-    //printfn "%A" mock.Object
-    0 // return an integer exit code
-    *)
+[<Test>]
+let ``Parallel returns first Success or result of last child if OneSuccess AllFail``() =
+    let mock = Mock<State>()
+    let pal = Parallel([|FailureNode; IncreaseSuccessNode|], ParallelFlag.OneSuccess)
+    let result = Execute pal mock.Object    
+    Assert.AreEqual(Success, result)
+    
+    let pal2 = Parallel([|FailureNode; IncreaseFailureNode|], ParallelFlag.OneSuccess)
+    let result2 = Execute pal2 mock.Object
+    Assert.AreEqual(Failure, result2)
+    
+    mock.Verify((fun x -> x.Increase()), Times.Exactly(2))
+    
+[<Test>]
+let ``Parallel returns first Failure or result of last child if AllSuccess OneFail``() =
+    let mock = Mock<State>()
+    let pal = Parallel([|FailureNode; IncreaseSuccessNode|], ParallelFlag.OneFailure)
+    let result = Execute pal mock.Object    
+    Assert.AreEqual(Failure, result)
+    
+    let pal2 = Parallel([|SuccessNode; IncreaseSuccessNode|], ParallelFlag.OneFailure)
+    let result2 = Execute pal2 mock.Object
+    Assert.AreEqual(Success, result2)
+    
+    mock.Verify((fun x -> x.Increase()), Times.Exactly(1))
+    
+[<Test>]
+let ``Parallel returns last child if AllSuccess AllFail``() =
+    let mock = Mock<State>()
+    let pal = Parallel([|FailureNode; IncreaseSuccessNode|], ParallelFlag.AllFailure ||| ParallelFlag.AllSuccess)
+    let result = Execute pal mock.Object    
+    Assert.AreEqual(Success, result)
+    
+    let pal2 = Parallel([|SuccessNode; IncreaseFailureNode|], ParallelFlag.AllFailure ||| ParallelFlag.AllSuccess)
+    let result2 = Execute pal2 mock.Object
+    Assert.AreEqual(Failure, result2)
+    
+    mock.Verify((fun x -> x.Increase()), Times.Exactly(2))

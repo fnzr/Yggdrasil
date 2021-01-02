@@ -99,7 +99,8 @@ type AgentEvent =
     | MapChanged
     | DestinationChanged
     | BTStatusChanged
-    | RequestBTTick
+    | Ping
+    | GoalPositionChanged
     
 [<AbstractClass>]
 type EventDispatcher () =
@@ -190,7 +191,7 @@ type Inventory() =
     
 type Location (map) =
     inherit EventDispatcher()
-    let ev = Event<_>()    
+    let ev = Event<_>()
     let mutable map: string = map
     let mutable position = 0, 0
     let mutable destination: (int * int) option = None

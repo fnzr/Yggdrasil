@@ -1,5 +1,6 @@
 module Yggdrasil.Behavior.Trees
 
+open System
 open Yggdrasil.Behavior.BehaviorTree
 open Yggdrasil.Types
 open Yggdrasil.IO
@@ -22,19 +23,25 @@ let Walk: Factory<Agent> =
         | Some _ -> Status.Running
         | None -> Status.Success
         
-    Sequence[|Action DispatchWalk; Action WaitWalkAck; Action StoppedWalking|]
+    Sequence [|Action DispatchWalk [| GoalPositionChanged |]
+               Action WaitWalkAck [|DestinationChanged|]
+               Action StoppedWalking [|DestinationChanged|] |]
 
 let Wait milliseconds =
     fun onComplete ->
         let targetTick = Handshake.GetCurrentTick() + milliseconds
-        {
+        [|{
             OnComplete = onComplete
-            OnTick = fun _ ->
-                if Handshake.GetCurrentTick () >= targetTick
-                    then Success
-                    else Running
-        }
+            OnTick = fun (agent: Agent) ->                
+                let diff = targetTick - Handshake.GetCurrentTick () 
+                if diff > 0L then
+                    agent.ScheduleBTTick <| Convert.ToDouble diff; Running
+                else Success
+            Aborted = false
+            Events = [| Ping |]
+        }|]
         
 let IsConnected =
-    Action <| fun (agent: Agent) ->
-                if agent.IsConnected then Success else Failure
+    Action
+        (fun (agent: Agent) -> if agent.IsConnected then Success else Failure)
+        [| ConnectionStatusChanged |]

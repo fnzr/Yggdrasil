@@ -13,21 +13,21 @@ let DefaultState = {
         Condition = fun _ -> true
         OnEnter = fun _ -> ()
         OnLeave = fun _ -> ()
-        Behavior = Action (fun _ -> invalidOp "Invalid Node")
+        Behavior = InertAction (fun _ -> invalidOp "Invalid Node")
     }
 
 let InitialState =
     { DefaultState with
         Tag = "InitialState"
         Behavior = IsConnected
-        OnLeave = fun agent ->
-            agent.Dispatcher DoneLoadingMap
+        OnLeave = fun agent -> agent.Dispatcher DoneLoadingMap
     }
 
 let IdleState =
     { DefaultState with
         Tag = "IdleState"
-        Behavior = Wait 5000.0
+        Behavior = Wait 5000L
+        OnEnter = fun agent -> agent.Dispatch Ping
     }
 
 let WalkNorthState =

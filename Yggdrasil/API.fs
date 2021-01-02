@@ -14,8 +14,6 @@ open Yggdrasil.Types
 
 let Logger = LogManager.GetCurrentClassLogger()
 
-//let Agents = Dictionary<string, State>()
-
 let onAuthenticationResult
     (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
