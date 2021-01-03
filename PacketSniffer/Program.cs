@@ -46,7 +46,7 @@ namespace PacketSniffer
             Console.Write("-- Please choose a device to capture: ");
             //i = int.Parse(Console.ReadLine());
 
-            var device = devices[0];
+            var device = devices[2];
 
             //Register our handler function to the 'packet arrival' event
             device.OnPacketArrival +=
@@ -91,23 +91,23 @@ namespace PacketSniffer
                 var ipPacket = (PacketDotNet.IPPacket)tcpPacket.ParentPacket;
                 System.Net.IPAddress srcIp = ipPacket.SourceAddress;
                 System.Net.IPAddress dstIp = ipPacket.DestinationAddress;
-                if (srcIp.Equals(IPAddress.Parse("192.168.2.10")))
+                if (srcIp.Equals(IPAddress.Parse("192.168.2.3")))
                 {
                     var queue = _mapToClientQueue.Concat(tcpPacket.PayloadData).ToArray();
-                    //_mapToClientQueue = Stream.Reader(queue, _mapToClientCallback);
+                    _mapToClientQueue = Stream.Reader(queue, MapToClientCallback);
                 }
                 else
                 {
                     var queue = _clientToMapQueue.Concat(tcpPacket.PayloadData).ToArray();
-                    //_clientToMapQueue = Stream.Reader(queue, _clientToMapCallback);
+                    _clientToMapQueue = Stream.Reader(queue, ClientToMapCallback);
                 }
             }
         }
 
-        static readonly FSharpFunc<ushort, FSharpFunc<byte[], Unit>> MapToClientCallback =
+        private static readonly FSharpFunc<ushort, FSharpFunc<byte[], Unit>> MapToClientCallback =
             CallbackConverter(MapToClientCallbackNative);
-        
-        static readonly FSharpFunc<ushort, FSharpFunc<byte[], Unit>> ClientToMapCallback =
+
+        private static readonly FSharpFunc<ushort, FSharpFunc<byte[], Unit>> ClientToMapCallback =
             CallbackConverter(ClientToMapCallbackNative);
 
         static FSharpFunc<ushort, FSharpFunc<byte[], Unit>> CallbackConverter(Func<ushort, byte[], Unit> callback)

@@ -6,11 +6,11 @@ open NLog
 open Yggdrasil.Types
 let Logger = LogManager.GetLogger("Dispatcher")
 
-let PackPosition (x, y, dir) =
+let PackPosition (x: int) y (dir: byte) =
     [|
-        x >>> 2;
-        (x <<< 6) ||| ((y >>> 4) &&& 0x3fuy)
-        (y <<< 4) ||| (dir &&& 0xfuy)
+        byte (x >>> 2);
+        byte ((x <<< 6) ||| ((y >>> 4) &&& 0x3f))
+        byte ((y <<< 4)) ||| (dir &&& 0xfuy)
     |]
     
 let Dispatch (stream: Stream) (command: Command) =
@@ -18,12 +18,12 @@ let Dispatch (stream: Stream) (command: Command) =
         match command with
         | DoneLoadingMap -> BitConverter.GetBytes 0x7dus
         | RequestServerTick -> Array.concat [|
-            BitConverter.GetBytes 0x0360us
-            BitConverter.GetBytes (Convert.ToUInt32(Handshake.GetCurrentTick()))
+                BitConverter.GetBytes 0x0360us
+                BitConverter.GetBytes (Convert.ToUInt32(Handshake.GetCurrentTick()))
             |]
         | RequestMove (x, y) -> Array.concat [|
-            BitConverter.GetBytes 0x035fus
-            PackPosition (Convert.ToByte x, Convert.ToByte y, 1uy)
+                BitConverter.GetBytes 0x035fus
+                PackPosition x y 1uy
             |]
     Logger.Info ("{command}", command)
     stream.Write(bytes, 0, bytes.Length)

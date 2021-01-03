@@ -39,8 +39,8 @@ type ActiveMachineState<'T> =
         Status = BehaviorTree.Running
     }
     
-    static member CheckTransition data e (_, event, condition) =
-        e = event && condition data
+    static member CheckTransition data e (state: MachineState<'T>, event, condition) =
+        e = event && condition data && state.Condition data
     
     member this.Transition (transitionsMap: StateMachine<'T>) event data =
         let transitions = match transitionsMap.TryFind this.State with

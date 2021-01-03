@@ -64,6 +64,9 @@ type Agent (name, map, dispatcher) =
 let EventMailbox (agent: Agent) stateMachine initialState (inbox: MailboxProcessor<AgentEvent>) =
     let rec loop (currentMachine: ActiveMachineState<Agent>) currentTree = async {
         let! event = inbox.Receive()
+        
+        if event = AgentEvent.MapChanged then agent.Dispatcher DoneLoadingMap
+            
         let tree, machine =
             match currentMachine.Transition stateMachine event agent with
             | Some (newState) ->

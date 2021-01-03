@@ -5,7 +5,7 @@ open System.Collections.Generic
 open System.IO
 open NLog
 open Yggdrasil.Utils
-let Logger = LogManager.GetCurrentClassLogger()
+let Logger = LogManager.GetLogger("Navigation")
 
 [<Flags>]
 type CellType =
@@ -30,10 +30,17 @@ let ReadMap (bytes: byte[]) =
     
 let Maps = Dictionary<string, MapData>()
 
-let LoadMap name =
+let LoadMap name =    
     let filename = sprintf "maps/%s.fld2" name
-    let data = File.ReadAllBytes (filename)
-    Maps.[name] <- ReadMap data
+    Maps.[name] <-
+        if File.Exists filename then
+            Logger.Debug ("Loading map {mapName}", name)
+            let data = File.ReadAllBytes (filename)
+            ReadMap data
+        else
+            Logger.Error ("Map file not found: {filename}", filename)
+            {Width=0us; Height = 0us; Cells=[||]}
+    
 
 let GetMapData name =
     if not <| Maps.ContainsKey name then LoadMap name

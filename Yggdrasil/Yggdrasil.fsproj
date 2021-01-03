@@ -27,7 +27,6 @@
         <Compile Include="IO\Outgoing.fs" />        
         <Compile Include="Behavior\Trees.fs" />
         <Compile Include="Behavior\Machines.fs" />
-        <Compile Include="Mailbox.fs" />
         <Compile Include="API.fs" />        
     </ItemGroup>
 

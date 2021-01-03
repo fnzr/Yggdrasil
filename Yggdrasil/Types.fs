@@ -109,7 +109,7 @@ type EventDispatcher () =
     abstract member Dispatch: AgentEvent -> unit 
     default this.SetValue(field, value, event) =
         if not <| EqualityComparer.Default.Equals(field, value) then
-            this.Logger.Debug("{event}", string event)
+            this.Logger.Debug("{event}: {value}", string event, value)
             field <- value
             this.Dispatch event
 

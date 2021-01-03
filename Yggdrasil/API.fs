@@ -18,7 +18,7 @@ let onAuthenticationResult
     (result:  Result<Handshake.ZoneCredentials, string>) =
     match result with
     | Ok info ->
-        let map = info.MapName.Substring(0, info.MapName.Length - 4)
+        let map = ""//info.MapName.Substring(0, info.MapName.Length - 4)
         
         let conn = new TcpClient()
         conn.Connect(info.ZoneServer)
@@ -29,7 +29,7 @@ let onAuthenticationResult
         let agent = Agent(info.CharacterName, map, dispatcher)
         SetupAgentBehavior Machines.DefaultStateMachine Machines.InitialState agent
         stream.Write (Handshake.WantToConnect info)
-        
+        printfn "map %s" map
         Async.Start <|
         async {
             try
@@ -40,8 +40,9 @@ let onAuthenticationResult
                 //| :? IOException ->
                   //  Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)                
                 | :? ObjectDisposedException -> ()
+                | e -> raise e
             finally
-                //mailbox.Post <| Disconnected
+                printfn "Exiting"
                 ()
         }
     | Error error -> Logger.Error error

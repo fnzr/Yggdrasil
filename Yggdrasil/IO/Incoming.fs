@@ -11,7 +11,7 @@ open Yggdrasil.Agent
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 open Yggdrasil.Utils
-let Logger = LogManager.GetLogger("RawState")
+let Logger = LogManager.GetLogger("RawPacket")
 
 let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
     let queue = Queue<obj>()
@@ -206,10 +206,17 @@ let OnConnectionAccepted (agent: Agent) (data: byte[]) =
     agent.Location.Position <- (Convert.ToInt32 x, Convert.ToInt32 y)
     agent.IsConnected <- true
     
-let OnWeightSoftCap (agent: Agent) (data: byte[]) =
-    agent.Inventory.WeightSoftCap <- ToInt32 data
+let OnWeightSoftCap (agent: Agent) (data: byte[]) = agent.Inventory.WeightSoftCap <- ToInt32 data
 
-let OnPacketReceived (agent: Agent) packetType (data: byte[]) =
+let OnMapChange (agent: Agent) (data: byte[]) =
+    agent.Location.Map <-
+        let gatFile = ToString data.[..15]
+        gatFile.Substring(0, gatFile.Length - 4)
+    agent.Location.Position <- (data.[16..] |> ToUInt16 |> Convert.ToInt32,
+                                data.[18..] |> ToUInt16 |> Convert.ToInt32)
+
+let OnPacketReceived (agent: Agent) (packetType: uint16) (data: byte[]) =
+    Logger.Trace("Packet from server: {packetType:X}", packetType)
     match packetType with
         | 0x13aus -> OnParameterChange agent Parameter.AttackRange data.[2..]
         | 0x00b0us -> OnParameterChange agent (data.[2..] |> ToParameter)  data.[4..] 
@@ -228,7 +235,7 @@ let OnPacketReceived (agent: Agent) packetType (data: byte[]) =
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> ()
         | 0x0a9bus (* list of items in the equip switch window *) -> ()
         | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> ()
-        | 0x0091us (* ZC_NPCACK_MAPMOVE *) -> ()
+        | 0x0091us -> OnMapChange agent data.[2..]
         | 0x007fus -> agent.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - Handshake.GetCurrentTick()
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()
@@ -239,3 +246,6 @@ let OnPacketReceived (agent: Agent) packetType (data: byte[]) =
         | 0x02d9us (* ZC_CONFIG *) | 0x00b6us (* ZC_CLOSE_DIALOG *) | 0x01b3us (* ZC_SHOW_IMAGE2 *) -> ()
         | 0x0081us -> ()//Logger.Error ("Forced disconnect. Code %d", data.[2])
         | unknown -> () //Logger.Error("Unhandled packet {packetType:X} with length {length}", unknown, data.Length) //shutdown()
+
+let ExternalClientPacket _ (packetType: uint16) (_: byte[]) =
+    Logger.Trace("Packet from external client: {packetType:X}", packetType)
