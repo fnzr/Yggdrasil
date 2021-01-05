@@ -12,43 +12,8 @@ open Yggdrasil.Behavior
 open Yggdrasil.IO
 open Yggdrasil.Types
 
-let Logger = LogManager.GetCurrentClassLogger()
+let Logger = LogManager.GetLogger("API")
 
-let onAuthenticationResult
-    (result:  Result<Handshake.ZoneCredentials, string>) =
-    match result with
-    | Ok info ->
-        let map = ""//info.MapName.Substring(0, info.MapName.Length - 4)
-        
-        let conn = new TcpClient()
-        conn.Connect(info.ZoneServer)
-        
-        let stream = conn.GetStream()
-        let dispatcher = (Outgoing.Dispatch stream)
-        
-        let agent = Agent(info.CharacterName, map, dispatcher)
-        SetupAgentBehavior Machines.DefaultStateMachine Machines.InitialState agent
-        stream.Write (Handshake.WantToConnect info)
-        printfn "map %s" map
-        Async.Start <|
-        async {
-            try
-                try                
-                    let packetHandler = Incoming.OnPacketReceived agent
-                    return! Array.empty |> IO.Stream.GetReader stream packetHandler
-                with
-                //| :? IOException ->
-                  //  Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)                
-                | :? ObjectDisposedException -> ()
-                | e -> raise e
-            finally
-                printfn "Exiting"
-                ()
-        }
-    | Error error -> Logger.Error error
-    
-let CreateServerMailboxes loginServer =
-    Handshake.Login loginServer <| onAuthenticationResult
     
 let ArgumentConverter (value: string) target =
     if target = typeof<Parameter>

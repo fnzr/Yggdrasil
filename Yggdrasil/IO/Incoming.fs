@@ -146,7 +146,7 @@ let OnParameterChange (agent: Agent) parameter value =
     
     | Parameter.Karma -> ()
     
-    | _ -> () //Logger.Error("Unhandled parameter: {paramCode}", parameter)
+    | _ -> ()
 
 let OnNonPlayerSpawn agent data = ()//publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
 let OnPlayerSpawn agent data =()// publish <| PlayerSpawn (MakeRecord<Unit> data [|24|])
@@ -194,7 +194,7 @@ let OnAgentStartedWalking (agent: Agent) (data: byte[]) =
                                           (Convert.ToInt32 x0, Convert.ToInt32 y0) destination
             if path.Length > 0 then
                 agent.Location.Destination <- Some(destination)
-                let delay = Convert.ToInt64 (ToUInt32 data) - Handshake.GetCurrentTick() - agent.TickOffset// - agent.Parameters.Speed
+                let delay = Convert.ToInt64 (ToUInt32 data) - GetCurrentTick() - agent.TickOffset// - agent.Parameters.Speed
                 let tokenSource = new CancellationTokenSource()
                 agent.WalkCancellationToken <- Some(tokenSource)
                 let naturalDelay = if delay < 0L then 0 else Convert.ToInt32 delay
@@ -202,9 +202,9 @@ let OnAgentStartedWalking (agent: Agent) (data: byte[]) =
          )
 let OnConnectionAccepted (agent: Agent) (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]
-    agent.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Handshake.GetCurrentTick()
+    agent.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - GetCurrentTick()
     agent.Location.Position <- (Convert.ToInt32 x, Convert.ToInt32 y)
-    agent.IsConnected <- true
+    agent.Dispatch ConnectionAccepted
     
 let OnWeightSoftCap (agent: Agent) (data: byte[]) = agent.Inventory.WeightSoftCap <- ToInt32 data
 
@@ -236,7 +236,7 @@ let OnPacketReceived (agent: Agent) (packetType: uint16) (data: byte[]) =
         | 0x0a9bus (* list of items in the equip switch window *) -> ()
         | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> ()
         | 0x0091us -> OnMapChange agent data.[2..]
-        | 0x007fus -> agent.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - Handshake.GetCurrentTick()
+        | 0x007fus -> agent.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - GetCurrentTick()
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()
         | 0x00b7us (* ZC_MENU_LIST *) -> ()

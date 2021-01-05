@@ -11,17 +11,14 @@ type ParallelFlag =
 type Node<'T> = {
     mutable OnComplete: OnCompleteCallback<'T>
     OnTick: 'T -> Status
-    Events: AgentEvent[]
     mutable Aborted: bool
 }
 and Queue<'T> =
     {
-        Events: AgentEvent Set
         Queue: FSharpx.Collections.Queue<Node<'T>>
     }
     member this.Push (node: Node<'T>) =
         {
-            Events = this.Events + Set.ofArray node.Events
             Queue = this.Queue.Conj node
         }
     member this.Pop =
@@ -31,13 +28,18 @@ and Queue<'T> =
         if this.Queue.IsEmpty then None
         else Some this.Pop
     member this.IsEmpty = this.Queue.IsEmpty
-    static member empty() = {Events = Set.empty; Queue = FSharpx.Collections.Queue.empty}
+    static member empty() = {Queue = FSharpx.Collections.Queue.empty}
 and OnCompleteCallback<'T> = Status -> Queue<'T> -> Queue<'T>
 type Factory<'T> = OnCompleteCallback<'T> -> Node<'T>[]
 
 let RootComplete _ q = q
 let InitTree (tree: Factory<'T>) =
     Array.fold (fun (q: Queue<_>) -> q.Push) (Queue<_>.empty()) <| tree RootComplete
+    
+let InitTreeOrEmpty tree =
+    match tree with
+    | Some t -> InitTree t
+    | None -> Queue<_>.empty()
 
 let rec SkipAbortedNodes (queue: Queue<'T>) =
     match queue.TryPop with
@@ -56,7 +58,9 @@ let rec _Tick (queue: Queue<'T>) (nextQueue: Queue<'T>) (state: 'T) =
     | None -> next, if next.IsEmpty then result else Running
     | Some q -> _Tick q next state
 
-let Tick (queue: Queue<_>) state = _Tick queue (Queue<_>.empty()) state
+let Tick (queue: Queue<_>) state =
+    if queue.IsEmpty then queue, Invalid
+    else _Tick queue (Queue<_>.empty()) state
             
 let rec AllTicks (queue: Queue<_>) state status =
     if queue.IsEmpty then status
@@ -74,16 +78,13 @@ let Loop node =
         let rec loopComplete _ (queue: Queue<'T>) = queue.Push <| node loopComplete
         node loopComplete
 
-let Action action (events: AgentEvent[]) =
+let Action action =
     fun onComplete ->
         [|{
             OnComplete = onComplete
             OnTick = action
             Aborted = false
-            Events = events
         }|]
-
-let InertAction action = Action action [||]
 
 module SequenceNode =
     let rec OnChildCompleted children parentCallback status (queue: Queue<'T>) =

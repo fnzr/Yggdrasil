@@ -90,7 +90,8 @@ type Command =
     
 type AgentEvent =
     | PositionChanged
-    | ConnectionStatusChanged
+    | ConnectionAccepted
+    | ConnectionTerminated
     | InventoryChanged
     | BattleParametersChanged
     | LevelChanged
@@ -98,10 +99,10 @@ type AgentEvent =
     | HPSPChanged
     | MapChanged
     | DestinationChanged
-    | BTStatusChanged
+    | BehaviorTreeSuccess
+    | BehaviorTreeFailure
     | Ping
     | GoalPositionChanged
-    
 [<AbstractClass>]
 type EventDispatcher () =
     abstract member Logger: Logger
@@ -189,10 +190,10 @@ type Inventory() =
     member val MaxWeight = 0u with get, set
     member val Zeny = 0 with get, set
     
-type Location (map) =
+type Location () =
     inherit EventDispatcher()
     let ev = Event<_>()
-    let mutable map: string = map
+    let mutable map: string = ""
     let mutable position = 0, 0
     let mutable destination: (int * int) option = None
     

@@ -1,12 +1,17 @@
 module Yggdrasil.Agent
 
 open System.Collections.Generic
+open System.Diagnostics
 open System.Threading
 open System.Timers
 open NLog
 open Yggdrasil.Behavior.StateMachine
 open Yggdrasil.Types
 open Yggdrasil.Behavior
+
+let Stopwatch = Stopwatch()
+Stopwatch.Start()
+let GetCurrentTick() = Stopwatch.ElapsedMilliseconds
 
 type Goals() =
     inherit EventDispatcher()
@@ -20,7 +25,7 @@ type Goals() =
         with get() = position
         and set v = this.SetValue (&position, v, AgentEvent.GoalPositionChanged)
         
-type Agent (name, map, dispatcher) =
+type Agent () =
     inherit EventDispatcher()
     let mutable skills: Skill list = []
     let mutable isConnected = false
@@ -32,65 +37,63 @@ type Agent (name, map, dispatcher) =
     override this.Dispatch e = ev.Trigger e
     override this.Logger = LogManager.GetLogger("Agent")
         
-    member val Dispatcher: Command -> unit = dispatcher
-    member val Name: string = name    
-    member val Location = Location (map)
+    member val Dispatcher: Command -> unit = fun _ -> () with get, set
+    member val Name: string = "" with get, set   
+    member val Location = Location ()
     member val Inventory = Inventory ()
     member val BattleParameters = BattleParameters ()
     member val Level = Level ()
-    member val Health = Health ()
+    member val Health = Health ()    
+    member val Goals = Goals ()
     
-    member val Goals = Goals() with get, set
     member val TickOffset = 0L with get, set
     member val WalkCancellationToken: CancellationTokenSource option = None with get, set
     member this.Skills
         with get() = skills
         and set v = this.SetValue(&skills, v, AgentEvent.SkillsChanged)
-    
-    member this.IsConnected
-        with get() = isConnected
-        and set v = this.SetValue(&isConnected, v, AgentEvent.ConnectionStatusChanged)
-        
-    member this.BTStatus
-        with get() = btStatus
-        and set v = this.SetValue(&btStatus, v, AgentEvent.BTStatusChanged)
-        
     member this.DelayPing millis =
         let timer = new Timer(millis)
         timer.Elapsed.Add(fun _ -> this.Dispatch AgentEvent.Ping)
         timer.AutoReset <- false
         timer.Enabled <- true
 
-let EventMailbox (agent: Agent) stateMachine initialState (inbox: MailboxProcessor<AgentEvent>) =
-    let rec loop (currentMachine: ActiveMachineState<Agent>) currentTree = async {
+        
+let rec AdvanceBehavior agent (stateMachine: StateMachine<State, AgentEvent, Agent>, tree) =
+    let (queue, status) = BehaviorTree.Tick tree agent
+    let next = match status with
+                | BehaviorTree.Success -> stateMachine.TryTransit BehaviorTreeSuccess agent
+                | BehaviorTree.Failure -> stateMachine.TryTransit BehaviorTreeFailure agent
+                | _ -> None
+    match next with
+    | Some machine ->
+        (machine, BehaviorTree.InitTreeOrEmpty machine.CurrentState.Behavior)
+            |> AdvanceBehavior agent
+    | None -> stateMachine, queue
+
+let EventMailbox (agent: Agent) stateMachine (inbox: MailboxProcessor<AgentEvent>) =
+    let rec loop (currentMachine: StateMachine<State, AgentEvent, Agent>) currentTree = async {
         let! event = inbox.Receive()
         
         if event = AgentEvent.MapChanged then agent.Dispatcher DoneLoadingMap
+        
+        let machine, queue = 
+            match currentMachine.TryTransit event agent with
+                | Some m -> m, BehaviorTree.InitTreeOrEmpty m.CurrentState.Behavior
+                | None -> currentMachine, currentTree
+            |> AdvanceBehavior agent
             
-        let tree, machine =
-            match currentMachine.Transition stateMachine event agent with
-            | Some (newState) ->
-                //cancel BT
-                agent.BTStatus <- BehaviorTree.Invalid
-                BehaviorTree.InitTree newState.State.Behavior,                
-                newState
-            | None -> currentTree, currentMachine
-            
-        let nextTree =
-            if tree.IsEmpty || tree.Events.Contains event then
-                let (queue, status) = BehaviorTree.Tick tree agent
-                agent.BTStatus <- status
-                queue
-            else tree
-        return! loop machine nextTree
+        return! loop machine queue
     }
-    let machine = ActiveMachineState<Agent>.Create initialState
-    let bt = BehaviorTree.InitTree initialState.Behavior
-    loop machine bt
+    let bt = BehaviorTree.Queue<Agent>.empty()
+    loop stateMachine bt
     
-let SetupAgentBehavior stateMachine initialState (agent: Agent) =
-    let mailbox = MailboxProcessor.Start(EventMailbox agent stateMachine initialState)
-            
+let StartAgent server username password machineFactory =
+    let machine = machineFactory server username password
+    let agent = Agent ()
+    
+    let mailbox = MailboxProcessor.Start(EventMailbox agent machine)
+    mailbox.Error.Add <| Logger.Error
+
     agent.OnEventDispatched.Add(mailbox.Post)
     agent.Location.OnEventDispatched.Add(mailbox.Post)
     agent.Inventory.OnEventDispatched.Add(mailbox.Post)
@@ -98,3 +101,5 @@ let SetupAgentBehavior stateMachine initialState (agent: Agent) =
     agent.Level.OnEventDispatched.Add(mailbox.Post)
     agent.Health.OnEventDispatched.Add(mailbox.Post)
     agent.Goals.OnEventDispatched.Add(mailbox.Post)
+    
+    machine.Start agent

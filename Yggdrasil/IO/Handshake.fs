@@ -8,12 +8,11 @@ open System.Net
 open System.Net.Sockets
 open System.Text
 open NLog
+open Yggdrasil.Agent
+open Yggdrasil.Types
 open Yggdrasil.Utils
+open Yggdrasil.Behavior
 open Yggdrasil.IO.Stream
-
-let Stopwatch = Stopwatch()
-Stopwatch.Start()
-let GetCurrentTick() = Stopwatch.ElapsedMilliseconds
 
 type LoginCredentials = {
     LoginServer: IPEndPoint
@@ -40,7 +39,7 @@ type ZoneCredentials = {
     CharId: uint32
 }
 
-let Logger = LogManager.GetCurrentClassLogger()
+let Logger = LogManager.GetLogger("IO::Handshake")
 let private OtpTokenLogin () = new ReadOnlySpan<byte> (Array.concat([|BitConverter.GetBytes(0xacfus); (Array.zeroCreate 66)|]))
 let private CharSelect slot = new ReadOnlySpan<byte> (Array.concat[| BitConverter.GetBytes(0x0066us); [| slot |]|])
 
@@ -72,6 +71,36 @@ let WantToConnect zoneInfo =
         BitConverter.GetBytes(1)
         [| zoneInfo.Gender |]
     |])
+    
+let onAuthenticationResult (agent: Agent)
+    (result:  Result<ZoneCredentials, string>) =
+    match result with
+    | Ok info ->
+        Logger.Info "Connected to server"
+        let conn = new TcpClient()
+        conn.Connect(info.ZoneServer)
+        
+        let stream = conn.GetStream()
+        agent.Dispatcher <- (Outgoing.Dispatch stream)
+        agent.Name <- info.CharacterName
+        
+        stream.Write (WantToConnect info)
+        Async.Start <|
+        async {
+            try
+                try                
+                    let packetHandler = Incoming.OnPacketReceived agent
+                    return! Array.empty |> GetReader stream packetHandler
+                with
+                //| :? IOException ->
+                  //  Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)                
+                | :? ObjectDisposedException -> ()
+                | _ -> ()
+            finally
+                agent.Dispatch AgentEvent.ConnectionTerminated
+                ()
+        }
+    | Error error -> Logger.Error error
     
 let EnterZone zoneInfo packetHandler =
     let client = new TcpClient()
@@ -178,10 +207,10 @@ and GetLoginPacketHandler stream credentials onReadyToEnterZone =
             stream.Close()
         | unknown -> Logger.Error("Unknown LoginServer packet {packetType:X}", unknown)
 
-let Login loginServer onAuthenticationResult username password =
+let Login loginServer username password agent =
     Async.Start (Connect  {
         LoginServer = loginServer
         Username = username
         Password = password
         CharacterSlot = 0uy
-    } onAuthenticationResult)
+    } <| onAuthenticationResult agent)

@@ -1,55 +1,121 @@
 module Yggdrasil.Behavior.StateMachine
 
-open System
 open NLog
-open Yggdrasil.Types
 
 let Logger = LogManager.GetLogger("StateMachine")
 
-type Transition<'T> = MachineState<'T> * AgentEvent * ('T -> bool)
-and StateMachine<'T> = Map<MachineState<'T>, Transition<'T> []>
-and MachineState<'T> =
-    {
-        Tag: string
-        Condition: 'T -> bool
-        OnEnter: 'T -> unit
-        OnLeave: 'T -> unit
-        Behavior: BehaviorTree.Factory<'T>
-    }
-    override this.Equals o =
-            match o with
-            | :? MachineState<'T> as y -> this.Tag.Equals(y.Tag)
-            | _ -> false
-        override this.GetHashCode () = this.Tag.GetHashCode()
-        interface IComparable with
-            override this.CompareTo o =
-                match o with
-                | :? MachineState<'T> as y -> this.Tag.CompareTo(y.Tag)
-                | _ -> invalidArg (string o) "Invalid comparison for State"
+type Transition<'state, 'event, 'data> = {
+    Event: 'event
+    Guard: 'data -> bool
+    Next: 'state
+}
 
-type ActiveMachineState<'T> =
+[<CustomEquality; NoComparison>]
+type MachineState<'state, 'event, 'data when 'event:comparison and 'state:equality> =
     {
-        State: MachineState<'T>
-        //BehaviorQueue: BehaviorTree.Queue<'T>
-        Status: BehaviorTree.Status
+        State: 'state
+        Enter: 'data -> unit
+        Exit: 'data -> unit
+        Parent: 'state option
+        Parents: MachineState<'state, 'event, 'data> list
+        Transitions: Map<'event, Transition<'state, 'event, 'data>>
+        AutoTransition: 'state option
+        Behavior: BehaviorTree.Factory<'data> option
     }
-    static member Create state = {
-        State = state
-        //BehaviorQueue = BehaviorTree.Queue<'T>.empty()
-        Status = BehaviorTree.Running
+    override x.GetHashCode () = x.State.GetHashCode ()
+    override x.Equals o =
+        match o with
+        | :? MachineState<'state, 'event, 'data> as y -> x.State = y.State
+        | _ -> false
+        
+
+let configure state = {
+    State = state
+    Enter = fun _ -> ()
+    Exit = fun _ -> ()
+    Parent = None
+    Parents = List.empty
+    Transitions = Map.empty
+    AutoTransition = None
+    Behavior = None
+}
+
+let withParent parent state = {state with Parent = Some(parent)}
+let onExit f state = {state with Exit = f}
+let onEnter f state = {state with Enter = f}
+let transitTo otherState state = {state with AutoTransition = Some(otherState)}
+let on event endState state =
+    let trans = {Event = event; Guard = (fun _ -> true); Next = endState}
+    {state with Transitions = state.Transitions.Add(event, trans)}
+let onIf event guard endState state =
+    let trans = {Event = event; Guard = guard; Next = endState}
+    {state with Transitions = state.Transitions.Add(event, trans)}
+let withBehavior factory state = {state with Behavior = Some(factory)}
+
+//Exists in s1 but not s2
+let rec DivergentPath (s1: 'a list) (s2: 'a list) =
+    if s1.IsEmpty then s2
+    elif s2.IsEmpty then []
+    else
+        match List.tryFindIndex (fun e -> e = s2.Head) s1 with
+        | None -> DivergentPath s1 s2.Tail
+        | Some i -> s1.[..i-1]        
+        
+let FindMachineState (machineStates: MachineState<'state, 'event, 'data> list)
+    state = List.find (fun ms -> ms.State = state) machineStates
+    
+let rec FindAcceptableTransition state event data =
+    let chooseTransition candidate =        
+        match candidate.Transitions.TryFind event with
+            | Some t -> if t.Guard data then Some(t) else None
+            | None -> None
+    List.tryPick chooseTransition (state :: state.Parents)
+    
+type StateMachine<'state, 'event, 'data when 'event:comparison and 'state:equality> =
+    {
+        States: MachineState<'state, 'event, 'data> list
+        CurrentState: MachineState<'state, 'event, 'data>
     }
-    
-    static member CheckTransition data e (state: MachineState<'T>, event, condition) =
-        e = event && condition data && state.Condition data
-    
-    member this.Transition (transitionsMap: StateMachine<'T>) event data =
-        let transitions = match transitionsMap.TryFind this.State with
-                            | Some (t) -> t
-                            | None -> [||]
-        match Array.tryFind (ActiveMachineState<'T>.CheckTransition data event) transitions with
-        | Some(state, _, _) ->
-            Logger.Info ("{oldState} => {newState}", this.State.Tag, state.Tag)
-            this.State.OnLeave data
-            state.OnEnter data
-            Some (ActiveMachineState<'T>.Create state)
+    member this.Start data =
+        List.iter (fun s -> s.Enter data) this.CurrentState.Parents
+        this.CurrentState.Enter data
+    member this.TransitionTo state data =
+        let nextState = FindMachineState this.States state
+        let exitStates = DivergentPath this.CurrentState.Parents nextState.Parents
+        List.iter (fun s -> s.Exit data) exitStates
+        
+        let enterStates = DivergentPath nextState.Parents this.CurrentState.Parents
+        List.iter (fun s -> s.Enter data) enterStates
+        
+        nextState.Enter data
+        
+        Logger.Info ("{oldState} => {newState}", this.CurrentState.State, state)
+        
+        match nextState.AutoTransition with
+        | Some s -> this.TransitionTo s data
+        | None -> {this with CurrentState = nextState} 
+        
+    member this.TryTransit event data =        
+        match FindAcceptableTransition this.CurrentState event data with
+        | Some t -> Some <| this.TransitionTo t.Next data
         | None -> None
+
+let CreateStateMachine machineStates initialState =    
+    let rec GetParents machineState =
+        match machineState.Parent with
+            | Some p ->
+                let parentState = FindMachineState machineStates p
+                (parentState)::(GetParents parentState)
+            | None -> []
+    let compiledStates = List.map
+                             (fun ms -> {ms with Parents = GetParents ms |> List.rev}) machineStates
+    let initial = FindMachineState machineStates initialState
+    {States = compiledStates; CurrentState = initial}
+    
+type State =
+    | Disconnected
+    | Terminated
+    | Connected
+    | Idle
+    | WalkingSouth
+    | WalkingNorth
