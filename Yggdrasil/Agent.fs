@@ -75,13 +75,12 @@ type Agent () =
     member val WalkCancellationToken: CancellationTokenSource option = None with get, set
     member this.Skills
         with get() = skills
-        and set v = this.SetValue(&skills, v, AgentEvent.SkillsChanged)
+        and set v = skills <- v//this.SetValue(&skills, v, AgentEvent.SkillsChanged)
     member this.DelayPing millis =
         let timer = new Timer(millis)
         timer.Elapsed.Add(fun _ -> this.Dispatch AgentEvent.Ping)
         timer.AutoReset <- false
         timer.Enabled <- true
-
         
 let rec AdvanceBehavior agent (stateMachine: StateMachine<State, AgentEvent, Agent>, tree) =
     let (queue, status) = BehaviorTree.Tick tree agent

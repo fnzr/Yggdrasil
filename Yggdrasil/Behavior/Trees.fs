@@ -44,7 +44,7 @@ let Walk =
             Status.Success)
     
     While WalkingRequired
-        (Sequence
+        => (Sequence
             => DispatchWalk
             => WaitWalkAck
             => StoppedWalking)

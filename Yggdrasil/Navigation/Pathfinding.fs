@@ -33,8 +33,7 @@ type Node(index: int, parent) =
     override this.GetHashCode() = this.Index.GetHashCode()
         
 let EnqueueIndex map (queue: FastPriorityQueue<Node>) (visited: Dictionary<int, float32>) goal parent index =    
-    if index < map.Cells.Length &&
-       map.Cells.[index].HasFlag(CellType.WALK) then
+    if index < map.Cells.Length && map.Cells.[index].HasFlag(CellType.WALK) then
        let cost = Heuristics map goal index
        let oldCost = visited.GetValueOrDefault(index, Single.MaxValue)
        if cost < oldCost then
@@ -71,5 +70,5 @@ let AStar map start goal =
     queue.Enqueue (Node(s, None), 0.0f)
     let result = FindPath map queue (Dictionary()) g
     match result with
-    | Some(node) -> ReconstructPath map node []
+    | Some node -> ReconstructPath map node []
     | None -> Logger.Error("Path not found"); []

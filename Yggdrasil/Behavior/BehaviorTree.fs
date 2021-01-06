@@ -33,6 +33,7 @@ and TreeBuilder<'T> =
     | Action of ('T -> Status)
     | Factory of (string -> Factory<'T>)
     | Decorator of string * (Factory<'T> -> Factory<'T>) * TreeBuilder<'T>
+    | PartialDecorator of string * (Factory<'T> -> Factory<'T>)
     
 let Logger = LogManager.GetLogger("BehaviorTree")
 let RootComplete _ _ q = q
@@ -73,7 +74,8 @@ let rec AllTicks (queue: Queue<_>) state status =
         AllTicks nextQueue state nextStatus
         
 let EnqueueAll queue nodes onComplete =
-    Array.fold (fun (q: Queue<_>) -> q.Conj) (Queue.empty) <| nodes onComplete
+    nodes onComplete |>
+    Array.fold (fun (q: Queue<_>) -> q.Conj) queue 
          
 let Execute tree state =
     let queue = Array.fold (fun (q: Queue<_>) -> q.Conj) (Queue.empty) <| tree RootComplete
@@ -84,16 +86,15 @@ let Loop node =
         let rec loopComplete _ (queue: Queue<'T>) = queue.Conj <| node loopComplete
         node loopComplete
         
-let rec While condition builder =
+let rec While condition =
     let rec decorator =
-        fun (factory: Factory<'T>) (onComplete: OnCompleteCallback<'T>) ->
+        fun factory onComplete ->
             let rec onNodeComplete status state (queue: Queue<Node<'T>>) =
                 if condition state then
-                    Logger.Info "condition true"
                     EnqueueAll queue factory onNodeComplete
                 else onComplete status state queue
             factory onNodeComplete
-    Decorator ("While", decorator, builder)
+    PartialDecorator ("While", decorator)
 
 let GenericAction name parentName action =    
     fun onComplete ->
@@ -178,6 +179,8 @@ let withChild branch node =
     | Selector c -> TreeBuilder.Selector <| Array.append c [| node |]
     | Sequence c -> TreeBuilder.Sequence <| Array.append c [| node |]
     | Parallel (f, c) -> TreeBuilder.Parallel (f, Array.append c [| node |])
+    | PartialDecorator (n, f) -> TreeBuilder.Decorator (n, f, node)
+    | Decorator (n, _, _) -> invalidArg n "Decorator already has child. Use PartialDecorator as builder"
     | n -> invalidOp <| sprintf "%A cannot have child nodes" n 
 let (=>) parent child = withChild parent child 
 let BuildTree tree : Factory<'T> =    
@@ -190,5 +193,6 @@ let BuildTree tree : Factory<'T> =
         | Action a -> GenericAction (sprintf "Child%d" child) parentName a
         | Factory f -> f parentName
         | Decorator (n, d, c) ->
-            d <| internalBuildTree (sprintf "%s:%s" parentName n) 0 c 
+            d <| internalBuildTree (sprintf "%s:%s" parentName n) 0 c
+        | PartialDecorator (n, _) -> invalidArg n "Decorator must have exactly one child, but has zero"
     internalBuildTree "Root" 0 tree
