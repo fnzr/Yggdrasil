@@ -191,7 +191,7 @@ let OnAgentStartedWalking (agent: Agent) (data: byte[]) =
             
             let destination = (Convert.ToInt32 x1, Convert.ToInt32 y1)            
             let path = Pathfinding.AStar (Maps.GetMapData (agent.Location.Map))
-                                          (Convert.ToInt32 x0, Convert.ToInt32 y0) destination
+                                          (Convert.ToInt32 x0, Convert.ToInt32 y0) destination 0
             if path.Length > 0 then
                 agent.Location.Destination <- Some(destination)
                 let delay = Convert.ToInt64 (ToUInt32 data) - GetCurrentTick() - agent.TickOffset// - agent.Parameters.Speed

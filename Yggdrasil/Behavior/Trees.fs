@@ -19,26 +19,30 @@ let Walk =
     let DispatchWalk = Action (fun (agent: Agent) ->
         match agent.Goals.Position with
         | Some (x, y) ->
-            match agent.Location.PathTo (x, y) with
+            match agent.Location.PathTo (x, y) 2 with
             | [] -> Failure
             | path ->
                 let pos = path
                             |> List.take (Math.Min (MAX_WALK_DISTANCE, path.Length))
                             |> List.last
                 agent.Dispatcher(RequestMove pos)
+                agent.BehaviorData.Add <| ("MOVE_REQUEST_DISPATCHED", GetCurrentTick() :> obj)
                 Success
-        | None -> Failure)
+        | None -> Success)
         
     let WaitWalkAck = Action (fun (agent: Agent) ->
         match agent.Location.Destination with
         | Some _ -> Status.Success
-        | None -> Status.Running)
+        | None ->
+            let delay = GetCurrentTick() - ((agent.BehaviorData.Item "MOVE_REQUEST_DISPATCHED") :?> int64)
+            if delay > 500L then Status.Failure else Status.Running)
         
     let StoppedWalking = Action (fun (agent: Agent) ->
         match agent.Location.Destination with
         | Some _ -> Status.Running
         | None ->
-            if agent.Goals.Position = Some(agent.Location.Position) then
+            if Option.isSome agent.Goals.Position &&
+               agent.Location.DistanceTo agent.Goals.Position.Value <= 2 then
                 agent.Goals.Position <- None
             else agent.DelayPing 100.0
             Status.Success)

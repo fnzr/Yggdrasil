@@ -49,9 +49,9 @@ type Location () =
     member this.DistanceTo point =
         Navigation.Pathfinding.ManhattanDistance this.Position point
         
-    member this.PathTo point =
+    member this.PathTo point leeway =
         let mapData = Navigation.Maps.GetMapData this.Map
-        Navigation.Pathfinding.AStar mapData this.Position point
+        Navigation.Pathfinding.AStar mapData this.Position point leeway
         
 type Agent () =
     inherit EventDispatcher()
@@ -73,6 +73,7 @@ type Agent () =
     
     member val TickOffset = 0L with get, set
     member val WalkCancellationToken: CancellationTokenSource option = None with get, set
+    member this.BehaviorData = Dictionary<string, obj>()
     member this.Skills
         with get() = skills
         and set v = skills <- v//this.SetValue(&skills, v, AgentEvent.SkillsChanged)
