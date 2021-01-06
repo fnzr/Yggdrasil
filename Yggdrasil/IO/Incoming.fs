@@ -11,7 +11,7 @@ open Yggdrasil.Agent
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 open Yggdrasil.Utils
-let Logger = LogManager.GetLogger("RawPacket")
+let Logger = LogManager.GetLogger("Incoming")
 
 let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
     let queue = Queue<obj>()
@@ -216,7 +216,7 @@ let OnMapChange (agent: Agent) (data: byte[]) =
                                 data.[18..] |> ToUInt16 |> Convert.ToInt32)
 
 let OnPacketReceived (agent: Agent) (packetType: uint16) (data: byte[]) =
-    Logger.Trace("Packet from server: {packetType:X}", packetType)
+    Logger.Trace("Packet: {packetType:X}", packetType)
     match packetType with
         | 0x13aus -> OnParameterChange agent Parameter.AttackRange data.[2..]
         | 0x00b0us -> OnParameterChange agent (data.[2..] |> ToParameter)  data.[4..] 

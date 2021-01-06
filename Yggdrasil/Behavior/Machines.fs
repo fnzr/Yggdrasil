@@ -11,11 +11,11 @@ let Logger = LogManager.GetLogger("Machines")
 
 let WalkNorth (agent: Agent) =
     let (x, y) = agent.Location.Position
-    agent.Goals.Position <- Some(x, y + 5)
+    agent.Goals.Position <- Some(x, y - 21)
     
 let WalkSouth (agent: Agent) =
     let (x, y) = agent.Location.Position
-    agent.Goals.Position <- Some(x, y - 5)
+    agent.Goals.Position <- Some(x, y + 21)
 
 let DefaultMachine server username password = 
     let states = [
@@ -29,16 +29,16 @@ let DefaultMachine server username password =
             |> on ConnectionTerminated Terminated
         configure Idle
             |> withParent Connected
-            |> onEnter (fun (a: Agent) -> a.DelayPing 3000.0)
-            |> on Ping WalkingNorth
+            |> withBehavior (BuildTree <| Trees.Wait 3000L)            
+            |> on BehaviorTreeSuccess WalkingNorth
         configure WalkingNorth
             |> withParent Connected
-            |> withBehavior Trees.Walk
+            |> withBehavior (BuildTree Trees.Walk)
             |> onEnter WalkNorth
             |> on BehaviorTreeSuccess WalkingSouth
         configure WalkingSouth
             |> withParent Connected
-            |> withBehavior Trees.Walk
+            |> withBehavior (BuildTree Trees.Walk)
             |> onEnter WalkSouth
             |> on BehaviorTreeSuccess Idle
     ]

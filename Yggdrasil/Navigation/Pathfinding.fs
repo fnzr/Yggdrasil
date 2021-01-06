@@ -16,12 +16,12 @@ let ToPoint map index =
 
 let ToIndex map point = (int map.Width * snd point) + fst point
 
-let ManhattanDistance map a b =
-    let x1, y1 = ToPoint map a
-    let x2, y2 = ToPoint map b
-    Math.Abs(x1 - x2) + Math.Abs(y1 - y2)
+let ManhattanDistance (x1: int, y1: int) (x2, y2) =
+    Math.Abs(x1 - x2) + Math.Abs(y1 - y2) 
+let ManhattanDistanceFlat map a b =
+    ManhattanDistance (ToPoint map a) (ToPoint map b)
 
-let Heuristics map a b = float32 <| ManhattanDistance map a b
+let Heuristics map a b = float32 <| ManhattanDistanceFlat map a b
 
 type Node(index: int, parent) =
     inherit FastPriorityQueueNode()
@@ -60,7 +60,6 @@ let rec FindPath map (queue: FastPriorityQueue<Node>) (visited: Dictionary<int, 
             FindPath map queue visited goal
 
 let rec ReconstructPath map (node: Node) path =
-    //printfn "%A" <| ToPoint map node.Index
     match node.Parent with
     | None -> path
     | Some (parent) -> ReconstructPath map parent ((ToPoint map node.Index) :: path)

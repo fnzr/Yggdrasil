@@ -14,12 +14,13 @@
 
     <ItemGroup>
         <Compile Include="Types.fs" />
+        <Compile Include="Utils.fs" />
+        <Compile Include="Navigation\Maps.fs" />
+        <Compile Include="Navigation\Pathfinding.fs" />
         <Compile Include="Behavior\BehaviorTree.fs" />
         <Compile Include="Behavior\StateMachine.fs" />
-        <Compile Include="Agent.fs" />        
-        <Compile Include="Utils.fs" />        
-        <Compile Include="Navigation\Maps.fs" />
-        <Compile Include="Navigation\Pathfinding.fs" />        
+        <Compile Include="Agent.fs" />       
+        
         <Compile Include="IO\PacketTypes.fs" />
         <Compile Include="IO\Stream.fs" />
         <Compile Include="IO\Incoming.fs" />

@@ -25,6 +25,11 @@ let FillBytes (data:string) size =
         Array.zeroCreate (size - data.Length)
    |])
 
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+[<RequireQualifiedAccess>]
+module Array =
+    let inline last (arr:_[]) = arr.[arr.Length - 1]
+
 module Hex =
     
         [<CompiledName("ToHexDigit")>]

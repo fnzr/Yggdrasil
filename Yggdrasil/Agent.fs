@@ -25,12 +25,37 @@ type Goals() =
         with get() = position
         and set v = this.SetValue (&position, v, AgentEvent.GoalPositionChanged)
         
+type Location () =
+    inherit EventDispatcher()
+    let ev = Event<_>()
+    let mutable map: string = ""
+    let mutable position = 0, 0
+    let mutable destination: (int * int) option = None
+    
+    [<CLIEvent>]
+    member this.OnEventDispatched = ev.Publish
+    override this.Dispatch e = ev.Trigger(e)
+    override this.Logger = LogManager.GetLogger("Location")
+    member this.Map
+        with get() = map
+        and set v = this.SetValue(&map, v, AgentEvent.MapChanged)
+    member this.Destination
+        with get() = destination
+        and set v = this.SetValue(&destination, v, AgentEvent.DestinationChanged)
+    member this.Position
+        with get() = position
+        and set v = this.SetValue(&position, v, AgentEvent.PositionChanged)
+        
+    member this.DistanceTo point =
+        Navigation.Pathfinding.ManhattanDistance this.Position point
+        
+    member this.PathTo point =
+        let mapData = Navigation.Maps.GetMapData this.Map
+        Navigation.Pathfinding.AStar mapData this.Position point
+        
 type Agent () =
     inherit EventDispatcher()
     let mutable skills: Skill list = []
-    let mutable isConnected = false
-    let mutable btStatus = BehaviorTree.Invalid
-    
     let ev = Event<_>()
     [<CLIEvent>]
     member this.OnEventDispatched = ev.Publish
@@ -81,10 +106,9 @@ let EventMailbox (agent: Agent) stateMachine (inbox: MailboxProcessor<AgentEvent
                 | Some m -> m, BehaviorTree.InitTreeOrEmpty m.CurrentState.Behavior
                 | None -> currentMachine, currentTree
             |> AdvanceBehavior agent
-            
         return! loop machine queue
     }
-    let bt = BehaviorTree.Queue<Agent>.empty()
+    let bt = FSharpx.Collections.Queue.empty
     loop stateMachine bt
     
 let StartAgent server username password machineFactory =

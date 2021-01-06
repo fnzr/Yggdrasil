@@ -189,24 +189,3 @@ type Inventory() =
     member val Weight = 0u with get, set
     member val MaxWeight = 0u with get, set
     member val Zeny = 0 with get, set
-    
-type Location () =
-    inherit EventDispatcher()
-    let ev = Event<_>()
-    let mutable map: string = ""
-    let mutable position = 0, 0
-    let mutable destination: (int * int) option = None
-    
-    [<CLIEvent>]
-    member this.OnEventDispatched = ev.Publish
-    override this.Dispatch e = ev.Trigger(e)
-    override this.Logger = LogManager.GetLogger("Location")
-    member this.Map
-        with get() = map
-        and set v = this.SetValue(&map, v, AgentEvent.MapChanged)
-    member this.Destination
-        with get() = destination
-        and set v = this.SetValue(&destination, v, AgentEvent.DestinationChanged)
-    member this.Position
-        with get() = position
-        and set v = this.SetValue(&position, v, AgentEvent.PositionChanged)
