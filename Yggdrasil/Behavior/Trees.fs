@@ -2,9 +2,10 @@ module Yggdrasil.Behavior.Trees
 
 open System
 open NLog
+open Yggdrasil
+open Yggdrasil.Agent
 open Yggdrasil.Behavior.BehaviorTree
 open Yggdrasil.Types
-open Yggdrasil.Agent
 
 let Logger = LogManager.GetLogger "Trees"
 
@@ -26,7 +27,7 @@ let Walk =
                             |> List.take (Math.Min (MAX_WALK_DISTANCE, path.Length))
                             |> List.last
                 agent.Dispatcher(RequestMove pos)
-                agent.BehaviorData.Add <| ("MOVE_REQUEST_DISPATCHED", GetCurrentTick() :> obj)
+                agent.BehaviorData.["MOVE_REQUEST_DISPATCHED"] <- Agent.Tick
                 Success
         | None -> Success)
         
@@ -34,7 +35,7 @@ let Walk =
         match agent.Location.Destination with
         | Some _ -> Status.Success
         | None ->
-            let delay = GetCurrentTick() - ((agent.BehaviorData.Item "MOVE_REQUEST_DISPATCHED") :?> int64)
+            let delay = Agent.Tick - (agent.BehaviorData.["MOVE_REQUEST_DISPATCHED"] :?> int64)
             if delay > 500L then Status.Failure else Status.Running)
         
     let StoppedWalking = Action (fun (agent: Agent) ->
@@ -56,10 +57,10 @@ let Walk =
 let Wait milliseconds =
     Factory (
         fun parentName onComplete ->
-            let targetTick = GetCurrentTick() + milliseconds
+            let targetTick = Agent.Tick + milliseconds
             [|{new Node<Agent>(parentName, onComplete) with
                 member this.OnTick agent =
-                    let diff = targetTick - GetCurrentTick () 
+                    let diff = targetTick - Agent.Tick 
                     if diff > 0L then
                         agent.DelayPing <| Convert.ToDouble diff; Running
                     else Success

@@ -11,16 +11,16 @@ let Logger = LogManager.GetLogger("Machines")
 
 let WalkNorth (agent: Agent) =
     let (x, y) = agent.Location.Position
-    agent.Goals.Position <- Some(x, y + 21)
+    agent.Goals.Position <- Some(x, y - 21)
     
 let WalkSouth (agent: Agent) =
     let (x, y) = agent.Location.Position
-    agent.Goals.Position <- Some(x, y - 21)
+    agent.Goals.Position <- Some(x, y + 21)
 
 let DefaultMachine server username password = 
     let states = [
         configure Terminated
-            |> onEnter (fun (a: Agent) -> Logger.Warn("Agent disconnected: {name}", a.Name))
+            |> onEnter (fun (a: Agent) -> Logger.Warn ("Agent disconnected: {name}", a.Name))
         configure Disconnected
             |> onEnter (Handshake.Login server username password)
             |> on ConnectionAccepted Connected
