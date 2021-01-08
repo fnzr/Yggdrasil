@@ -58,11 +58,11 @@ let Wait milliseconds =
     Factory (
         fun parentName onComplete ->
             let targetTick = Agent.Tick + milliseconds
-            [|{new Node<Agent>(parentName, onComplete) with
-                member this.OnTick agent =
+            {new Node<Agent>(parentName, onComplete) with
+                override this.Tick agent =
                     let diff = targetTick - Agent.Tick 
                     if diff > 0L then
                         agent.DelayPing <| Convert.ToDouble diff; Running
                     else Success
-                member this.Name = "Wait"
-            }|])
+                override this.Name = "Wait"
+            })

@@ -8,13 +8,15 @@ type Status = Success | Failure | Running | Invalid
 type ParallelFlag =
     OneSuccess = 1 | OneFailure = 2 | AllSuccess = 4 | AllFailure = 8
 
+let RootComplete _ _ q = q
+
 [<AbstractClass>]
 type Node<'T>(parentName, onComplete) = 
     let mutable _aborted = false
     let mutable _onComplete = onComplete
 
     abstract member OnComplete: OnCompleteCallback<'T> with get, set
-    abstract member OnTick: 'T -> Status
+    abstract member Tick: 'T -> Status
     abstract member Aborted: bool with get, set
     abstract member Name: string
     default this.Aborted
@@ -22,13 +24,12 @@ type Node<'T>(parentName, onComplete) =
     default this.OnComplete
         with get() = _onComplete and set v = _onComplete <- v
     member this.FullName = sprintf "%s:%s" parentName this.Name 
-
 and OnCompleteCallback<'T> = Status -> 'T -> Queue<Node<'T>> -> Queue<Node<'T>>
-type Factory<'T> = OnCompleteCallback<'T> -> Node<'T>[]
+type Factory<'T> = OnCompleteCallback<'T> -> Node<'T>
 
 and TreeBuilder<'T> =
     | Selector of TreeBuilder<'T>[]
-    | Sequence  of TreeBuilder<'T>[]
+    | Sequence of TreeBuilder<'T>[]
     | Parallel of ParallelFlag * TreeBuilder<'T>[]
     | Action of ('T -> Status)
     | Factory of (string -> Factory<'T>)
@@ -36,9 +37,7 @@ and TreeBuilder<'T> =
     | PartialDecorator of string * (Factory<'T> -> Factory<'T>)
     
 let Logger = LogManager.GetLogger("BehaviorTree")
-let RootComplete _ _ q = q
-let InitTree (tree: Factory<_>) =
-    Array.fold (fun (q: Queue<_>) -> q.Conj) (Queue.empty) <| tree RootComplete
+let InitTree (tree: Factory<_>) = Queue.empty.Conj <| tree RootComplete
     
 let InitTreeOrEmpty tree =
     match tree with
@@ -53,7 +52,7 @@ let rec SkipAbortedNodes (queue: Queue<Node<_>>) =
     | None -> None
 let rec _Tick (queue: Queue<Node<'T>>) (nextQueue: Queue<Node<'T>>) state =     
     let (node, tail) = queue.Uncons
-    let result = node.OnTick state
+    let result = node.Tick state
     Logger.Trace ("{node}: {result}", node.FullName, result)
     let next = match result with
                 | Running -> nextQueue.Conj node
@@ -77,9 +76,7 @@ let EnqueueAll queue nodes onComplete =
     nodes onComplete |>
     Array.fold (fun (q: Queue<_>) -> q.Conj) queue 
          
-let Execute tree state =
-    let queue = Array.fold (fun (q: Queue<_>) -> q.Conj) (Queue.empty) <| tree RootComplete
-    AllTicks queue state Running
+let Execute tree state = AllTicks (InitTree tree) state Running
 
 let Loop node =
     fun _ ->
@@ -91,17 +88,17 @@ let rec While condition =
         fun factory onComplete ->
             let rec onNodeComplete status state (queue: Queue<Node<'T>>) =
                 if condition state then
-                    EnqueueAll queue factory onNodeComplete
+                    queue.Conj <| factory onNodeComplete
                 else onComplete status state queue
             factory onNodeComplete
     PartialDecorator ("While", decorator)
 
 let GenericAction name parentName action =    
     fun onComplete ->
-        [|{ new Node<'T>(parentName, onComplete) with
-                member this.OnTick data = action data
+        { new Node<'T>(parentName, onComplete) with
+                member this.Tick data = action data
                 member this.Name = name
-        }|]
+        }
 
 module SequenceNode =
     let rec OnChildCompleted children parentCallback status state (queue: Queue<Node<'T>>) =
@@ -110,7 +107,7 @@ module SequenceNode =
             | Success ->
                 match children with
                 | [||] -> parentCallback Success state queue
-                | _ -> Array.fold (fun (q: Queue<Node<'T>>) -> q.Conj) queue <| Build children parentCallback                    
+                | _ -> queue.Conj <| Build children parentCallback                    
             | _ -> invalidArg "Status" "Invalid termination Status for Sequence"            
     and Build (children: Factory<'T>[]) parentCallback =
         if children.Length = 0
@@ -125,7 +122,7 @@ module SelectorNode =
             | Failure ->
                 match children with
                 | [||] -> parentCallback Failure state queue
-                | _ -> Array.fold (fun (q: Queue<Node<'T>>) -> q.Conj) queue <| Build children parentCallback                    
+                | _ -> queue.Conj <| Build children parentCallback                    
             | _ -> invalidArg "Status" "Invalid termination Status for Selector"            
     and Build (children: Factory<'T>[]) parentCallback =
         if children.Length = 0
@@ -135,9 +132,18 @@ module SelectorNode =
         
 module ParallelNode =
     
+    type NodeGroup<'T>(parentName, children) =
+        inherit Node<'T>(parentName, RootComplete)
+        let mutable children: Queue<Node<'T>> = children 
+        override this.Tick state =
+            let (queue, status) = Tick children state
+            children <- queue
+            status
+        override this.Name = "Parallel"
+        
     type Parallel<'T> = {
         Flags: ParallelFlag
-        mutable Children: Node<'T>[][]
+        mutable Children: Node<'T>[]
     }
     
     let rec OnChildCompleted (node: Parallel<'T>) parentCallback index status state (queue: Queue<Node<'T>>) =
@@ -146,18 +152,17 @@ module ParallelNode =
         let children = Array.concat [|upper; lower|]
         if children.Length = 0 then parentCallback status state queue
         else
-            let flattened = (children |> Array.reduce Array.append)
             if (node.Flags.HasFlag(ParallelFlag.OneSuccess) && status = Success) ||
                (node.Flags.HasFlag(ParallelFlag.OneFailure) && status = Failure) then
-                Array.iter (fun (c: Node<'T>) -> c.Aborted <- true) flattened
+                Array.iter (fun (c: Node<'T>) -> c.Aborted <- true) children
                 parentCallback status state queue
             else                
                 let next = { node with Children = children }
                 let onComplete = OnChildCompleted next parentCallback
-                Array.iteri (fun i (c: Node<'T>) -> c.OnComplete <- onComplete i) flattened
+                Array.iteri (fun i (c: Node<'T>) -> c.OnComplete <- onComplete i) children
                 queue
             
-    let Build conditions (children: Factory<'T>[]) =
+    let Build parentName conditions (children: Factory<'T>[]) =
         if children.Length = 0
             then raise <| invalidArg "children" "Parallel must have at least one child"
         fun onComplete ->
@@ -168,7 +173,11 @@ module ParallelNode =
             let buildCb = fun i f -> f <| OnChildCompleted parent onComplete i
             let builtChildren = Array.mapi buildCb children
             parent.Children <- builtChildren
-            builtChildren |> Array.reduce Array.append
+            NodeGroup(parentName,
+                      Array.fold (fun (q: Queue<Node<'T>>) -> q.Conj) Queue.empty builtChildren)
+            :> Node<'T>
+            
+            
 
 let Parallel flag = Parallel (flag, [||]) 
 let Sequence = Sequence [||]
@@ -189,7 +198,7 @@ let BuildTree tree : Factory<'T> =
         match node with
         | Selector c -> SelectorNode.Build <| Array.mapi (mapper "Selector") c
         | Sequence c -> SequenceNode.Build <| Array.mapi (mapper "Sequence") c
-        | Parallel (f, c) -> ParallelNode.Build f <| Array.mapi (mapper "Parallel") c
+        | Parallel (f, c) -> ParallelNode.Build parentName f <| Array.mapi (mapper "Parallel") c
         | Action a -> GenericAction (sprintf "Child%d" child) parentName a
         | Factory f -> f parentName
         | Decorator (n, d, c) ->
