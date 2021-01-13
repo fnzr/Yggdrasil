@@ -8,6 +8,7 @@ open System.Threading
 open Microsoft.FSharp.Reflection
 open NLog
 open Yggdrasil.Agent.Agent
+open Yggdrasil.Agent.Location
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 open Yggdrasil.Utils
@@ -177,45 +178,14 @@ let AddSkill (agent: Agent) data =
             agent.Skills <- skill :: agent.Skills
             ParseSkills bytes.[37..]
     ParseSkills data
-
-let WalkDataLock = obj()
-let rec TryTakeStep (cancelToken: CancellationToken) delay (agent: Agent) (path: (int * int) list) = async {
-    do! Async.Sleep delay
-    lock WalkDataLock
-        (fun () ->
-        if cancelToken.IsCancellationRequested then ()
-        else
-            agent.Location.Position <- fst path.Head, snd path.Head
-            match path.Tail.Length with
-            | 0 ->
-                agent.Location.Destination <- None
-                agent.WalkCancellationToken <- None
-            | _ ->
-                let speed = Convert.ToInt32 agent.BattleParameters.Speed
-                Async.Start <| TryTakeStep cancelToken speed agent path.Tail
-            )
-}
-
 let OnAgentStartedWalking (agent: Agent) (data: byte[]) =
     let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[4..]
-    lock WalkDataLock
-         (fun () ->
-            match agent.WalkCancellationToken with
-            | Some (token) -> token.Cancel()
-            | None -> ()
-            agent.Location.Destination <- None
-            
-            let destination = (Convert.ToInt32 x1, Convert.ToInt32 y1)            
-            let path = Pathfinding.AStar (Maps.GetMapData (agent.Location.Map))
-                                          (Convert.ToInt32 x0, Convert.ToInt32 y0) destination 0
-            if path.Length > 0 then
-                agent.Location.Destination <- Some(destination)
-                let delay = Convert.ToInt64 (ToUInt32 data) - Agent.Tick - agent.TickOffset// - agent.Parameters.Speed
-                let tokenSource = new CancellationTokenSource()
-                agent.WalkCancellationToken <- Some(tokenSource)
-                let naturalDelay = if delay < 0L then 0 else Convert.ToInt32 delay
-                Async.Start (TryTakeStep tokenSource.Token (naturalDelay) agent path)
-         )
+    let delay = Convert.ToInt64 (ToUInt32 data) - Agent.Tick - agent.TickOffset
+    StartWalk agent.Location
+        (Convert.ToInt32 x0, Convert.ToInt32 y0)
+        (Convert.ToInt32 x1, Convert.ToInt32 y1)
+        delay (Convert.ToInt32 agent.BattleParameters.Speed)
+    
 let OnConnectionAccepted (agent: Agent) (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]
     agent.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Agent.Tick

@@ -33,8 +33,7 @@ type Agent () =
     member val Health = Components.Health ()    
     member val Goals = Goals ()
     
-    member val TickOffset = 0L with get, set
-    member val WalkCancellationToken: CancellationTokenSource option = None with get, set
+    member val TickOffset = 0L with get, set    
     member val private Units = Dictionary<uint32, Unit.Unit>()
     member this.Publish event = ev.Trigger event
     member this.Skills
