@@ -3,7 +3,7 @@ module Yggdrasil.Behavior.Trees
 open System
 open NLog
 open Yggdrasil
-open Yggdrasil.Agent
+open Yggdrasil.Agent.Agent
 open Yggdrasil.Behavior.BehaviorTree
 open Yggdrasil.Types
 
@@ -17,7 +17,7 @@ let Walk =
         | Some v -> v <> agent.Location.Position
         | None -> false
         
-    let DispatchWalk = Action (fun (agent: Agent) ->
+    let DispatchWalk = Action (fun (agent: Agent) blackboard ->
         match agent.Goals.Position with
         | Some (x, y) ->
             match agent.Location.PathTo (x, y) 2 with
@@ -26,19 +26,19 @@ let Walk =
                 let pos = path
                             |> List.take (Math.Min (MAX_WALK_DISTANCE, path.Length))
                             |> List.last
-                agent.Dispatcher(RequestMove pos)
-                agent.BehaviorTree.Value.Data.["MOVE_REQUEST_DISPATCHED"] <- Agent.Tick
+                agent.Dispatch(RequestMove pos)
+                blackboard.["MOVE_REQUEST_DISPATCHED"] <- Agent.Tick
                 Success
         | None -> Success)
         
-    let WaitWalkAck = Action (fun (agent: Agent) ->
+    let WaitWalkAck = Action (fun (agent: Agent) blackboard ->
         match agent.Location.Destination with
         | Some _ -> Status.Success
         | None ->
-            let delay = Agent.Tick - (agent.BehaviorTree.Value.Data.["MOVE_REQUEST_DISPATCHED"] :?> int64)
+            let delay = Agent.Tick - (blackboard.["MOVE_REQUEST_DISPATCHED"] :?> int64)
             if delay > 500L then Status.Failure else Status.Running)
         
-    let StoppedWalking = Action (fun (agent: Agent) ->
+    let StoppedWalking = Action (fun (agent: Agent) _ ->
         match agent.Location.Destination with
         | Some _ -> Status.Running
         | None ->
@@ -58,7 +58,7 @@ let Wait milliseconds =
         fun parentName onComplete ->
             let targetTick = Agent.Tick + milliseconds
             {new Node<Agent>(parentName, onComplete) with
-                override this.Tick agent =
+                override this.Tick agent blackboard =
                     let diff = targetTick - Agent.Tick 
                     if diff > 0L then Running
                     else Success

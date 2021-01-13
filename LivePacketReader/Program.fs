@@ -7,9 +7,9 @@ open NLog
 open PacketDotNet
 open SharpPcap
 let Logger = LogManager.GetLogger("LivePacket")
-let ServerIP = IPAddress.Parse "192.168.2.10"
+let ServerIP = IPAddress.Parse "172.19.0.2"
 let ClientIP = IPAddress.Parse "192.168.2.3"
-let Agent = Yggdrasil.Agent.Agent()
+let Agent = Yggdrasil.Agent.Agent.Agent()
 let MapToClientCallback = Yggdrasil.IO.Incoming.OnPacketReceived Agent
 let mutable MapToClientQueue = Array.empty
 let mutable ClientToMapQueue = Array.empty
@@ -23,6 +23,7 @@ let OnClientToServerPacket (packetType: uint16) packetData =
     | 0x014fus -> () //CZ_REQ_GUILD_MENU
     | 0x0447us -> () //CZ_BLOCKING_PLAY_CANCEL
     | 0x0368us -> () //CZ_REQNAME2
+    | 0x035fus -> () //CZ_REQUEST_MOVE2
     | _ -> Logger.Info ("Packet: {packetType:X}", packetType)
 
 let OnPacketArrival (e: CaptureEventArgs) =

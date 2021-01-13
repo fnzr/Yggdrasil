@@ -4,7 +4,8 @@ open NLog
 open Yggdrasil.Behavior.BehaviorTree
 open Yggdrasil.IO
 open Yggdrasil.Behavior.StateMachine
-open Yggdrasil.Agent
+open Yggdrasil.Agent.Agent
+open Yggdrasil.Agent.Event
 let Logger = LogManager.GetLogger("Machines")
 
 

@@ -17,7 +17,7 @@ type Parameter =
     |AttackRange=1000us|BaseExp=1us|JobExp=2us|NextBaseExp=22us
     |NextJobExp=23us|USTR=32us|UAGI=33us|UVIT=34us|UINT=35us|UDEX=36us|ULUK=37us
 
-type UnitRaw = {
+type IdleUnitPartial = {
     ObjectType: byte
     AID: uint32
     GUI: uint32
@@ -29,6 +29,23 @@ type UnitRaw = {
     Head: uint16
     Weapon: uint32
     Accessory1: uint16
+}
+
+type UnitRawPart1 = {
+    ObjectType: byte
+    AID: uint32
+    GUI: uint32
+    Speed: int16
+    BodyState: int16
+    HealthState: int16
+    EffectState : int
+    Job: int16
+    Head: uint16
+    Weapon: uint32
+    Accessory1: uint16
+}
+
+type UnitRawPart2 = {    
     Accessory2: uint16
     Accessory3: uint16
     HeadPalette: int16
@@ -53,6 +70,24 @@ type UnitRaw = {
     IsBoss : byte
     Body: uint16
     Name: string
+}
+
+type SkillCast = {
+    source: uint32
+    target: uint32
+    posX: int16
+    posY: int16
+    skillId: int16
+    property: int
+    delay: uint32
+    disposable: byte
+}
+
+type ReqNameTitle = {
+    gid: int
+    groupId: int
+    name: string
+    title: string
 }
 
 type RequestMove = {

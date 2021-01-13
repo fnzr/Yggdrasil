@@ -1,4 +1,4 @@
-namespace Yggdrasil.Agent
+module Yggdrasil.Agent.Components
 
 open NLog
 open Yggdrasil.Types

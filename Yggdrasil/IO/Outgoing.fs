@@ -4,7 +4,7 @@ open System
 open System.IO
 open NLog
 open Yggdrasil
-open Yggdrasil.Agent
+open Yggdrasil.Agent.Agent
 open Yggdrasil.Types
 let Logger = LogManager.GetLogger("Dispatcher")
 

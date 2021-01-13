@@ -1,8 +1,9 @@
-namespace Yggdrasil.Agent
+module Yggdrasil.Agent.Location
 
 open NLog
 open Yggdrasil.Navigation
 open Yggdrasil.Utils
+open Yggdrasil.Agent.Event
 type Location (publish: GameEvent -> unit) =
     let mutable map: string = ""
     let mutable position = 0, 0

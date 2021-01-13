@@ -1,6 +1,7 @@
 ﻿module Yggdrasil.Behavior.BehaviorTree
 
 open System
+open System.Collections.Generic
 open FSharpx.Collections
 open NLog
 type Status = Success | Failure | Running | Invalid
@@ -16,7 +17,7 @@ type Node<'T>(parentName, onComplete) =
     let mutable _onComplete = onComplete
 
     abstract member OnComplete: OnCompleteCallback<'T> with get, set
-    abstract member Tick: 'T -> Status
+    abstract member Tick: 'T -> Dictionary<string, obj> -> Status
     abstract member Aborted: bool with get, set
     abstract member Name: string
     abstract member Abort: unit -> unit
@@ -33,7 +34,7 @@ and TreeBuilder<'T> =
     | Selector of TreeBuilder<'T>[]
     | Sequence of TreeBuilder<'T>[]
     | Parallel of ParallelFlag * TreeBuilder<'T>[]
-    | Action of ('T -> Status)
+    | Action of ('T -> Dictionary<string, obj> -> Status)
     | Factory of (string -> Factory<'T>)
     | Decorator of string * (Factory<'T> -> Factory<'T>) * TreeBuilder<'T>
     | PartialDecorator of string * (Factory<'T> -> Factory<'T>)
@@ -52,9 +53,9 @@ let rec SkipAbortedNodes (queue: Queue<Node<_>>) =
         if node.Aborted then SkipAbortedNodes tail
         else Some queue
     | None -> None
-let rec _Tick (queue: Queue<Node<'T>>) (nextQueue: Queue<Node<'T>>) state =     
+let rec _Tick (queue: Queue<Node<'T>>) (nextQueue: Queue<Node<'T>>) state blackboard =     
     let (node, tail) = queue.Uncons
-    let result = node.Tick state
+    let result = node.Tick state blackboard
     Logger.Trace ("{node}: {result}", node.FullName, result)
     let next = match result with
                 | Running -> nextQueue.Conj node
@@ -62,17 +63,17 @@ let rec _Tick (queue: Queue<Node<'T>>) (nextQueue: Queue<Node<'T>>) state =
                 | Invalid -> invalidOp "Node in invalid state"
     match SkipAbortedNodes tail with
     | None -> next, if next.IsEmpty then result else Running
-    | Some q -> _Tick q next state
+    | Some q -> _Tick q next state blackboard
 
-let Tick (queue: Queue<_>) state =
+let Tick (queue: Queue<_>) state blackboard =
     if queue.IsEmpty then queue, Invalid
-    else _Tick queue (Queue.empty) state
+    else _Tick queue (Queue.empty) state blackboard
             
-let rec AllTicks (queue: Queue<_>) state status =
+let rec AllTicks (queue: Queue<_>) state status blackboard =
     if queue.IsEmpty then status
     else
-        let (nextQueue, nextStatus) = _Tick queue (Queue.empty) state
-        AllTicks nextQueue state nextStatus
+        let (nextQueue, nextStatus) = _Tick queue (Queue.empty) state blackboard
+        AllTicks nextQueue state nextStatus blackboard
         
 let EnqueueAll queue nodes onComplete =
     nodes onComplete |>
@@ -98,7 +99,7 @@ let rec While condition =
 let GenericAction name parentName action =    
     fun onComplete ->
         { new Node<'T>(parentName, onComplete) with
-                member this.Tick data = action data
+                member this.Tick data blackboard = action data blackboard
                 member this.Name = name
         }
 
@@ -137,8 +138,8 @@ module ParallelNode =
     type NodeGroup<'T>(parentName, children) =
         inherit Node<'T>(parentName, RootComplete)
         let mutable children: Queue<Node<'T>> = children 
-        override this.Tick state =
-            let (queue, status) = Tick children state
+        override this.Tick state blackboard =
+            let (queue, status) = Tick children state blackboard
             children <- queue
             status
         override this.Name = "Parallel"

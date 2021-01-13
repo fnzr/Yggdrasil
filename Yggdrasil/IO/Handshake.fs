@@ -8,12 +8,12 @@ open System.Net
 open System.Net.Sockets
 open System.Text
 open NLog
-open Yggdrasil.Agent
+open Yggdrasil.Agent.Agent
 open Yggdrasil.Types
 open Yggdrasil.Utils
 open Yggdrasil.Behavior
 open Yggdrasil.IO.Stream
-
+open Yggdrasil.Agent.Event
 type LoginCredentials = {
     LoginServer: IPEndPoint
     Username: string
@@ -81,7 +81,7 @@ let onAuthenticationResult (agent: Agent)
         conn.Connect(info.ZoneServer)
         
         let stream = conn.GetStream()
-        agent.Dispatcher <- (Outgoing.Dispatch stream)
+        agent.Dispatch <- (Outgoing.Dispatch stream)
         agent.Name <- info.CharacterName
         
         stream.Write (WantToConnect info)
@@ -95,7 +95,7 @@ let onAuthenticationResult (agent: Agent)
                 //| :? IOException ->
                   //  Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)                
                 | :? ObjectDisposedException -> ()
-                | _ -> ()
+                | e -> Logger.Error e
             finally
                 agent.Publish <| Connection Inactive
                 ()

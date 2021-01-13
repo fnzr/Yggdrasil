@@ -7,10 +7,12 @@ open System.Runtime.InteropServices
 open System.Threading
 open Microsoft.FSharp.Reflection
 open NLog
-open Yggdrasil.Agent
+open Yggdrasil.Agent.Agent
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 open Yggdrasil.Utils
+open Yggdrasil.Agent.Event
+open Yggdrasil.Agent.Unit
 let Logger = LogManager.GetLogger("Incoming")
 
 let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
@@ -18,7 +20,7 @@ let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
     let fields = typeof<'T>.GetProperties()
     let rec loop (properties: PropertyInfo[]) (data: byte[]) (stringSizes: int[]) =
         match properties with
-        | [||] -> FSharpValue.MakeRecord(typeof<'T>, queue.ToArray()) :?> 'T
+        | [||] -> FSharpValue.MakeRecord(typeof<'T>, queue.ToArray()) :?> 'T, data
         | _ ->
             let property = properties.[0]
             let size, stringsS = if property.PropertyType = typeof<string>
@@ -148,10 +150,22 @@ let OnParameterChange (agent: Agent) parameter value =
     
     | _ -> ()
 
-let OnNonPlayerSpawn agent data = ()
-    //let unit = MakeRecord<UnitRaw> data [|24|]//publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
-    //Logger.Debug(unit)
-let OnPlayerSpawn agent data =()// publish <| PlayerSpawn (MakeRecord<Unit> data [|24|])
+let OnUnitSpawn (agent: Agent) data =
+    let (part1, leftover) = MakeRecord<UnitRawPart1> data [||]    
+    let (part2, _) = MakeRecord<UnitRawPart2> leftover [|24|]
+    agent.SpawnUnit <| CreateUnit part1 part2
+    
+let OnNonPlayerSpawn (agent: Agent) data =
+    OnUnitSpawn agent data
+let OnPlayerSpawn = OnUnitSpawn
+
+let OnWalkingUnitSpawn (agent: Agent) data =
+    let (part1, leftover) = MakeRecord<UnitRawPart1> data [||]
+    //skip MoveStartTime: uint32 
+    let (part2, _) = MakeRecord<UnitRawPart2> (leftover.[4..]) [|24|]
+    agent.SpawnUnit <| CreateUnit part1 part2
+
+let OnUnitDespawn (agent: Agent) data = agent.DespawnUnit <| ToUInt32 data
 
 let AddSkill (agent: Agent) data =
     let rec ParseSkills (skillBytes: byte[]) =
@@ -159,7 +173,7 @@ let AddSkill (agent: Agent) data =
         | [||] -> ()
         | bytes ->
             //TODO SkillRaw -> Skill
-            let skill = MakeRecord<Skill> data [|24|]
+            let (skill, _) = MakeRecord<Skill> data [|24|]
             agent.Skills <- skill :: agent.Skills
             ParseSkills bytes.[37..]
     ParseSkills data
@@ -210,12 +224,21 @@ let OnConnectionAccepted (agent: Agent) (data: byte[]) =
     
 let OnWeightSoftCap (agent: Agent) (data: byte[]) = agent.Inventory.WeightSoftCap <- ToInt32 data
 
+let OnSkillCast (agent: Agent) data =
+    let (cast, _) = MakeRecord<SkillCast> data [||]
+    match (agent.Unit cast.source, agent.Unit cast.target) with
+    | (None, _) | (_, None) -> Logger.Warn "Missing skill cast units!"
+    | (Some caster, Some target) ->
+        //TODO emit casting skill event
+        Logger.Info ("{caster} casting skill {skill} on {target}", caster.Name, cast.skillId, target.Name)
+
 let OnMapChange (agent: Agent) (data: byte[]) =
     agent.ChangeMap (
         let gatFile = ToString data.[..15]
         gatFile.Substring(0, gatFile.Length - 4))
     agent.Location.Position <- (data.[16..] |> ToUInt16 |> Convert.ToInt32,
                                 data.[18..] |> ToUInt16 |> Convert.ToInt32)
+    
 
 let OnPacketReceived (agent: Agent) (packetType: uint16) (data: byte[]) =
     Logger.Trace("Packet: {packetType:X}", packetType)
@@ -227,8 +250,12 @@ let OnPacketReceived (agent: Agent) (packetType: uint16) (data: byte[]) =
         | 0xadeus -> OnWeightSoftCap agent data.[2..]         
         | 0x9ffus -> OnNonPlayerSpawn agent data.[4..]
         | 0x9feus -> OnPlayerSpawn agent data.[4..]
+        | 0x9fdus -> OnWalkingUnitSpawn agent data.[4..]
+        | 0x0080us -> OnUnitDespawn agent data.[2..]
         | 0x10fus -> AddSkill agent data.[4..]
         | 0x0087us -> OnAgentStartedWalking agent data.[2..]
+        | 0x07fbus -> OnSkillCast agent data.[2..]
+        | 0x0adfus (* ZC_REQNAME_TITLE *) -> ()
         | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> ()        
         | 0x0bdus (* ZC_STATUS *) -> ()
         | 0x0086us (* ZC_NOTIFY_PLAYERMOVE *) -> ()
@@ -245,6 +272,7 @@ let OnPacketReceived (agent: Agent) (packetType: uint16) (data: byte[]) =
         | 0x283us | 0x9e7us (* ZC_NOTIFY_UNREADMAIL *) | 0x1d7us (* ZC_SPRITE_CHANGE2 *)
         | 0x008eus (* ZC_NOTIFY_PLAYERCHAT *) | 0xa24us (* ZC_ACH_UPDATE *) | 0xa23us (* ZC_ALL_ACH_LIST *)
         | 0xa00us (* ZC_SHORTCUT_KEY_LIST_V3 *) | 0x2c9us (* ZC_PARTY_CONFIG *) | 0x02daus (* ZC_CONFIG_NOTIFY *)
-        | 0x02d9us (* ZC_CONFIG *) | 0x00b6us (* ZC_CLOSE_DIALOG *) | 0x01b3us (* ZC_SHOW_IMAGE2 *) -> ()
+        | 0x02d9us (* ZC_CONFIG *) | 0x00b6us (* ZC_CLOSE_DIALOG *) | 0x01b3us (* ZC_SHOW_IMAGE2 *)
+        | 0x00c0us (* ZC_EMOTION *) -> ()
         | 0x0081us -> ()//Logger.Error ("Forced disconnect. Code %d", data.[2])
         | unknown -> Logger.Warn("Unhandled packet {packetType:X}", unknown, data.Length) //shutdown()
