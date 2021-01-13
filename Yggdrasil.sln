@@ -12,6 +12,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Tests", "Tests\Tests.fsproj
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "YTrace", "YTrace\YTrace.fsproj", "{BCA18C59-0E27-48E1-9C43-3E0422F7932D}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LivePacketReader", "LivePacketReader\LivePacketReader.fsproj", "{6AB4F996-C60A-461B-AC74-519DCD8C37E3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,5 +44,9 @@ Global
 		{BCA18C59-0E27-48E1-9C43-3E0422F7932D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BCA18C59-0E27-48E1-9C43-3E0422F7932D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BCA18C59-0E27-48E1-9C43-3E0422F7932D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6AB4F996-C60A-461B-AC74-519DCD8C37E3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AB4F996-C60A-461B-AC74-519DCD8C37E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AB4F996-C60A-461B-AC74-519DCD8C37E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AB4F996-C60A-461B-AC74-519DCD8C37E3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

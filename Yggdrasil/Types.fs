@@ -3,6 +3,7 @@ module Yggdrasil.Types
 open System.Collections.Generic
 open System.Threading
 open NLog
+open NLog
 
 
 type Parameter =
@@ -16,7 +17,7 @@ type Parameter =
     |AttackRange=1000us|BaseExp=1us|JobExp=2us|NextBaseExp=22us
     |NextJobExp=23us|USTR=32us|UAGI=33us|UVIT=34us|UINT=35us|UDEX=36us|ULUK=37us
 
-type Unit = {
+type UnitRaw = {
     ObjectType: byte
     AID: uint32
     GUI: uint32
@@ -88,6 +89,7 @@ type Command =
     | RequestServerTick
     | RequestMove of int * int
     
+(*
 type AgentEvent =
     | PositionChanged
     | ConnectionAccepted
@@ -103,13 +105,4 @@ type AgentEvent =
     | BehaviorTreeFailure
     | Ping
     | GoalPositionChanged
-[<AbstractClass>]
-type EventDispatcher () =
-    abstract member Logger: Logger
-    abstract member SetValue: byref<'T> * 'T * AgentEvent -> unit
-    abstract member Dispatch: AgentEvent -> unit 
-    default this.SetValue(field, value, event) =
-        if not <| EqualityComparer.Default.Equals(field, value) then
-            this.Logger.Debug("{event}: {value}", string event, value)
-            field <- value
-            this.Dispatch event
+*)

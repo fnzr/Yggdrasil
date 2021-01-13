@@ -97,7 +97,7 @@ let onAuthenticationResult (agent: Agent)
                 | :? ObjectDisposedException -> ()
                 | _ -> ()
             finally
-                agent.Dispatch AgentEvent.ConnectionTerminated
+                agent.Publish <| Connection Inactive
                 ()
         }
     | Error error -> Logger.Error error

@@ -148,7 +148,9 @@ let OnParameterChange (agent: Agent) parameter value =
     
     | _ -> ()
 
-let OnNonPlayerSpawn agent data = ()//publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
+let OnNonPlayerSpawn agent data = ()
+    //let unit = MakeRecord<UnitRaw> data [|24|]//publish <| NonPlayerSpawn (MakeRecord<Unit> data [|24|])
+    //Logger.Debug(unit)
 let OnPlayerSpawn agent data =()// publish <| PlayerSpawn (MakeRecord<Unit> data [|24|])
 
 let AddSkill (agent: Agent) data =
@@ -204,14 +206,14 @@ let OnConnectionAccepted (agent: Agent) (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]
     agent.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Agent.Tick
     agent.Location.Position <- (Convert.ToInt32 x, Convert.ToInt32 y)
-    agent.Dispatch ConnectionAccepted
+    agent.Publish <| Connection Active
     
 let OnWeightSoftCap (agent: Agent) (data: byte[]) = agent.Inventory.WeightSoftCap <- ToInt32 data
 
 let OnMapChange (agent: Agent) (data: byte[]) =
-    agent.Location.Map <-
+    agent.ChangeMap (
         let gatFile = ToString data.[..15]
-        gatFile.Substring(0, gatFile.Length - 4)
+        gatFile.Substring(0, gatFile.Length - 4))
     agent.Location.Position <- (data.[16..] |> ToUInt16 |> Convert.ToInt32,
                                 data.[18..] |> ToUInt16 |> Convert.ToInt32)
 
@@ -245,7 +247,4 @@ let OnPacketReceived (agent: Agent) (packetType: uint16) (data: byte[]) =
         | 0xa00us (* ZC_SHORTCUT_KEY_LIST_V3 *) | 0x2c9us (* ZC_PARTY_CONFIG *) | 0x02daus (* ZC_CONFIG_NOTIFY *)
         | 0x02d9us (* ZC_CONFIG *) | 0x00b6us (* ZC_CLOSE_DIALOG *) | 0x01b3us (* ZC_SHOW_IMAGE2 *) -> ()
         | 0x0081us -> ()//Logger.Error ("Forced disconnect. Code %d", data.[2])
-        | unknown -> () //Logger.Error("Unhandled packet {packetType:X} with length {length}", unknown, data.Length) //shutdown()
-
-let ExternalClientPacket _ (packetType: uint16) (_: byte[]) =
-    Logger.Trace("Packet from external client: {packetType:X}", packetType)
+        | unknown -> Logger.Warn("Unhandled packet {packetType:X}", unknown, data.Length) //shutdown()

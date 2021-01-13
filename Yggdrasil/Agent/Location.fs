@@ -1,29 +1,27 @@
 namespace Yggdrasil.Agent
 
 open NLog
-open Yggdrasil.Types
 open Yggdrasil.Navigation
-
-type Location () =
-    inherit EventDispatcher()
-    let ev = Event<_>()
+open Yggdrasil.Utils
+type Location (publish: GameEvent -> unit) =
     let mutable map: string = ""
     let mutable position = 0, 0
     let mutable destination: (int * int) option = None
-    
-    [<CLIEvent>]
-    member this.OnEventDispatched = ev.Publish
-    override this.Dispatch e = ev.Trigger(e)
-    override this.Logger = LogManager.GetLogger("Location")
+    let logger = LogManager.GetLogger("Location")
     member this.Map
         with get() = map
-        and set v = this.SetValue(&map, v, AgentEvent.MapChanged)
+        and set v = SetValue logger &map v "MapChanged" |> ignore
     member this.Destination
         with get() = destination
-        and set v = this.SetValue(&destination, v, AgentEvent.DestinationChanged)
+        and set (v: (int * int) option) =
+            if SetValue logger &destination v "DestinationChanged" then
+                let event = match destination with
+                            | None -> Action Idle
+                            | Some _ -> Action Moving
+                publish event
     member this.Position
         with get() = position
-        and set v = this.SetValue(&position, v, AgentEvent.PositionChanged)
+        and set v = SetValue logger &position v "PositionChanged" |> ignore
         
     member this.DistanceTo point =
         Pathfinding.ManhattanDistance this.Position point

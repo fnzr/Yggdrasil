@@ -2,6 +2,7 @@ module Yggdrasil.Utils
 
 open System
 open System.Text
+open NLog
 open Yggdrasil.Types
 
 let ToUInt16 data = BitConverter.ToUInt16(data, 0)
@@ -24,6 +25,13 @@ let FillBytes (data:string) size =
         Encoding.UTF8.GetBytes(data);
         Array.zeroCreate (size - data.Length)
    |])
+    
+let SetValue (logger: Logger) (field: byref<'T>) (value: 'T) (description: string) =
+    if System.Collections.Generic.EqualityComparer.Default.Equals(field, value) then false
+    else
+        logger.Debug("{event}: {value}", description, value)
+        field <- value
+        true
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 [<RequireQualifiedAccess>]

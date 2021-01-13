@@ -10,47 +10,63 @@ open Yggdrasil.Types
 open Yggdrasil.Behavior
 
 type Goals() =
-    inherit EventDispatcher()    
-    let ev = Event<_>()
+    let logger = LogManager.GetLogger("Goals")
     let mutable position: (int * int) option = None
-    [<CLIEvent>]
-    member this.OnEventDispatched = ev.Publish
-    override this.Dispatch e = ev.Trigger(e)
-    override this.Logger = LogManager.GetLogger("Goals")
     member this.Position
         with get() = position
-        and set v = this.SetValue (&position, v, AgentEvent.GoalPositionChanged)
+        and set v = Yggdrasil.Utils.SetValue logger &position v "GoalPositionChanged" |> ignore
         
-type Agent () =
-    inherit EventDispatcher()
+type AgentBehaviorTree(root: BehaviorTree.Factory<Agent>, agent: Agent) as this =
+    let timer = new Timer(150.0)
+    do timer.Enabled <- true
+    do timer.AutoReset <- true
+    do timer.Elapsed.Add(this.Tick)
+    let mutable queue = FSharpx.Collections.Queue.empty
+    let data = Dictionary<string, obj>()
+    member this.Data = data
+    
+    member this.Restart () = timer.Enabled <- true
+    member this.Tick _ =
+        if queue.IsEmpty then
+            queue <- BehaviorTree.InitTree root
+        let (q, status) = BehaviorTree.Tick queue agent
+        match status with
+            | BehaviorTree.Status.Success ->
+                agent.Publish <| BehaviorResult Success
+                timer.Enabled <- false
+            | BehaviorTree.Status.Failure ->
+                agent.Publish <| BehaviorResult Failure
+                timer.Enabled <- false
+            | _ -> ()
+        queue <- q 
+
+and Agent () =
     static let stopwatch = Stopwatch()
     static do stopwatch.Start()
     let mutable skills: Skill list = []
-    let behaviorData = Dictionary<string, obj>()
     let ev = Event<_>()
     [<CLIEvent>]
     member this.OnEventDispatched = ev.Publish
-    override this.Dispatch e = ev.Trigger e
-    override this.Logger = LogManager.GetLogger("Agent")
+    member this.Logger = LogManager.GetLogger("Agent")
         
     member val Dispatcher: Command -> unit = fun _ -> () with get, set
     member val Name: string = "" with get, set   
-    member val Location = Location ()
+    member val Location = Location (ev.Trigger)
     member val Inventory = Inventory ()
     member val BattleParameters = BattleParameters ()
     member val Level = Level ()
     member val Health = Health ()    
     member val Goals = Goals ()
+    member val BehaviorTree: AgentBehaviorTree option = None with get, set
     
     member val TickOffset = 0L with get, set
     member val WalkCancellationToken: CancellationTokenSource option = None with get, set
-    member this.BehaviorData = behaviorData
+    member this.Publish event = ev.Trigger event
     member this.Skills
         with get() = skills
-        and set v = skills <- v//this.SetValue(&skills, v, AgentEvent.SkillsChanged)
-    member this.DelayPing millis =
-        let timer = new Timer(millis)
-        timer.Elapsed.Add(fun _ -> this.Dispatch AgentEvent.Ping)
-        timer.AutoReset <- false
-        timer.Enabled <- true
+        and set v = skills <- v
     static member Tick with get() = stopwatch.ElapsedMilliseconds
+    
+    member this.ChangeMap map =
+        this.Location.Map <- map
+        this.Dispatcher DoneLoadingMap

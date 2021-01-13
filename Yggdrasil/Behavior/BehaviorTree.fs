@@ -19,10 +19,12 @@ type Node<'T>(parentName, onComplete) =
     abstract member Tick: 'T -> Status
     abstract member Aborted: bool with get, set
     abstract member Name: string
+    abstract member Abort: unit -> unit
     default this.Aborted
         with get() = _aborted and set v = _aborted <- v
     default this.OnComplete
         with get() = _onComplete and set v = _onComplete <- v
+    default this.Abort () = this.Aborted <- true
     member this.FullName = sprintf "%s:%s" parentName this.Name 
 and OnCompleteCallback<'T> = Status -> 'T -> Queue<Node<'T>> -> Queue<Node<'T>>
 type Factory<'T> = OnCompleteCallback<'T> -> Node<'T>
@@ -140,6 +142,12 @@ module ParallelNode =
             children <- queue
             status
         override this.Name = "Parallel"
+        override this.Abort () =
+            let rec abortQueue (queue: Queue<Node<'T>>) =
+                match queue.TryUncons with
+                | Some (n, q) -> n.Abort(); abortQueue q
+                | None -> ()
+            abortQueue children
         
     type Parallel<'T> = {
         Flags: ParallelFlag
@@ -154,7 +162,7 @@ module ParallelNode =
         else
             if (node.Flags.HasFlag(ParallelFlag.OneSuccess) && status = Success) ||
                (node.Flags.HasFlag(ParallelFlag.OneFailure) && status = Failure) then
-                Array.iter (fun (c: Node<'T>) -> c.Aborted <- true) children
+                Array.iter (fun (c: Node<'T>) -> c.Abort()) children
                 parentCallback status state queue
             else                
                 let next = { node with Children = children }
@@ -190,7 +198,7 @@ let withChild branch node =
     | Parallel (f, c) -> TreeBuilder.Parallel (f, Array.append c [| node |])
     | PartialDecorator (n, f) -> TreeBuilder.Decorator (n, f, node)
     | Decorator (n, _, _) -> invalidArg n "Decorator already has child. Use PartialDecorator as builder"
-    | n -> invalidOp <| sprintf "%A cannot have child nodes" n 
+    | n -> invalidArg (string n) "Node cannot have children" 
 let (=>) parent child = withChild parent child 
 let BuildTree tree : Factory<'T> =    
     let rec internalBuildTree parentName child node =

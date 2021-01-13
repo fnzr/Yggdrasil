@@ -27,7 +27,7 @@ let Walk =
                             |> List.take (Math.Min (MAX_WALK_DISTANCE, path.Length))
                             |> List.last
                 agent.Dispatcher(RequestMove pos)
-                agent.BehaviorData.["MOVE_REQUEST_DISPATCHED"] <- Agent.Tick
+                agent.BehaviorTree.Value.Data.["MOVE_REQUEST_DISPATCHED"] <- Agent.Tick
                 Success
         | None -> Success)
         
@@ -35,7 +35,7 @@ let Walk =
         match agent.Location.Destination with
         | Some _ -> Status.Success
         | None ->
-            let delay = Agent.Tick - (agent.BehaviorData.["MOVE_REQUEST_DISPATCHED"] :?> int64)
+            let delay = Agent.Tick - (agent.BehaviorTree.Value.Data.["MOVE_REQUEST_DISPATCHED"] :?> int64)
             if delay > 500L then Status.Failure else Status.Running)
         
     let StoppedWalking = Action (fun (agent: Agent) ->
@@ -45,7 +45,6 @@ let Walk =
             if Option.isSome agent.Goals.Position &&
                agent.Location.DistanceTo agent.Goals.Position.Value <= 2 then
                 agent.Goals.Position <- None
-            else agent.DelayPing 100.0
             Status.Success)
     
     While WalkingRequired
@@ -61,8 +60,7 @@ let Wait milliseconds =
             {new Node<Agent>(parentName, onComplete) with
                 override this.Tick agent =
                     let diff = targetTick - Agent.Tick 
-                    if diff > 0L then
-                        agent.DelayPing <| Convert.ToDouble diff; Running
+                    if diff > 0L then Running
                     else Success
                 override this.Name = "Wait"
             })
