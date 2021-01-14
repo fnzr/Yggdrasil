@@ -4,12 +4,10 @@ open System
 open System.Collections.Generic
 open System.Reflection
 open System.Runtime.InteropServices
-open System.Threading
 open Microsoft.FSharp.Reflection
 open NLog
 open Yggdrasil.Agent.Agent
 open Yggdrasil.Agent.Location
-open Yggdrasil.Navigation
 open Yggdrasil.Types
 open Yggdrasil.Utils
 open Yggdrasil.Agent.Event
@@ -209,7 +207,17 @@ let OnMapChange (agent: Agent) (data: byte[]) =
     agent.Location.Position <- (data.[16..] |> ToUInt16 |> Convert.ToInt32,
                                 data.[18..] |> ToUInt16 |> Convert.ToInt32)
     
-
+let MoveUnit (agent: Agent) data =
+    let (move, _) = MakeRecord<UnitMove> data [||]
+    match agent.Unit move.aid with
+    | None -> Logger.Warn("MoveData for {aid} but it doesnt exist")
+    | Some unit ->
+        //TODO move unit lol
+        ()
+        
+let UpdateMonsterHP (agent: Agent) data =
+    let info = MakeRecord<MonsterHPInfo> data [||]
+        
 let OnPacketReceived (agent: Agent) (packetType: uint16) (data: byte[]) =
     Logger.Trace("Packet: {packetType:X}", packetType)
     match packetType with
@@ -225,6 +233,8 @@ let OnPacketReceived (agent: Agent) (packetType: uint16) (data: byte[]) =
         | 0x10fus -> AddSkill agent data.[4..]
         | 0x0087us -> OnAgentStartedWalking agent data.[2..]
         | 0x07fbus -> OnSkillCast agent data.[2..]
+        | 0x0088us -> MoveUnit agent data.[2..]
+        | 0x0977us -> UpdateMonsterHP agent data.[2..]
         | 0x0adfus (* ZC_REQNAME_TITLE *) -> ()
         | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> ()        
         | 0x0bdus (* ZC_STATUS *) -> ()
@@ -239,6 +249,7 @@ let OnPacketReceived (agent: Agent) (packetType: uint16) (data: byte[]) =
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()
         | 0x00b7us (* ZC_MENU_LIST *) -> ()
+        | 0x0a30us (* ZC_ACK_REQNAMEALL2 *) -> ()
         | 0x283us | 0x9e7us (* ZC_NOTIFY_UNREADMAIL *) | 0x1d7us (* ZC_SPRITE_CHANGE2 *)
         | 0x008eus (* ZC_NOTIFY_PLAYERCHAT *) | 0xa24us (* ZC_ACH_UPDATE *) | 0xa23us (* ZC_ALL_ACH_LIST *)
         | 0xa00us (* ZC_SHORTCUT_KEY_LIST_V3 *) | 0x2c9us (* ZC_PARTY_CONFIG *) | 0x02daus (* ZC_CONFIG_NOTIFY *)

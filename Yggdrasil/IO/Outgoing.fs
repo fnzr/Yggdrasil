@@ -27,5 +27,10 @@ let Dispatch (stream: Stream) (command: Command) =
                 BitConverter.GetBytes 0x035fus
                 PackPosition x y 1uy
             |]
+        | Action c -> Array.concat [|
+                BitConverter.GetBytes 0x0437us
+                BitConverter.GetBytes c.target
+                [|byte c.action|]
+            |]
     Logger.Info ("{command}", command)
     stream.Write(bytes, 0, bytes.Length)

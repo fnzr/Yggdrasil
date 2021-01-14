@@ -23,8 +23,7 @@
         <Compile Include="Agent\Components.fs" />        
         <Compile Include="Agent\Location.fs" />
         <Compile Include="Agent\Unit.fs" />
-        <Compile Include="Agent\Agent.fs" />                   
-        <Compile Include="IO\PacketTypes.fs" />
+        <Compile Include="Agent\Agent.fs" />
         <Compile Include="IO\Stream.fs" />
         <Compile Include="IO\Incoming.fs" />
         <Compile Include="IO\Outgoing.fs" />
@@ -50,6 +49,10 @@
       <EmbeddedResource Remove="IO\**" />
       <EmbeddedResource Remove="Mailbox\**" />
       <EmbeddedResource Remove="BehaviorTree\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Include="World\Location.fs" />
     </ItemGroup>
     
 </Project>

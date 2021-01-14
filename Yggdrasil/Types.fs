@@ -119,10 +119,36 @@ type WalkData = {
     EndX: int
     EndY: int
 }
+
+type UnitMove = {
+    aid: uint32
+    x: int16
+    y: int16
+}
+
+type ActionType =
+    | Attack = 0uy
+    | SitDown = 2uy
+    | StandUp = 3uy
+    | PickUpItem = 1uy
+    | ContinuousAttack = 7uy
+    | TouchSkill = 12uy //??
+    
+type CommandAction = {
+    target: uint32
+    action: ActionType
+}
+
+type MonsterHPInfo = {
+    aid: uint32
+    HP: int
+    maxHP: int
+}
 type Command =
     | DoneLoadingMap
     | RequestServerTick
     | RequestMove of int * int
+    | Action of CommandAction
     
 (*
 type AgentEvent =
