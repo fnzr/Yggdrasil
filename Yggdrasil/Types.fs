@@ -149,21 +149,3 @@ type Command =
     | RequestServerTick
     | RequestMove of int * int
     | Action of CommandAction
-    
-(*
-type AgentEvent =
-    | PositionChanged
-    | ConnectionAccepted
-    | ConnectionTerminated
-    | InventoryChanged
-    | BattleParametersChanged
-    | LevelChanged
-    | SkillsChanged
-    | HPSPChanged
-    | MapChanged
-    | DestinationChanged
-    | BehaviorTreeSuccess
-    | BehaviorTreeFailure
-    | Ping
-    | GoalPositionChanged
-*)

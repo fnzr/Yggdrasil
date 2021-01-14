@@ -6,12 +6,10 @@ open System.Reflection
 open System.Runtime.InteropServices
 open Microsoft.FSharp.Reflection
 open NLog
-open Yggdrasil.Agent.Agent
-open Yggdrasil.Agent.Location
 open Yggdrasil.Types
 open Yggdrasil.Utils
-open Yggdrasil.Agent.Event
-open Yggdrasil.Agent.Unit
+open Yggdrasil.Game
+open Yggdrasil.Game.Event
 let Logger = LogManager.GetLogger("Incoming")
 
 let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
@@ -45,207 +43,209 @@ let UnpackPosition (data: byte[]) =
     )
     
 let UnpackPosition2 (data: byte[]) =
-    ((data.[0] <<< 2) ||| (data.[1] >>> 6),  //X0
-     (data.[1] <<< 4) ||| (data.[2] >>> 4),  //Y0
-     (data.[2] <<< 6) ||| (data.[3] >>> 2),  //X1
-     (data.[3] <<< 5) ||| data.[4],  //Y1
-     (data.[5] >>> 4),  //dirX
-     (data.[5] &&& 0x3uy)//(data.[5] <<< 8)  //this doesnt work //dirY
-    )
+    //TODO make sure this works for x0, x1 > 255
+    int16 (data.[0] <<< 2) ||| int16 (data.[1] >>> 6),  //X0
+    (int16 (data.[1] <<< 2)) <<< 2 ||| int16 (data.[2] >>> 4), //Y0
+    int16 (data.[2] <<< 6) ||| int16 (data.[3] >>> 2),  //X1
+    (int16 (data.[3] >>> 3 <<< 3) <<< 1) ||| int16 (data.[4] <<< 3 >>> 3),  //Y1
+    (data.[5] >>> 4),  //dirX
+    (data.[5] <<< 4) //dirY
 
-let OnU32ParameterUpdate code value (agent: Agent) =
+let OnU32ParameterUpdate code value (player: Player) =
     match code with
-        | Parameter.Weight -> agent.Inventory.Weight <- value
-        | Parameter.MaxWeight -> agent.Inventory.MaxWeight <- value
+        | Parameter.Weight -> player.Inventory.Weight <- value
+        | Parameter.MaxWeight -> player.Inventory.MaxWeight <- value
     
-        | Parameter.SkillPoints -> agent.Level.SkillPoints <- value
-        | Parameter.JobLevel -> agent.Level.JobLevel <- value
-        | Parameter.BaseLevel -> agent.Level.BaseLevel <- value
+        | Parameter.SkillPoints -> player.Level.SkillPoints <- value
+        | Parameter.JobLevel -> player.Level.JobLevel <- value
+        | Parameter.BaseLevel -> player.Level.BaseLevel <- value
     
-        | Parameter.MaxHP -> agent.Health.MaxHP <- value
-        | Parameter.MaxSP -> agent.Health.MaxSP <- value
-        | Parameter.SP -> agent.Health.SP <- value
-        | Parameter.HP -> agent.Health.HP <- value
+        | Parameter.MaxHP -> player.Health.MaxHP <- value
+        | Parameter.MaxSP -> player.Health.MaxSP <- value
+        | Parameter.SP -> player.Health.SP <- value
+        | Parameter.HP -> player.Health.HP <- value
         | _ -> ()
     
-let OnI16ParameterUpdate code value (agent: Agent) =
+let OnI16ParameterUpdate code value (player: Player) =
     match code with
     //| Parameter.Manner -> agent.Parameters.Manner <- value
-        | Parameter.Hit -> agent.BattleParameters.Hit <- value
-        | Parameter.Flee1 -> agent.BattleParameters.Flee1 <- value
-        | Parameter.Flee2 -> agent.BattleParameters.Flee2 <- value
-        | Parameter.Critical -> agent.BattleParameters.Critical <- value
+        | Parameter.Hit -> player.BattleParameters.Hit <- value
+        | Parameter.Flee1 -> player.BattleParameters.Flee1 <- value
+        | Parameter.Flee2 -> player.BattleParameters.Flee2 <- value
+        | Parameter.Critical -> player.BattleParameters.Critical <- value
         | _ -> ()
     
-let OnU16ParameterUpdate code value (agent: Agent) =
+let OnU16ParameterUpdate code value (player: Player) =
     match code with    
-        | Parameter.AttackSpeed -> agent.BattleParameters.AttackSpeed <- value
-        | Parameter.Attack1 -> agent.BattleParameters.Attack1 <- value
-        | Parameter.Attack2 -> agent.BattleParameters.Attack2 <- value
-        | Parameter.Defense1 -> agent.BattleParameters.Defense1 <- value
-        | Parameter.Defense2 -> agent.BattleParameters.Defense2 <- value
-        | Parameter.MagicAttack1 -> agent.BattleParameters.MagicAttack1 <- value
-        | Parameter.MagicAttack2 -> agent.BattleParameters.MagicAttack2 <- value
-        | Parameter.MagicDefense1 -> agent.BattleParameters.MagicDefense1 <- value
-        | Parameter.MagicDefense2 -> agent.BattleParameters.MagicDefense2 <- value
-        | Parameter.AttackRange -> agent.BattleParameters.AttackRange <- value
-        | Parameter.Speed -> agent.BattleParameters.Speed <- Convert.ToInt64(value)
+        | Parameter.AttackSpeed -> player.BattleParameters.AttackSpeed <- value
+        | Parameter.Attack1 -> player.BattleParameters.Attack1 <- value
+        | Parameter.Attack2 -> player.BattleParameters.Attack2 <- value
+        | Parameter.Defense1 -> player.BattleParameters.Defense1 <- value
+        | Parameter.Defense2 -> player.BattleParameters.Defense2 <- value
+        | Parameter.MagicAttack1 -> player.BattleParameters.MagicAttack1 <- value
+        | Parameter.MagicAttack2 -> player.BattleParameters.MagicAttack2 <- value
+        | Parameter.MagicDefense1 -> player.BattleParameters.MagicDefense1 <- value
+        | Parameter.MagicDefense2 -> player.BattleParameters.MagicDefense2 <- value
+        | Parameter.AttackRange -> player.BattleParameters.AttackRange <- value
+        | Parameter.Speed -> player.Unit.Speed <- Convert.ToInt64(value)
         | _ -> ()
     
-let OnI32ParameterUpdate code value (agent: Agent) =
+let OnI32ParameterUpdate code value (player: Player) =
     match code with
-        | Parameter.Zeny -> agent.Inventory.Zeny <- value
-        | Parameter.USTR -> agent.BattleParameters.STRUpgradeCost <- value
-        | Parameter.UAGI -> agent.BattleParameters.AGIUpgradeCost <- value
-        | Parameter.UDEX -> agent.BattleParameters.DEXUpgradeCost <- value
-        | Parameter.UVIT -> agent.BattleParameters.VITUpgradeCost <- value
-        | Parameter.ULUK -> agent.BattleParameters.LUKUpgradeCost <- value
-        | Parameter.UINT -> agent.BattleParameters.INTUpgradeCost <- value
+        | Parameter.Zeny -> player.Inventory.Zeny <- value
+        | Parameter.USTR -> player.BattleParameters.STRUpgradeCost <- value
+        | Parameter.UAGI -> player.BattleParameters.AGIUpgradeCost <- value
+        | Parameter.UDEX -> player.BattleParameters.DEXUpgradeCost <- value
+        | Parameter.UVIT -> player.BattleParameters.VITUpgradeCost <- value
+        | Parameter.ULUK -> player.BattleParameters.LUKUpgradeCost <- value
+        | Parameter.UINT -> player.BattleParameters.INTUpgradeCost <- value
         | _ -> ()
         
 
-let On64ParameterUpdate code value (agent: Agent) =
+let On64ParameterUpdate code value (player: Player) =
     match code with
-        | Parameter.BaseExp -> agent.Level.BaseExp <- value
-        | Parameter.JobExp -> agent.Level.JobExp <- value
-        | Parameter.NextBaseExp -> agent.Level.NextBaseExp <- value
-        | Parameter.NextJobExp -> agent.Level.NextJobExp <- value
+        | Parameter.BaseExp -> player.Level.BaseExp <- value
+        | Parameter.JobExp -> player.Level.JobExp <- value
+        | Parameter.NextBaseExp -> player.Level.NextBaseExp <- value
+        | Parameter.NextJobExp -> player.Level.NextJobExp <- value
         | _ -> ()
     
-let OnPairParameterUpdate code value (agent: Agent) =
+let OnPairParameterUpdate code value (player: Player) =
     match code with
-        | Parameter.STR -> agent.BattleParameters.STRRaw <- value
-        | Parameter.AGI -> agent.BattleParameters.AGIRaw <- value
-        | Parameter.DEX -> agent.BattleParameters.DEXRaw <- value
-        | Parameter.VIT -> agent.BattleParameters.VITRaw <- value
-        | Parameter.LUK -> agent.BattleParameters.LUKRaw <- value
-        | Parameter.INT -> agent.BattleParameters.INTRaw <- value
+        | Parameter.STR -> player.BattleParameters.STRRaw <- value
+        | Parameter.AGI -> player.BattleParameters.AGIRaw <- value
+        | Parameter.DEX -> player.BattleParameters.DEXRaw <- value
+        | Parameter.VIT -> player.BattleParameters.VITRaw <- value
+        | Parameter.LUK -> player.BattleParameters.LUKRaw <- value
+        | Parameter.INT -> player.BattleParameters.INTRaw <- value
         | _ -> ()
 
-let OnParameterChange (agent: Agent) parameter value =
+let OnParameterChange (player: Player) parameter value =
     match parameter with
     | Parameter.Weight | Parameter.MaxWeight | Parameter.SkillPoints | Parameter.StatusPoints
     | Parameter.JobLevel | Parameter.BaseLevel | Parameter.MaxHP | Parameter.MaxSP
-    | Parameter.SP | Parameter.HP -> OnU32ParameterUpdate parameter (ToUInt32 value) agent
+    | Parameter.SP | Parameter.HP -> OnU32ParameterUpdate parameter (ToUInt32 value) player
     
     | Parameter.Manner | Parameter.Hit | Parameter.Flee1
-    | Parameter.Flee2 | Parameter.Critical -> OnI16ParameterUpdate parameter (ToInt16 value) agent
+    | Parameter.Flee2 | Parameter.Critical -> OnI16ParameterUpdate parameter (ToInt16 value) player
     
     | Parameter.Speed | Parameter.AttackSpeed | Parameter.Attack1 | Parameter.Attack2
     | Parameter.Defense1 | Parameter.Defense2 | Parameter.MagicAttack1
     | Parameter.MagicAttack2 | Parameter.MagicDefense1 | Parameter.MagicDefense2
-    | Parameter.AttackRange -> OnU16ParameterUpdate parameter (ToUInt16 value) agent
+    | Parameter.AttackRange -> OnU16ParameterUpdate parameter (ToUInt16 value) player
     
     | Parameter.Zeny | Parameter.USTR |Parameter.UAGI |Parameter.UDEX
-    | Parameter.UVIT |Parameter.ULUK |Parameter.UINT -> OnI32ParameterUpdate parameter (ToInt32 value) agent
+    | Parameter.UVIT |Parameter.ULUK |Parameter.UINT -> OnI32ParameterUpdate parameter (ToInt32 value) player
     
     | Parameter.JobExp | Parameter.NextBaseExp
-    | Parameter.BaseExp | Parameter.NextJobExp -> On64ParameterUpdate parameter (ToInt64 value) agent
+    | Parameter.BaseExp | Parameter.NextJobExp -> On64ParameterUpdate parameter (ToInt64 value) player
     
     | Parameter.STR |Parameter.AGI |Parameter.DEX | Parameter.VIT
-    | Parameter.LUK |Parameter.INT -> OnPairParameterUpdate parameter (ToUInt16 value.[2..], ToInt16 value.[6..]) agent
+    | Parameter.LUK |Parameter.INT -> OnPairParameterUpdate parameter (ToUInt16 value.[2..], ToInt16 value.[6..]) player
     
     | Parameter.Karma -> ()
     
     | _ -> ()
 
-let OnUnitSpawn (agent: Agent) data =
+let OnUnitSpawn (world: World) data =
     let (part1, leftover) = MakeRecord<UnitRawPart1> data [||]    
     let (part2, _) = MakeRecord<UnitRawPart2> leftover [|24|]
-    agent.SpawnUnit <| CreateUnit part1 part2
+    world.SpawnUnit <| CreateNonPlayer part1 part2
     
-let OnNonPlayerSpawn (agent: Agent) data =
-    OnUnitSpawn agent data
+let OnNonPlayerSpawn = OnUnitSpawn
 let OnPlayerSpawn = OnUnitSpawn
 
-let OnWalkingUnitSpawn (agent: Agent) data =
+let OnWalkingUnitSpawn (world: World) data =
     let (part1, leftover) = MakeRecord<UnitRawPart1> data [||]
     //skip MoveStartTime: uint32 
     let (part2, _) = MakeRecord<UnitRawPart2> (leftover.[4..]) [|24|]
-    agent.SpawnUnit <| CreateUnit part1 part2
+    world.SpawnUnit <| CreateNonPlayer part1 part2
 
-let OnUnitDespawn (agent: Agent) data = agent.DespawnUnit <| ToUInt32 data
+let OnUnitDespawn (world: World) data = world.DespawnUnit <| ToUInt32 data
 
-let AddSkill (agent: Agent) data =
+let AddSkill (player: Player) data =
     let rec ParseSkills (skillBytes: byte[]) =
         match skillBytes with
         | [||] -> ()
         | bytes ->
             //TODO SkillRaw -> Skill
             let (skill, _) = MakeRecord<Skill> data [|24|]
-            agent.Skills <- skill :: agent.Skills
+            player.Skills <- skill :: player.Skills
             ParseSkills bytes.[37..]
     ParseSkills data
-let OnAgentStartedWalking (agent: Agent) (data: byte[]) =
+let OnAgentStartedWalking (conn: Connection) (world: World) (player: Player) (data: byte[]) =
+    if player.WalkCancellationToken.IsSome then player.WalkCancellationToken.Value.Cancel()
     let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[4..]
-    let delay = Convert.ToInt64 (ToUInt32 data) - Agent.Tick - agent.TickOffset
-    StartWalk agent.Location
-        (Convert.ToInt32 x0, Convert.ToInt32 y0)
-        (Convert.ToInt32 x1, Convert.ToInt32 y1)
-        delay (Convert.ToInt32 agent.BattleParameters.Speed)
+    let delay = Convert.ToInt64 (ToUInt32 data) - Connection.Tick - conn.TickOffset
+    let walkFn = Movement.Walk (fun p -> player.Position <- p) player.EventHandler
+    player.WalkCancellationToken <-
+        Movement.StartMove world.Map walkFn 
+            (Convert.ToInt32 x0, Convert.ToInt32 y0)
+            (Convert.ToInt32 x1, Convert.ToInt32 y1)
+            delay (Convert.ToInt32 player.Unit.Speed)
     
-let OnConnectionAccepted (agent: Agent) (data: byte[]) =
+let OnConnectionAccepted (conn: Connection) (player: Player) (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]
-    agent.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Agent.Tick
-    agent.Location.Position <- (Convert.ToInt32 x, Convert.ToInt32 y)
-    agent.Publish <| Connection Active
+    conn.TickOffset <- Convert.ToInt64 (ToUInt32 data.[0..]) - Connection.Tick
+    player.Position <- (Convert.ToInt32 x, Convert.ToInt32 y)
+    conn.Status <- Active
     
-let OnWeightSoftCap (agent: Agent) (data: byte[]) = agent.Inventory.WeightSoftCap <- ToInt32 data
+let OnWeightSoftCap (player: Player) (data: byte[]) = player.Inventory.WeightSoftCap <- ToInt32 data
 
-let OnSkillCast (agent: Agent) data =
+let OnSkillCast (world: World) data =
     let (cast, _) = MakeRecord<SkillCast> data [||]
-    match (agent.Unit cast.source, agent.Unit cast.target) with
+    match (world.GetUnit cast.source, world.GetUnit cast.target) with
     | (None, _) | (_, None) -> Logger.Warn "Missing skill cast units!"
     | (Some caster, Some target) ->
         //TODO emit casting skill event
-        Logger.Info ("{caster} casting skill {skill} on {target}", caster.Name, cast.skillId, target.Name)
+        Logger.Info ("{caster} casting skill {skill} on {target}", caster.Unit.Name, cast.skillId, target.Unit.Name)
 
-let OnMapChange (agent: Agent) (data: byte[]) =
-    agent.ChangeMap (
+let OnMapChange (world: World) (player: Player) (data: byte[]) =
+    world.Map <- (
         let gatFile = ToString data.[..15]
         gatFile.Substring(0, gatFile.Length - 4))
-    agent.Location.Position <- (data.[16..] |> ToUInt16 |> Convert.ToInt32,
+    player.Position <- (data.[16..] |> ToUInt16 |> Convert.ToInt32,
                                 data.[18..] |> ToUInt16 |> Convert.ToInt32)
+    player.Dispatch DoneLoadingMap
     
-let MoveUnit (agent: Agent) data =
-    let (move, _) = MakeRecord<UnitMove> data [||]
-    match agent.Unit move.aid with
-    | None -> Logger.Warn("MoveData for {aid} but it doesnt exist")
-    | Some unit ->
-        //TODO move unit lol
-        ()
+let MoveUnit (world: World) data = ()
+    //let (move, _) = MakeRecord<UnitMove> data [||]
+    //TODO move unit lol    
         
-let UpdateMonsterHP (agent: Agent) data =
-    let info = MakeRecord<MonsterHPInfo> data [||]
+let UpdateMonsterHP (world: World) data = ()
+    //let info = MakeRecord<MonsterHPInfo> data [||]
         
-let OnPacketReceived (agent: Agent) (packetType: uint16) (data: byte[]) =
+let OnPacketReceived (game: Game) (packetType: uint16) (data: byte[]) =
+    let conn = game.Connection
+    let world = game.World
+    let player = game.Player
     Logger.Trace("Packet: {packetType:X}", packetType)
     match packetType with
-        | 0x13aus -> OnParameterChange agent Parameter.AttackRange data.[2..]
-        | 0x00b0us -> OnParameterChange agent (data.[2..] |> ToParameter)  data.[4..] 
-        | 0x0141us -> OnParameterChange agent (data.[2..] |> ToParameter)  data.[4..]
-        | 0xacbus -> OnParameterChange agent (data.[2..] |> ToParameter)  data.[4..]
-        | 0xadeus -> OnWeightSoftCap agent data.[2..]         
-        | 0x9ffus -> OnNonPlayerSpawn agent data.[4..]
-        | 0x9feus -> OnPlayerSpawn agent data.[4..]
-        | 0x9fdus -> OnWalkingUnitSpawn agent data.[4..]
-        | 0x0080us -> OnUnitDespawn agent data.[2..]
-        | 0x10fus -> AddSkill agent data.[4..]
-        | 0x0087us -> OnAgentStartedWalking agent data.[2..]
-        | 0x07fbus -> OnSkillCast agent data.[2..]
-        | 0x0088us -> MoveUnit agent data.[2..]
-        | 0x0977us -> UpdateMonsterHP agent data.[2..]
+        | 0x13aus -> OnParameterChange player Parameter.AttackRange data.[2..]
+        | 0x00b0us -> OnParameterChange player (data.[2..] |> ToParameter)  data.[4..] 
+        | 0x0141us -> OnParameterChange player (data.[2..] |> ToParameter)  data.[4..]
+        | 0xacbus -> OnParameterChange player (data.[2..] |> ToParameter)  data.[4..]
+        | 0xadeus -> OnWeightSoftCap player data.[2..]         
+        | 0x9ffus -> OnNonPlayerSpawn world data.[4..]
+        | 0x9feus -> OnPlayerSpawn world data.[4..]
+        | 0x9fdus -> OnWalkingUnitSpawn world data.[4..]
+        | 0x0080us -> OnUnitDespawn world data.[2..]
+        | 0x10fus -> AddSkill player data.[4..]
+        | 0x0087us -> OnAgentStartedWalking conn world player data.[2..]
+        | 0x07fbus -> OnSkillCast world data.[2..]
+        | 0x0088us -> MoveUnit world data.[2..]
+        | 0x0977us -> UpdateMonsterHP world data.[2..]
         | 0x0adfus (* ZC_REQNAME_TITLE *) -> ()
         | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> ()        
         | 0x0bdus (* ZC_STATUS *) -> ()
         | 0x0086us (* ZC_NOTIFY_PLAYERMOVE *) -> ()
-        | 0x2ebus -> OnConnectionAccepted agent data.[2..]
+        | 0x2ebus -> OnConnectionAccepted conn player data.[2..]
         | 0x121us (* cart info *) -> ()
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> ()
         | 0x0a9bus (* list of items in the equip switch window *) -> ()
         | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> ()
-        | 0x0091us -> OnMapChange agent data.[2..]
-        | 0x007fus -> agent.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - Agent.Tick
+        | 0x0091us -> OnMapChange world player data.[2..]
+        | 0x007fus -> conn.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - Connection.Tick
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()
         | 0x00b7us (* ZC_MENU_LIST *) -> ()

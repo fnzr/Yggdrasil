@@ -2,20 +2,19 @@ module Yggdrasil.Behavior.Machines
 
 open NLog
 open Yggdrasil.Behavior.BehaviorTree
+open Yggdrasil.Game
 open Yggdrasil.IO
 open Yggdrasil.Behavior.StateMachine
-open Yggdrasil.Agent.Agent
-open Yggdrasil.Agent.Event
+open Yggdrasil.Game.Event
 let Logger = LogManager.GetLogger("Machines")
 
-
-let WalkNorth (agent: Agent) =
-    let (x, y) = agent.Location.Position
-    agent.Goals.Position <- Some(x, y - 21)
+let WalkNorth (game: Game) =
+    let (x, y) = game.Player.Position
+    game.Player.Goals.Position <- Some(x, y - 1)
     
-let WalkSouth (agent: Agent) =
-    let (x, y) = agent.Location.Position
-    agent.Goals.Position <- Some(x, y + 21)
+let WalkSouth (game: Game) =
+    let (x, y) = game.Player.Position
+    game.Player.Goals.Position <- Some(x, y + 1)
 
 module DefaultMachine =
     open Yggdrasil.Behavior
@@ -31,13 +30,13 @@ module DefaultMachine =
     let Create server username password =
         let states = [
             configure State.Terminated
-                |> onEnter (fun (a: Agent) -> Logger.Warn ("Agent disconnected: {name}", a.Name))
+                |> onEnter (fun (g: Game) -> Logger.Warn ("Agent disconnected: {name}", g.Player.Name))
             configure State.Disconnected
                 |> onEnter (Handshake.Login server username password)
-                |> on (Connection Active) State.Connected
+                |> on (ConnectionStatus Active) State.Connected
             configure State.Connected
                 |> transitTo Idle
-                |> on (Connection Inactive) State.Terminated
+                |> on (ConnectionStatus Inactive) State.Terminated
             configure State.WalkingNorth
                 |> withParent State.Connected
                 |> withBehavior (BuildTree (Trees.Walk))

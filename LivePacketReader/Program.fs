@@ -1,16 +1,21 @@
 ﻿// Learn more about F# at http://fsharp.org
 
-open System
-open System.Collections
 open System.Net
 open NLog
 open PacketDotNet
 open SharpPcap
+open Yggdrasil.Game
 let Logger = LogManager.GetLogger("LivePacket")
 let ServerIP = IPAddress.Parse "172.19.0.2"
 let ClientIP = IPAddress.Parse "192.168.2.3"
-let Agent = Yggdrasil.Agent.Agent.Agent()
-let MapToClientCallback = Yggdrasil.IO.Incoming.OnPacketReceived Agent
+
+let BlankMailbox = MailboxProcessor.Start(fun _ -> async {()})
+let Game = {    
+    World = World(BlankMailbox)
+    Connection = Connection(BlankMailbox)
+    Player = Player(BlankMailbox)
+}
+let MapToClientCallback = Yggdrasil.IO.Incoming.OnPacketReceived Game
 let mutable MapToClientQueue = Array.empty
 let mutable ClientToMapQueue = Array.empty
 

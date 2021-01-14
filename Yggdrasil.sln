@@ -1,10 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PacketParser", "PacketParser\PacketParser.csproj", "{43A1FE88-FDC1-4366-9D3E-511106F182A3}"
-EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Yggdrasil", "Yggdrasil\Yggdrasil.fsproj", "{E99C0F90-46EF-4BE6-B956-AA051863CC8B}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PacketSniffer", "PacketSniffer\PacketSniffer.csproj", "{4D690412-0A41-4556-B660-E741ED3EF1DC}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Sunna", "Sunna\Sunna.fsproj", "{B570F867-323D-4040-8316-06D1D3C69EEA}"
 EndProject
@@ -20,18 +16,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{43A1FE88-FDC1-4366-9D3E-511106F182A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{43A1FE88-FDC1-4366-9D3E-511106F182A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{43A1FE88-FDC1-4366-9D3E-511106F182A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{43A1FE88-FDC1-4366-9D3E-511106F182A3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E99C0F90-46EF-4BE6-B956-AA051863CC8B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{E99C0F90-46EF-4BE6-B956-AA051863CC8B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E99C0F90-46EF-4BE6-B956-AA051863CC8B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E99C0F90-46EF-4BE6-B956-AA051863CC8B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4D690412-0A41-4556-B660-E741ED3EF1DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4D690412-0A41-4556-B660-E741ED3EF1DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4D690412-0A41-4556-B660-E741ED3EF1DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4D690412-0A41-4556-B660-E741ED3EF1DC}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B570F867-323D-4040-8316-06D1D3C69EEA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B570F867-323D-4040-8316-06D1D3C69EEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B570F867-323D-4040-8316-06D1D3C69EEA}.Release|Any CPU.ActiveCfg = Release|Any CPU

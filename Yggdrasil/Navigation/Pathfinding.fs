@@ -20,7 +20,7 @@ let ManhattanDistance (x1: int, y1: int) (x2, y2) =
     Math.Abs(x1 - x2) + Math.Abs(y1 - y2) 
 let ManhattanDistanceFlat map a b =
     ManhattanDistance (ToPoint map a) (ToPoint map b)
-
+let DistanceTo = ManhattanDistance
 let Heuristics map a b = float32 <| ManhattanDistanceFlat map a b
 
 type Node(index: int, parent) =
@@ -43,7 +43,7 @@ let EnqueueIndex map (queue: FastPriorityQueue<Node>) (visited: Dictionary<int, 
             then queue.UpdatePriority (node, cost)
             else queue.Enqueue (node, cost)
 
-let rec FindPath map (queue: FastPriorityQueue<Node>) (visited: Dictionary<int, float32>) goal (goals: Set<int>) =
+let rec AStarStep map (queue: FastPriorityQueue<Node>) (visited: Dictionary<int, float32>) goal (goals: Set<int>) =
     if queue.Count = 0 then None
     else
         let node = queue.Dequeue()
@@ -56,7 +56,7 @@ let rec FindPath map (queue: FastPriorityQueue<Node>) (visited: Dictionary<int, 
                     node.Index - 1 //west
                     node.Index + 1 //east
                 |]
-            FindPath map queue visited goal goals
+            AStarStep map queue visited goal goals
 
 let rec ReconstructPath map (node: Node) path =
     match node.Parent with
@@ -70,7 +70,7 @@ let FindAcceptableGoals map goal leeway =
     let xs = (FindValues (fst goal) -leeway [])
     let ys = FindValues (snd goal) -leeway []
     List.zip xs ys |> List.map (ToIndex map) |> Set.ofList
-let AStar map start goal leeway =
+let FindPath map start goal leeway =
     let queue = FastPriorityQueue<Node>(MAX_WALK_PATH * MAX_WALK_PATH)
     let s = ToIndex map start
     let g = ToIndex map goal
@@ -78,7 +78,8 @@ let AStar map start goal leeway =
     let goals = FindAcceptableGoals map goal leeway
     
     queue.Enqueue (Node(s, None), 0.0f)
-    let result = FindPath map queue (Dictionary()) g goals
+    let result = AStarStep map queue (Dictionary()) g goals
     match result with
     | Some node -> ReconstructPath map node []
     | None -> Logger.Error("Path not found"); []
+    

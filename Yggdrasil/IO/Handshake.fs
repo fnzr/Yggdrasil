@@ -1,19 +1,14 @@
 module Yggdrasil.IO.Handshake
 
 open System
-open System
-open System.Diagnostics
 open System.IO
 open System.Net
 open System.Net.Sockets
-open System.Text
 open NLog
-open Yggdrasil.Agent.Agent
+open Yggdrasil.Game
 open Yggdrasil.Types
 open Yggdrasil.Utils
-open Yggdrasil.Behavior
 open Yggdrasil.IO.Stream
-open Yggdrasil.Agent.Event
 type LoginCredentials = {
     LoginServer: IPEndPoint
     Username: string
@@ -72,24 +67,24 @@ let WantToConnect zoneInfo =
         [| zoneInfo.Gender |]
     |])
     
-let onAuthenticationResult (agent: Agent)
+let onAuthenticationResult (game: Game)
     (result:  Result<ZoneCredentials, string>) =
     match result with
     | Ok info ->
         Logger.Info "Connected to server"
-        let conn = new TcpClient()
-        conn.Connect(info.ZoneServer)
+        let client = new TcpClient()
+        client.Connect(info.ZoneServer)
         
-        let stream = conn.GetStream()
-        agent.Dispatch <- (Outgoing.Dispatch stream)
-        agent.Name <- info.CharacterName
+        let stream = client.GetStream()
+        game.Player.Dispatch <- Outgoing.Dispatch stream
+        game.Player.Name <- info.CharacterName
         
         stream.Write (WantToConnect info)
         Async.Start <|
         async {
             try
                 try                
-                    let packetHandler = Incoming.OnPacketReceived agent
+                    let packetHandler = Incoming.OnPacketReceived game
                     return! Array.empty |> GetReader stream packetHandler
                 with
                 //| :? IOException ->
@@ -97,7 +92,7 @@ let onAuthenticationResult (agent: Agent)
                 | :? ObjectDisposedException -> ()
                 | e -> Logger.Error e
             finally
-                agent.Publish <| Connection Inactive
+                game.Connection.Status <- Event.Inactive
                 ()
         }
     | Error error -> Logger.Error error

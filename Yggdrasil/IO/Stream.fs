@@ -9,7 +9,7 @@ type OnReceivePacket = uint16 -> byte[] -> unit
 type PacketMap = Map<uint16, int>
 
 [<Literal>]
-let MAX_BUFFER_SIZE = 2056
+let MAX_BUFFER_SIZE = 4092
 
 let PacketLengthMap =
     let list = File.ReadLines ("PacketMap.txt") |> List.ofSeq

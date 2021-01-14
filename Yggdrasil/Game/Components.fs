@@ -1,10 +1,6 @@
-module Yggdrasil.Agent.Components
-
-open NLog
-open Yggdrasil.Types
+namespace Yggdrasil.Game
 
 type BattleParameters() =
-    member this.Logger = LogManager.GetLogger "BattleParameters"
     member val STRRaw = 0us, 0s with get, set
     member val AGIRaw = 0us, 0s with get, set
     member val VITRaw = 0us, 0s with get, set
@@ -25,7 +21,6 @@ type BattleParameters() =
     member val Flee1 = 0s with get, set
     member val Flee2 = 0s with get, set
     member val Critical = 0s with get, set
-    member val Speed = 150L with get, set
     member val STRUpgradeCost = 0 with get, set
     member val AGIUpgradeCost = 0 with get, set
     member val VITUpgradeCost = 0 with get, set
@@ -34,7 +29,6 @@ type BattleParameters() =
     member val LUKUpgradeCost = 0 with get, set
     
 type Level() =
-    member this.Logger = LogManager.GetLogger "Level"
     member val BaseLevel = 0u with get, set
     member val JobLevel = 0u with get, set
     member val BaseExp = 0L with get, set
@@ -45,7 +39,6 @@ type Level() =
     member val SkillPoints = 0u with get, set
     
 type Health() =    
-    member this.Logger = LogManager.GetLogger "HPSP"
     member val HP = 0u with get, set
     member val MaxHP = 0u with get, set
     member val SP = 0u with get, set
@@ -53,10 +46,8 @@ type Health() =
         
     
 type Inventory() =
-    member this.Logger = LogManager.GetLogger "Inventory"
     member val WeightSoftCap = 0 with get, set
     member val Weight = 0u with get, set
     member val MaxWeight = 0u with get, set
     member val Zeny = 0 with get, set
-
 

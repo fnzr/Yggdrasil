@@ -1,65 +1,52 @@
 module Yggdrasil.Behavior.Setup
 
 open System.Collections.Generic
-open System.Timers
-open Yggdrasil.Agent.Agent
+open NLog
+open Yggdrasil.Game
 open Yggdrasil.Behavior.StateMachine
-open Yggdrasil.Agent.Event
+open Yggdrasil.Game.Event
 
-type BehaviorTreeRunner(root: BehaviorTree.Factory<Agent>, agent: Agent) as this =
-    let timer = new Timer(150.0)
-    do timer.Enabled <- true
-    do timer.AutoReset <- true
-    do timer.Elapsed.Add(this.Tick)
+let Logger = LogManager.GetLogger "Behavior"
+
+type BehaviorTreeRunner(root: BehaviorTree.Factory<Game>, inbox: MailboxProcessor<GameEvent>) =
     let mutable queue = FSharpx.Collections.Queue.empty
     let data = Dictionary<string, obj>()
-    member this.Data = data
-    member this.Restart () = timer.Enabled <- true
-    member this.Tick _ =
+    member this.Tick agent =
         if queue.IsEmpty then
             queue <- BehaviorTree.InitTree root
         let (q, status) = BehaviorTree.Tick queue agent data
         match status with
-            | BehaviorTree.Status.Success ->
-                agent.Publish <| BehaviorResult Success
-                timer.Enabled <- false
-            | BehaviorTree.Status.Failure ->
-                agent.Publish <| BehaviorResult Failure
-                timer.Enabled <- false
+            | BehaviorTree.Status.Success -> inbox.Post <| BehaviorResult Success
+            | BehaviorTree.Status.Failure -> inbox.Post <| BehaviorResult Failure
             | _ -> ()
         queue <- q
 
-let EventMailbox (agent: Agent) stateMachine (inbox: MailboxProcessor<GameEvent>) =
-    let rec loop (currentMachine: StateMachine<'State, GameEvent, Agent>) (tree: BehaviorTreeRunner option) = async {
+let EventMailbox (stateMachine: StateMachine<'State, Game>) (inbox: MailboxProcessor<GameEvent>) =
+    let game = {
+        Player = Yggdrasil.Game.Player(inbox)
+        World = World(inbox)
+        Connection = Connection(inbox)
+    }
+    stateMachine.Start game
+    let rec loop (currentMachine: StateMachine<'State, Game>) (currentBehavior: BehaviorTreeRunner option) = async {
         let! event = inbox.Receive()
         
+        let key = BuildUnionKey event
+        //Logger.Debug ("Event: {key:s}", key)
         let machine, behavior = 
-            match currentMachine.TryTransit event agent with
+            match currentMachine.TryTransit key game with
                 | Some m ->
                     m,
                     match m.CurrentState.Behavior with
                     | None -> None
-                    | Some r -> Some <| BehaviorTreeRunner(r, agent)                    
-                | None -> currentMachine, tree
+                    | Some root -> Some <| BehaviorTreeRunner(root, inbox)                    
+                | None -> currentMachine, currentBehavior
         
-        match event with
-        | BehaviorResult _ ->
-            match behavior with
-            | Some b -> b.Restart()
-            | None -> ()
-        | Connection Inactive ->
-            match behavior with
-            | Some b -> () //stop ticks
-            | None -> ()
-        | _ -> ()
+        if behavior.IsSome then behavior.Value.Tick game
         return! loop machine behavior
     }
     loop stateMachine None
     
 let StartAgent stateMachine =
-    let agent = Agent ()
-    
-    let mailbox = MailboxProcessor.Start(EventMailbox agent stateMachine)
+    let mailbox = MailboxProcessor.Start(EventMailbox stateMachine)
     mailbox.Error.Add <| Logger.Error
-    agent.OnEventDispatched.Add(mailbox.Post)
-    stateMachine.Start agent

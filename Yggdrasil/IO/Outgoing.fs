@@ -4,7 +4,6 @@ open System
 open System.IO
 open NLog
 open Yggdrasil
-open Yggdrasil.Agent.Agent
 open Yggdrasil.Types
 let Logger = LogManager.GetLogger("Dispatcher")
 
@@ -21,7 +20,7 @@ let Dispatch (stream: Stream) (command: Command) =
         | DoneLoadingMap -> BitConverter.GetBytes 0x7dus
         | RequestServerTick -> Array.concat [|
                 BitConverter.GetBytes 0x0360us
-                BitConverter.GetBytes (Convert.ToUInt32(Agent.Tick))
+                BitConverter.GetBytes (Convert.ToUInt32(Game.Connection.Tick))
             |]
         | RequestMove (x, y) -> Array.concat [|
                 BitConverter.GetBytes 0x035fus
