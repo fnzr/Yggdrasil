@@ -32,6 +32,11 @@ let SetValue (logger: Logger) (field: byref<'T>) (value: 'T) (description: strin
         logger.Debug("{event}: {value}", description, value)
         field <- value
         true
+        
+let Delay fn delay = Async.Start <| async {
+    do! Async.Sleep delay
+    fn()
+}
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 [<RequireQualifiedAccess>]

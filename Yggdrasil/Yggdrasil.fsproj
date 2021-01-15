@@ -22,8 +22,9 @@
         <Compile Include="Game\GameEvent.fs" />        
         <Compile Include="Game\Components.fs" />
         <Compile Include="Game\Movement.fs" />
+        <Compile Include="Game\Skill.fs" />
         <Compile Include="Game\Unit.fs" />
-        <Compile Include="Game\World.fs" />                             
+        <Compile Include="Game\World.fs" />                              
         <Compile Include="IO\Stream.fs" />
         <Compile Include="IO\Outgoing.fs" />
         <Compile Include="IO\Incoming.fs" />        

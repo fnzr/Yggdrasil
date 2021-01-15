@@ -2,9 +2,7 @@ namespace Yggdrasil.Game
 
 open System.Collections.Generic
 open System.Diagnostics
-open System.Threading
 open NLog
-open Yggdrasil
 open Yggdrasil.Navigation
 open Yggdrasil.Game.Event
 open Yggdrasil.Types

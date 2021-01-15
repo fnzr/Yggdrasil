@@ -35,18 +35,18 @@ let Walk =
         
     let WaitWalkAck = Action (fun (game: Game) blackboard ->
         match game.World.Player.Status.Action with
-        | Event.Dead -> Status.Failure
-        | Event.Moving -> Status.Success
         | Event.Idle ->            
             let delay = Connection.Tick - (blackboard.["MOVE_REQUEST_DISPATCHED"] :?> int64)
             if delay > 500L then Status.Failure
-            else game.World.PostEvent Event.Ping 500; Status.Running)
+            else game.World.PostEvent Event.Ping 500; Status.Running
+        | Event.Moving -> Status.Success        
+        | _ -> Status.Failure)
         
     let StoppedWalking = Action (fun (game: Game) _ ->
-        match game.World.Player.Status.Action with
-        | Event.Dead -> Status.Failure
+        match game.World.Player.Status.Action with        
         | Event.Moving -> Status.Running
-        | Event.Idle -> Status.Success)
+        | Event.Idle -> Status.Success
+        | _ -> Status.Failure)
     
     While WalkingRequired
         => (Sequence

@@ -1,11 +1,5 @@
 module Yggdrasil.Types
 
-open System.Collections.Generic
-open System.Threading
-open NLog
-open NLog
-
-
 type Parameter =
     |Speed=0us|Karma=3us|Manner=4us|HP=5us|MaxHP=6us|SP=7us|MaxSP=8us
     |StatusPoints=9us|BaseLevel=11us|SkillPoints=12us
@@ -72,7 +66,7 @@ type UnitRawPart2 = {
     Name: string
 }
 
-type SkillCast = {
+type RawSkillCast = {
     source: uint32
     target: uint32
     posX: int16
@@ -133,7 +127,6 @@ type UnitMove = {
     X: int16
     Y: int16
 }
-//08c8  <IsSPDamage>.B <div>.W <type>.B <damage2>.L (ZC_NOTIFY_ACT3)
 
 type DamageInfo = {
     Source: uint32

@@ -20,7 +20,7 @@ module Movement =
             else
                 walkFn <|
                     match path.Tail with
-                    | [] ->                        
+                    | [] ->
                         DestinationReached
                     | tail ->
                         Async.Start <| TryTakeStep walkFn token tail delay

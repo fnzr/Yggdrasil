@@ -12,7 +12,7 @@ open Yggdrasil.Game
 open Yggdrasil.Game.Event
 let Logger = LogManager.GetLogger("Incoming")
 
-let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
+let MakePartialRecord<'T> (data: byte[]) (stringSizes: int[]) =
     let queue = Queue<obj>()
     let fields = typeof<'T>.GetProperties()
     let rec loop (properties: PropertyInfo[]) (data: byte[]) (stringSizes: int[]) =
@@ -36,6 +36,7 @@ let MakeRecord<'T> (data: byte[]) (stringSizes: int[]) =
             loop properties.[1..] data.[size..] stringsS    
     loop fields data stringSizes
     
+let MakeRecord<'T> data = fst <| MakePartialRecord<'T> data [||]
 let UnpackPosition (data: byte[]) =
     ((data.[0] <<< 2) ||| (data.[1] >>> 6),  //X
      (data.[1] <<< 4) ||| (data.[2] >>> 4),  //Y
@@ -147,17 +148,17 @@ let OnParameterChange (player: Player) parameter value =
     | _ -> ()
 
 let OnUnitSpawn (world: World) data =
-    let (part1, leftover) = MakeRecord<UnitRawPart1> data [||]    
-    let (part2, _) = MakeRecord<UnitRawPart2> leftover [|24|]
+    let (part1, leftover) = MakePartialRecord<UnitRawPart1> data [||]    
+    let (part2, _) = MakePartialRecord<UnitRawPart2> leftover [|24|]
     world.SpawnUnit <| CreateNonPlayer part1 part2 world.Inbox
     
 let OnNonPlayerSpawn = OnUnitSpawn
 let OnPlayerSpawn = OnUnitSpawn
 
 let OnWalkingUnitSpawn (world: World) data =
-    let (part1, leftover) = MakeRecord<UnitRawPart1> data [||]
+    let (part1, leftover) = MakePartialRecord<UnitRawPart1> data [||]
     //skip MoveStartTime: uint32 
-    let (part2, _) = MakeRecord<UnitRawPart2> (leftover.[4..]) [|24|]
+    let (part2, _) = MakePartialRecord<UnitRawPart2> (leftover.[4..]) [|24|]
     world.SpawnUnit <| CreateNonPlayer part1 part2 world.Inbox
 
 let OnUnitDisappear (world: World) data =
@@ -170,14 +171,13 @@ let AddSkill (player: Player) data =
         | [||] -> ()
         | bytes ->
             //TODO SkillRaw -> Skill
-            let (skill, _) = MakeRecord<Skill> data [|24|]
+            let (skill, _) = MakePartialRecord<Skill> data [|24|]
             player.Skills <- skill :: player.Skills
             ParseSkills bytes.[37..]
     ParseSkills data
 let OnPlayerStartedWalking (conn: Connection) (world: World) (data: byte[]) =
     let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[4..]
     let delay = Convert.ToInt64 (ToUInt32 data) - Connection.Tick - conn.TickOffset
-    Logger.Warn ("Received positions: ({x0}, {y0}) => ({x1}, {y1})", x0, y0, x1, y1)
     world.Player.Position <- (int x0, int y0)
     world.Player.Unit.Walk world.Map (int x1, int y1) delay
     
@@ -190,12 +190,16 @@ let OnConnectionAccepted (conn: Connection) (player: Player) (data: byte[]) =
 let OnWeightSoftCap (player: Player) (data: byte[]) = player.Inventory.WeightSoftCap <- ToInt32 data
 
 let OnSkillCast (world: World) data =
-    let (cast, _) = MakeRecord<SkillCast> data [||]
-    match (world.GetUnit cast.source, world.GetUnit cast.target) with
+    let castRaw = MakeRecord<RawSkillCast> data    
+    match (world.GetUnit castRaw.source, world.GetUnit castRaw.target) with
     | (None, _) | (_, None) -> Logger.Warn "Missing skill cast units!"
     | (Some caster, Some target) ->
-        //TODO emit casting skill event
-        Logger.Info ("{caster} casting skill {skill} on {target}", caster.Name, cast.skillId, target.Name)
+        let cast: Skill.SkillCast = {
+            SkillId = castRaw.skillId
+            Delay = int castRaw.delay
+            Property = castRaw.property
+        }
+        caster.StartCast cast target
 
 let OnMapChange (world: World) (data: byte[]) =
     world.Map <- (
@@ -206,7 +210,7 @@ let OnMapChange (world: World) (data: byte[]) =
     world.Player.Dispatch DoneLoadingMap
     
 let MoveUnit (world: World) data =
-    let (move, _) = MakeRecord<UnitMove> data [||]
+    let move = MakeRecord<UnitMove> data
     let destination = (int move.X, int move.Y)
     match world.GetUnit move.aid with
     | Some unit -> unit.Walk world.Map destination 0L
@@ -214,7 +218,7 @@ let MoveUnit (world: World) data =
         
         
 let UpdateMonsterHP (world: World) data =
-    let (info, _) = MakeRecord<MonsterHPInfo> data [||]
+    let info= MakeRecord<MonsterHPInfo> data
     match world.GetUnit info.aid with
     | Some unit ->
         unit.HP <- info.HP
@@ -222,7 +226,7 @@ let UpdateMonsterHP (world: World) data =
     | None -> Logger.Warn ("Unhandled HP update for {aid}", info.aid)
     
 let DamageDealt (world: World) data =
-    let (info, _) = MakeRecord<DamageInfo> data [||]
+    let info = MakeRecord<DamageInfo> data
     match world.GetUnit info.Source, world.GetUnit info.Target with
     | None, _ | _, None -> Logger.Error "Failed loading units to apply damage"
     | Some source, Some target ->
@@ -235,7 +239,7 @@ let DamageDealt (world: World) data =
                 //TODO
                 do! Async.Sleep delay
                 //source.
-            } |> ignore
+            }
         
 let OnPacketReceived (game: Game) (packetType: uint16) (data: byte[]) =
     let conn = game.Connection
