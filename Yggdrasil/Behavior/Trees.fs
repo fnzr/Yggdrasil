@@ -33,6 +33,7 @@ let Walk =
         
     let WaitWalkAck = Action (fun (game: Game) blackboard ->
         match game.Player.Status.Action with
+        | Event.Dead -> Status.Failure
         | Event.Moving -> Status.Success
         | Event.Idle ->            
             let delay = Connection.Tick - (blackboard.["MOVE_REQUEST_DISPATCHED"] :?> int64)
@@ -41,6 +42,7 @@ let Walk =
         
     let StoppedWalking = Action (fun (game: Game) _ ->
         match game.Player.Status.Action with
+        | Event.Dead -> Status.Failure
         | Event.Moving -> Status.Running
         | Event.Idle -> Status.Success)
     

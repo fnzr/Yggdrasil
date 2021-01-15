@@ -1,4 +1,4 @@
-module Yggdrasil.Behavior.Setup
+module Yggdrasil.Behavior.Behavior
 
 open System.Collections.Generic
 open NLog

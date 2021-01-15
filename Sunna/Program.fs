@@ -2,7 +2,7 @@
 open System.Net
 open NLog
 open Yggdrasil.Behavior.Machines
-open Yggdrasil.Behavior.Setup
+open Yggdrasil.Behavior.Behavior
 let Logger = LogManager.GetLogger("Sunna")
 
 let Pack x0 y0 x1 y1 =

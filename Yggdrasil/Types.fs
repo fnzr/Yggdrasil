@@ -120,10 +120,32 @@ type WalkData = {
     EndY: int
 }
 
+type DisappearReason =
+    | OutOfSight = 0uy
+    | Died = 1uy
+    | LoggedOut = 2uy
+    | Teleport = 3uy
+    | TrickDead = 4uy
+
+
 type UnitMove = {
     aid: uint32
-    x: int16
-    y: int16
+    X: int16
+    Y: int16
+}
+//08c8  <IsSPDamage>.B <div>.W <type>.B <damage2>.L (ZC_NOTIFY_ACT3)
+
+type DamageInfo = {
+    Source: int
+    Target: int
+    Tick: int
+    SourceSpeed: int
+    TargetSpeed: int
+    Damage: int
+    IsSPDamage: byte
+    Div: int16
+    Type: byte
+    Damage2: int
 }
 
 type ActionType =
@@ -142,7 +164,7 @@ type CommandAction = {
 type MonsterHPInfo = {
     aid: uint32
     HP: int
-    maxHP: int
+    MaxHP: int
 }
 type Command =
     | DoneLoadingMap

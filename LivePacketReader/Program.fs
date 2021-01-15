@@ -6,10 +6,15 @@ open PacketDotNet
 open SharpPcap
 open Yggdrasil.Game
 let Logger = LogManager.GetLogger("LivePacket")
-let ServerIP = IPAddress.Parse "172.19.0.2"
+let ServerIP = IPAddress.Parse "192.168.2.10"
 let ClientIP = IPAddress.Parse "192.168.2.3"
 
-let BlankMailbox = MailboxProcessor.Start(fun _ -> async {()})
+let BlankMailbox = MailboxProcessor.Start(fun inbox ->
+    let rec loop () = async {
+        let! _ = inbox.Receive()
+        return! loop ()
+    }
+    loop())
 let Game = {    
     World = World(BlankMailbox)
     Connection = Connection(BlankMailbox)
@@ -51,7 +56,7 @@ let main argv =
     let devices = CaptureDeviceList.Instance;
     if devices.Count < 1 then invalidArg "devices" "No device found in this machine. Did you run as root?"
     //Seq.iteri (fun i (d: ICaptureDevice) -> printfn "%i) %s" i d.Name) (Seq.cast devices)
-    let device = devices.[2]
+    let device = Seq.find (fun (d: ICaptureDevice) -> d.Name = "enp3s0") devices
     device.OnPacketArrival.Add(OnPacketArrival)
     device.Open(DeviceMode.Promiscuous, 1000)
     

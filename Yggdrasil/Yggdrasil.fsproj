@@ -19,18 +19,18 @@
         <Compile Include="Navigation\Pathfinding.fs" />
         <Compile Include="Behavior\BehaviorTree.fs" />
         <Compile Include="Behavior\StateMachine.fs" />
-        <Compile Include="Game\GameEvent.fs" />
+        <Compile Include="Game\GameEvent.fs" />        
         <Compile Include="Game\Components.fs" />
+        <Compile Include="Game\Movement.fs" />
         <Compile Include="Game\Unit.fs" />
-        <Compile Include="Game\World.fs" />
-        <Compile Include="Game\Movement.fs" />                        
+        <Compile Include="Game\World.fs" />                             
         <Compile Include="IO\Stream.fs" />
         <Compile Include="IO\Outgoing.fs" />
         <Compile Include="IO\Incoming.fs" />        
         <Compile Include="IO\Handshake.fs" />
         <Compile Include="Behavior\Trees.fs" />
         <Compile Include="Behavior\Machines.fs" />
-        <Compile Include="Behavior\Setup.fs" />        
+        <Compile Include="Behavior\Behavior.fs" />        
     </ItemGroup>
 
     <ItemGroup>

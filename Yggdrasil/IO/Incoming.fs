@@ -60,10 +60,10 @@ let OnU32ParameterUpdate code value (player: Player) =
         | Parameter.JobLevel -> player.Level.JobLevel <- value
         | Parameter.BaseLevel -> player.Level.BaseLevel <- value
     
-        | Parameter.MaxHP -> player.Health.MaxHP <- value
+        | Parameter.MaxHP -> player.MaxHP <- int value
         | Parameter.MaxSP -> player.Health.MaxSP <- value
         | Parameter.SP -> player.Health.SP <- value
-        | Parameter.HP -> player.Health.HP <- value
+        | Parameter.HP -> player.HP <- int value
         | _ -> ()
     
 let OnI16ParameterUpdate code value (player: Player) =
@@ -150,7 +150,7 @@ let OnParameterChange (player: Player) parameter value =
 let OnUnitSpawn (world: World) data =
     let (part1, leftover) = MakeRecord<UnitRawPart1> data [||]    
     let (part2, _) = MakeRecord<UnitRawPart2> leftover [|24|]
-    world.SpawnUnit <| CreateNonPlayer part1 part2
+    world.SpawnUnit <| CreateNonPlayer part1 part2 world.Inbox
     
 let OnNonPlayerSpawn = OnUnitSpawn
 let OnPlayerSpawn = OnUnitSpawn
@@ -159,9 +159,13 @@ let OnWalkingUnitSpawn (world: World) data =
     let (part1, leftover) = MakeRecord<UnitRawPart1> data [||]
     //skip MoveStartTime: uint32 
     let (part2, _) = MakeRecord<UnitRawPart2> (leftover.[4..]) [|24|]
-    world.SpawnUnit <| CreateNonPlayer part1 part2
+    world.SpawnUnit <| CreateNonPlayer part1 part2 world.Inbox
 
-let OnUnitDespawn (world: World) data = world.DespawnUnit <| ToUInt32 data
+let OnUnitDisappear (world: World) (player: Player) data =
+    let id = ToUInt32 data
+    let reason = Enum.Parse(typeof<DisappearReason>, string data.[4]) :?> DisappearReason
+    if player.Id = id then player.Disappear reason
+    else world.DespawnUnit id
 
 let AddSkill (player: Player) data =
     let rec ParseSkills (skillBytes: byte[]) =
@@ -173,16 +177,11 @@ let AddSkill (player: Player) data =
             player.Skills <- skill :: player.Skills
             ParseSkills bytes.[37..]
     ParseSkills data
-let OnAgentStartedWalking (conn: Connection) (world: World) (player: Player) (data: byte[]) =
-    if player.WalkCancellationToken.IsSome then player.WalkCancellationToken.Value.Cancel()
+let OnPlayerStartedWalking (conn: Connection) (player: Player) (world: World) (data: byte[]) =
     let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[4..]
     let delay = Convert.ToInt64 (ToUInt32 data) - Connection.Tick - conn.TickOffset
-    let walkFn = Movement.Walk (fun p -> player.Position <- p) player.EventHandler
-    player.WalkCancellationToken <-
-        Movement.StartMove world.Map walkFn 
-            (Convert.ToInt32 x0, Convert.ToInt32 y0)
-            (Convert.ToInt32 x1, Convert.ToInt32 y1)
-            delay (Convert.ToInt32 player.Unit.Speed)
+    player.Position <- (int x0, int y0)
+    player.Walk world.Map (int x1, int y1) delay
     
 let OnConnectionAccepted (conn: Connection) (player: Player) (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]
@@ -208,12 +207,30 @@ let OnMapChange (world: World) (player: Player) (data: byte[]) =
                                 data.[18..] |> ToUInt16 |> Convert.ToInt32)
     player.Dispatch DoneLoadingMap
     
-let MoveUnit (world: World) data = ()
-    //let (move, _) = MakeRecord<UnitMove> data [||]
-    //TODO move unit lol    
+let MoveUnit (world: World) (player: Player) data =
+    let (move, _) = MakeRecord<UnitMove> data [||]
+    let destination = (int move.X, int move.Y)
+    if player.Id = move.aid then player.Walk world.Map destination 0L
+    else
+        match world.GetUnit move.aid with
+        | Some unit ->
+            let walk = Movement.Walk
+                           (fun p -> unit.Unit.Position <- p)
+                           unit.EventHandler
+            Movement.StartMove world.Map
+                walk unit.Unit.Position destination 0L (int unit.Unit.Speed) |> ignore
+        | None -> Logger.Warn ("Unhandled movement for {aid}", move.aid)
         
-let UpdateMonsterHP (world: World) data = ()
-    //let info = MakeRecord<MonsterHPInfo> data [||]
+let UpdateMonsterHP (world: World) data =
+    let (info, _) = MakeRecord<MonsterHPInfo> data [||]
+    match world.GetUnit info.aid with
+    | Some unit ->
+        unit.HP <- info.HP
+        unit.MaxHP <- info.MaxHP
+    | None -> Logger.Warn ("Unhandled HP update for {aid}", info.aid)
+    
+let DamageDealt (world: World) (player: Player) data =
+    ()
         
 let OnPacketReceived (game: Game) (packetType: uint16) (data: byte[]) =
     let conn = game.Connection
@@ -229,12 +246,13 @@ let OnPacketReceived (game: Game) (packetType: uint16) (data: byte[]) =
         | 0x9ffus -> OnNonPlayerSpawn world data.[4..]
         | 0x9feus -> OnPlayerSpawn world data.[4..]
         | 0x9fdus -> OnWalkingUnitSpawn world data.[4..]
-        | 0x0080us -> OnUnitDespawn world data.[2..]
+        | 0x0080us -> OnUnitDisappear world player data.[2..]
         | 0x10fus -> AddSkill player data.[4..]
-        | 0x0087us -> OnAgentStartedWalking conn world player data.[2..]
+        | 0x0087us -> OnPlayerStartedWalking conn player world data.[2..]
         | 0x07fbus -> OnSkillCast world data.[2..]
-        | 0x0088us -> MoveUnit world data.[2..]
+        | 0x0088us -> MoveUnit world player data.[2..]
         | 0x0977us -> UpdateMonsterHP world data.[2..]
+        | 0x08c8us -> DamageDealt world player data.[2..] 
         | 0x0adfus (* ZC_REQNAME_TITLE *) -> ()
         | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> ()        
         | 0x0bdus (* ZC_STATUS *) -> ()

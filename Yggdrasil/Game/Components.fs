@@ -39,8 +39,6 @@ type Level() =
     member val SkillPoints = 0u with get, set
     
 type Health() =    
-    member val HP = 0u with get, set
-    member val MaxHP = 0u with get, set
     member val SP = 0u with get, set
     member val MaxSP = 0u with get, set
         

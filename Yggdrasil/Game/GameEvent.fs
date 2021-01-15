@@ -2,7 +2,7 @@ namespace Yggdrasil.Game
 
 module Event = 
     type ConnectionStatus = | Active | Inactive
-    type Action = | Idle | Moving
+    type Action = | Idle | Moving | Dead
     type BehaviorResult = | Success | Failure
     type UnitSpawn = NPC | Player | Monster | Unknown
 

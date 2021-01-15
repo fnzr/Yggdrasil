@@ -78,7 +78,7 @@ let onAuthenticationResult (game: Game)
         let stream = client.GetStream()
         game.Player.Dispatch <- Outgoing.Dispatch stream
         game.Player.Name <- info.CharacterName
-        
+        game.Player.Id <- info.CharId
         stream.Write (WantToConnect info)
         Async.Start <|
         async {
