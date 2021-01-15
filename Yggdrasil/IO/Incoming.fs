@@ -43,11 +43,10 @@ let UnpackPosition (data: byte[]) =
     )
     
 let UnpackPosition2 (data: byte[]) =
-    //TODO make sure this works for x0, x1 > 255
-    int16 (data.[0] <<< 2) ||| int16 (data.[1] >>> 6),  //X0
-    (int16 (data.[1] <<< 2)) <<< 2 ||| int16 (data.[2] >>> 4), //Y0
-    int16 (data.[2] <<< 6) ||| int16 (data.[3] >>> 2),  //X1
-    (int16 (data.[3] >>> 3 <<< 3) <<< 1) ||| int16 (data.[4] <<< 3 >>> 3),  //Y1
+    (int16 (data.[0] <<< 2)) ||| int16 (data.[1]&&&(~~~0x3fuy) >>> 6), //x0
+    ((int16 (data.[1]&&&0x3fuy)) <<<4) ||| (int16 (data.[2]>>>4)), //y0
+    (int16 (data.[2]&&&(0x0fuy)) <<< 6) ||| (int16 (data.[3]&&&(~~~0x03uy)) >>> 2), //x1
+    (int16 (data.[3]&&&0x3uy) <<< 8) ||| int16 data.[4], // y1   
     (data.[5] >>> 4),  //dirX
     (data.[5] <<< 4) //dirY
 
