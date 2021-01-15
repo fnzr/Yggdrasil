@@ -76,9 +76,9 @@ let onAuthenticationResult (game: Game)
         client.Connect(info.ZoneServer)
         
         let stream = client.GetStream()
-        game.Player.Dispatch <- Outgoing.Dispatch stream
-        game.Player.Name <- info.CharacterName
-        game.Player.Id <- info.CharId
+        game.World.Player.Dispatch <- Outgoing.Dispatch stream
+        game.World.Player.Name <- info.CharacterName
+        game.World.Player.Id <- info.CharId
         stream.Write (WantToConnect info)
         Async.Start <|
         async {

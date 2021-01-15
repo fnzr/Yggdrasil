@@ -1,6 +1,6 @@
 namespace Yggdrasil.Game
 
-open System
+open System.Threading
 open NLog
 open Yggdrasil.Types
 open Yggdrasil.Game.Event
@@ -9,6 +9,7 @@ type ObjectType =
   | NPC
   | Monster
   | Invalid
+  | PlayerCharacter
   
 type UnitStatus =
     {
@@ -22,55 +23,61 @@ type UnitStatus =
         | Action a -> this.Action <- a
         
   
-type Unit =
-    {
-        mutable Name: string
-        mutable Position: int * int
-        mutable Speed: int64
-        mutable HP: int
-        mutable MaxHP: int
-        Status: UnitStatus
-    }
+type Unit(eventBuilder: UnitEvent -> GameEvent, inbox: MailboxProcessor<GameEvent>,
+          id, name, position, speed, hp, maxHP, logger: Logger) =
+    let mutable walkCancellationToken: CancellationTokenSource option = None
+    let status = UnitStatus.Default()
+    member val Id: uint32 = id with get, set
+    member val Name: string = name with get, set
+    member val Position: int * int = position with get, set
+    member val Speed: int16 = speed with get, set
+    member val HP: int = hp with get, set
+    member val MaxHP: int = hp with get, set
+    member this.Status with get() = status
+    member this.Dispatch event =
+        this.Status.Update event
+        inbox.Post <| eventBuilder event
+    
+    member this.Walk map destination delay =
+        if walkCancellationToken.IsSome then walkCancellationToken.Value.Cancel()
+        let walkFn = Movement.Walk (fun p -> this.Position <- p) this.Dispatch
+        walkCancellationToken <-
+            Movement.StartMove map walkFn this.Position
+                destination delay (int this.Speed)
+                
+    member this.Disappear reason =
+        match reason with
+        | DisappearReason.Died -> this.Dispatch <| Action Dead
+        | r -> logger.Warn ("Unhandled disappear reason: {reason}", r)
+        
 
 type NonPlayer =
     {
-        Type: ObjectType
-        AID: uint32
-        Unit: Unit
+        Type: ObjectType        
         FullName: string
-        Inbox: MailboxProcessor<GameEvent>
+        Unit: Unit
     }
-    member this.HP
-        with get() = this.Unit.HP
-        and set v = this.Unit.HP <- v
-    member this.MaxHP
-        with get() = this.Unit.MaxHP
-        and set v = this.Unit.MaxHP <- v
-        
-    member this.EventHandler event =
-        this.Unit.Status.Update event
-        this.Inbox.Post <| UnitEvent event
+    member this.Id = this.Unit.Id
     
 [<AutoOpen>]
 module UnitFactory =
     let Logger = LogManager.GetLogger("Unit")
+    
+    let UnitEventBuilder event = (UnitEvent event) :> GameEvent 
+    let NPCLogger = LogManager.GetLogger "NPC"
     let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) (inbox: MailboxProcessor<GameEvent>) =        
         let oType = match raw1.ObjectType with
                     | 0x1uy | 0x6uy -> ObjectType.NPC
+                    | 0x0uy -> ObjectType.PlayerCharacter
                     | 0x5uy -> ObjectType.Monster
                     | t -> Logger.Warn ("Unhandled ObjectType: {type}", t);
                             ObjectType.Invalid
+                            //id, name, position, speed, hp, maxHP,
         {
-            Unit = {
-                Name = raw2.Name.Split('#').[0]
-                Position = (int raw2.PosX, int raw2.PosY)
-                Speed = Convert.ToInt64 raw1.Speed
-                Status = UnitStatus.Default()
-                HP = raw2.HP
-                MaxHP = raw2.MaxHP
-            }
-            AID = raw1.AID
             FullName = raw2.Name
-            Type = oType
-            Inbox = inbox
+            Type = oType            
+            Unit = Unit(UnitEventBuilder, inbox, raw1.AID,
+                        raw2.Name.Split('#').[0], (int raw2.PosX, int raw2.PosY),
+                         raw1.Speed, raw2.HP, raw2.MaxHP, NPCLogger)
         }
+        

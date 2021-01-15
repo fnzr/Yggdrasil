@@ -23,7 +23,6 @@ type BehaviorTreeRunner(root: BehaviorTree.Factory<Game>, inbox: MailboxProcesso
 
 let EventMailbox (stateMachine: StateMachine<'State, Game>) (inbox: MailboxProcessor<GameEvent>) =
     let game = {
-        Player = Yggdrasil.Game.Player(inbox)
         World = World(inbox)
         Connection = Connection(inbox)
     }

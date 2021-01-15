@@ -12,27 +12,29 @@ let Logger = LogManager.GetLogger "Trees"
 let MAX_WALK_DISTANCE = 10
 let Walk =    
     let WalkingRequired (game: Game) =
-        game.Player.Goals.Position.IsSome &&
+        let player = game.World.Player
+        player.Goals.Position.IsSome &&
         Navigation.Pathfinding.DistanceTo
-            game.Player.Position game.Player.Goals.Position.Value > 2        
+            player.Position player.Goals.Position.Value > 0        
         
     let DispatchWalk = Action (fun (game: Game) blackboard ->
-        match game.Player.Goals.Position with
+        let player = game.World.Player
+        match player.Goals.Position with
         | Some (x, y) ->
             match Navigation.Pathfinding.FindPath
-                      game.World.MapData game.Player.Position (x, y) 2 with
+                      game.World.MapData player.Position (x, y) 0 with
             | [] -> Failure
             | path ->
                 let pos = path
                             |> List.take (Math.Min (MAX_WALK_DISTANCE, path.Length))
                             |> List.last
-                game.Player.Dispatch(Types.Command.RequestMove pos)
+                player.Dispatch(Types.Command.RequestMove pos)
                 blackboard.["MOVE_REQUEST_DISPATCHED"] <- Connection.Tick
                 Success
         | None -> Success)
         
     let WaitWalkAck = Action (fun (game: Game) blackboard ->
-        match game.Player.Status.Action with
+        match game.World.Player.Status.Action with
         | Event.Dead -> Status.Failure
         | Event.Moving -> Status.Success
         | Event.Idle ->            
@@ -41,7 +43,7 @@ let Walk =
             else game.World.PostEvent Event.Ping 500; Status.Running)
         
     let StoppedWalking = Action (fun (game: Game) _ ->
-        match game.Player.Status.Action with
+        match game.World.Player.Status.Action with
         | Event.Dead -> Status.Failure
         | Event.Moving -> Status.Running
         | Event.Idle -> Status.Success)

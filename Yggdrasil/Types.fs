@@ -136,8 +136,8 @@ type UnitMove = {
 //08c8  <IsSPDamage>.B <div>.W <type>.B <damage2>.L (ZC_NOTIFY_ACT3)
 
 type DamageInfo = {
-    Source: int
-    Target: int
+    Source: uint32
+    Target: uint32
     Tick: int
     SourceSpeed: int
     TargetSpeed: int

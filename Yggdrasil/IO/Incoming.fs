@@ -60,10 +60,10 @@ let OnU32ParameterUpdate code value (player: Player) =
         | Parameter.JobLevel -> player.Level.JobLevel <- value
         | Parameter.BaseLevel -> player.Level.BaseLevel <- value
     
-        | Parameter.MaxHP -> player.MaxHP <- int value
+        | Parameter.MaxHP -> player.Unit.MaxHP <- int value
         | Parameter.MaxSP -> player.Health.MaxSP <- value
         | Parameter.SP -> player.Health.SP <- value
-        | Parameter.HP -> player.HP <- int value
+        | Parameter.HP -> player.Unit.HP <- int value
         | _ -> ()
     
 let OnI16ParameterUpdate code value (player: Player) =
@@ -87,7 +87,7 @@ let OnU16ParameterUpdate code value (player: Player) =
         | Parameter.MagicDefense1 -> player.BattleParameters.MagicDefense1 <- value
         | Parameter.MagicDefense2 -> player.BattleParameters.MagicDefense2 <- value
         | Parameter.AttackRange -> player.BattleParameters.AttackRange <- value
-        | Parameter.Speed -> player.Unit.Speed <- Convert.ToInt64(value)
+        | Parameter.Speed -> player.Unit.Speed <- int16 value
         | _ -> ()
     
 let OnI32ParameterUpdate code value (player: Player) =
@@ -161,11 +161,9 @@ let OnWalkingUnitSpawn (world: World) data =
     let (part2, _) = MakeRecord<UnitRawPart2> (leftover.[4..]) [|24|]
     world.SpawnUnit <| CreateNonPlayer part1 part2 world.Inbox
 
-let OnUnitDisappear (world: World) (player: Player) data =
-    let id = ToUInt32 data
-    let reason = Enum.Parse(typeof<DisappearReason>, string data.[4]) :?> DisappearReason
-    if player.Id = id then player.Disappear reason
-    else world.DespawnUnit id
+let OnUnitDisappear (world: World) data =
+    world.DespawnUnit <| ToUInt32 data
+        <| (Enum.Parse(typeof<DisappearReason>, string data.[4]) :?> DisappearReason)
 
 let AddSkill (player: Player) data =
     let rec ParseSkills (skillBytes: byte[]) =
@@ -177,11 +175,12 @@ let AddSkill (player: Player) data =
             player.Skills <- skill :: player.Skills
             ParseSkills bytes.[37..]
     ParseSkills data
-let OnPlayerStartedWalking (conn: Connection) (player: Player) (world: World) (data: byte[]) =
+let OnPlayerStartedWalking (conn: Connection) (world: World) (data: byte[]) =
     let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[4..]
     let delay = Convert.ToInt64 (ToUInt32 data) - Connection.Tick - conn.TickOffset
-    player.Position <- (int x0, int y0)
-    player.Walk world.Map (int x1, int y1) delay
+    Logger.Warn ("Received positions: ({x0}, {y0}) => ({x1}, {y1})", x0, y0, x1, y1)
+    world.Player.Position <- (int x0, int y0)
+    world.Player.Unit.Walk world.Map (int x1, int y1) delay
     
 let OnConnectionAccepted (conn: Connection) (player: Player) (data: byte[]) =
     let (x, y, _) = UnpackPosition data.[4..]
@@ -197,29 +196,23 @@ let OnSkillCast (world: World) data =
     | (None, _) | (_, None) -> Logger.Warn "Missing skill cast units!"
     | (Some caster, Some target) ->
         //TODO emit casting skill event
-        Logger.Info ("{caster} casting skill {skill} on {target}", caster.Unit.Name, cast.skillId, target.Unit.Name)
+        Logger.Info ("{caster} casting skill {skill} on {target}", caster.Name, cast.skillId, target.Name)
 
-let OnMapChange (world: World) (player: Player) (data: byte[]) =
+let OnMapChange (world: World) (data: byte[]) =
     world.Map <- (
         let gatFile = ToString data.[..15]
         gatFile.Substring(0, gatFile.Length - 4))
-    player.Position <- (data.[16..] |> ToUInt16 |> Convert.ToInt32,
+    world.Player.Position <- (data.[16..] |> ToUInt16 |> Convert.ToInt32,
                                 data.[18..] |> ToUInt16 |> Convert.ToInt32)
-    player.Dispatch DoneLoadingMap
+    world.Player.Dispatch DoneLoadingMap
     
-let MoveUnit (world: World) (player: Player) data =
+let MoveUnit (world: World) data =
     let (move, _) = MakeRecord<UnitMove> data [||]
     let destination = (int move.X, int move.Y)
-    if player.Id = move.aid then player.Walk world.Map destination 0L
-    else
-        match world.GetUnit move.aid with
-        | Some unit ->
-            let walk = Movement.Walk
-                           (fun p -> unit.Unit.Position <- p)
-                           unit.EventHandler
-            Movement.StartMove world.Map
-                walk unit.Unit.Position destination 0L (int unit.Unit.Speed) |> ignore
-        | None -> Logger.Warn ("Unhandled movement for {aid}", move.aid)
+    match world.GetUnit move.aid with
+    | Some unit -> unit.Walk world.Map destination 0L
+    | None -> Logger.Warn ("Unhandled movement for {aid}", move.aid)
+        
         
 let UpdateMonsterHP (world: World) data =
     let (info, _) = MakeRecord<MonsterHPInfo> data [||]
@@ -229,13 +222,26 @@ let UpdateMonsterHP (world: World) data =
         unit.MaxHP <- info.MaxHP
     | None -> Logger.Warn ("Unhandled HP update for {aid}", info.aid)
     
-let DamageDealt (world: World) (player: Player) data =
-    ()
+let DamageDealt (world: World) data =
+    let (info, _) = MakeRecord<DamageInfo> data [||]
+    match world.GetUnit info.Source, world.GetUnit info.Target with
+    | None, _ | _, None -> Logger.Error "Failed loading units to apply damage"
+    | Some source, Some target ->
+        if info.IsSPDamage > 0uy then
+            Logger.Warn "IsSPDamage. I dont know what that is"
+        else
+            let mutable delay = int <| (int64 info.Tick) - Connection.Tick
+            if delay < 0 then delay <- 0
+            Async.Start <| async {
+                //TODO
+                do! Async.Sleep delay
+                //source.
+            } |> ignore
         
 let OnPacketReceived (game: Game) (packetType: uint16) (data: byte[]) =
     let conn = game.Connection
     let world = game.World
-    let player = game.Player
+    let player = world.Player
     Logger.Trace("Packet: {packetType:X}", packetType)
     match packetType with
         | 0x13aus -> OnParameterChange player Parameter.AttackRange data.[2..]
@@ -246,13 +252,13 @@ let OnPacketReceived (game: Game) (packetType: uint16) (data: byte[]) =
         | 0x9ffus -> OnNonPlayerSpawn world data.[4..]
         | 0x9feus -> OnPlayerSpawn world data.[4..]
         | 0x9fdus -> OnWalkingUnitSpawn world data.[4..]
-        | 0x0080us -> OnUnitDisappear world player data.[2..]
+        | 0x0080us -> OnUnitDisappear world data.[2..]
         | 0x10fus -> AddSkill player data.[4..]
-        | 0x0087us -> OnPlayerStartedWalking conn player world data.[2..]
+        | 0x0087us -> OnPlayerStartedWalking conn world data.[2..]
         | 0x07fbus -> OnSkillCast world data.[2..]
-        | 0x0088us -> MoveUnit world player data.[2..]
+        | 0x0088us -> MoveUnit world data.[2..]
         | 0x0977us -> UpdateMonsterHP world data.[2..]
-        | 0x08c8us -> DamageDealt world player data.[2..] 
+        | 0x08c8us -> DamageDealt world data.[2..] 
         | 0x0adfus (* ZC_REQNAME_TITLE *) -> ()
         | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> ()        
         | 0x0bdus (* ZC_STATUS *) -> ()
@@ -262,7 +268,7 @@ let OnPacketReceived (game: Game) (packetType: uint16) (data: byte[]) =
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> ()
         | 0x0a9bus (* list of items in the equip switch window *) -> ()
         | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> ()
-        | 0x0091us -> OnMapChange world player data.[2..]
+        | 0x0091us -> OnMapChange world data.[2..]
         | 0x007fus -> conn.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - Connection.Tick
         | 0x00b4us (* ZC_SAY_DIALOG *) -> ()
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> ()

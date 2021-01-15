@@ -1,5 +1,7 @@
 namespace Yggdrasil.Game
 
+open Yggdrasil.Game.Event
+
 type BattleParameters() =
     member val STRRaw = 0us, 0s with get, set
     member val AGIRaw = 0us, 0s with get, set
@@ -48,4 +50,3 @@ type Inventory() =
     member val Weight = 0u with get, set
     member val MaxWeight = 0u with get, set
     member val Zeny = 0 with get, set
-
