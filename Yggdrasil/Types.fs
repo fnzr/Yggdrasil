@@ -85,9 +85,9 @@ type ReqNameTitle = {
 }
 
 type RequestMove = {
-    x: sbyte
-    y: sbyte
-    dir: sbyte
+    x: byte
+    y: byte
+    dir: byte
 }
 
 type Skill = {
@@ -106,14 +106,6 @@ type StartData = {
     Y: int
 }
 
-type WalkData = {
-    StartTime: int64
-    StartX: int
-    StartY: int
-    EndX: int
-    EndY: int
-}
-
 type DisappearReason =
     | OutOfSight = 0uy
     | Died = 1uy
@@ -128,7 +120,19 @@ type UnitMove = {
     Y: int16
 }
 
-type DamageInfo = {
+type RawDamageInfo = {
+    Source: uint32
+    Target: uint32
+    Tick: int
+    SourceSpeed: int
+    TargetSpeed: int
+    Damage: int
+    Div: int16
+    Type: byte
+    Damage2: int
+}
+
+type RawDamageInfo2 = {
     Source: uint32
     Target: uint32
     Tick: int
@@ -139,6 +143,41 @@ type DamageInfo = {
     Div: int16
     Type: byte
     Damage2: int
+}
+
+type DamageInfo = {
+    Damage: int
+    Type: byte
+}
+
+type GroundItemRaw = {
+    Id: int
+    NameId: int16
+    Type: int16
+    Identified: byte
+    PosX: int16
+    PosY: int16
+    SubX: byte
+    SubY: byte
+    Amount: int16
+    ShowDropEffect: byte
+    DropEffectMode: byte
+}
+
+type GroundItem = {
+    Id: int
+    NameId: int16
+    Identified: bool
+    Position: (int * int)
+    Amount: int16
+}
+
+type CharacterStatusRaw = {
+    Points: int16; STR: byte; USTR: byte; AGI: byte; UAGI: byte; VIT: byte
+    UVIT: byte; INT: byte; UINT: byte; DEX: byte; UDEX: byte; LUK: byte
+    ULUK: byte; ATK: int16; ATK2: int16; MATK_MIN: int16; MATK_MAX: int16
+    DEF: int16; DEF2: int16; MDEF: int16; MDEF2: int16; HIT: int16; FLEE: int16
+    FLEE2: int16; CRIT: int16; ASPD: uint16; ASPD2: int16
 }
 
 type ActionType =
@@ -164,3 +203,4 @@ type Command =
     | RequestServerTick
     | RequestMove of int * int
     | Action of CommandAction
+    | PickUpItem of int

@@ -5,11 +5,11 @@ open System.IO
 open System.Net.Sockets
 open Yggdrasil.Utils
 
-type OnReceivePacket = uint16 -> byte[] -> unit
+type OnReceivePacket = uint16 * ReadOnlyMemory<byte> -> unit
 type PacketMap = Map<uint16, int>
 
 [<Literal>]
-let MAX_BUFFER_SIZE = 4092
+let MAX_BUFFER_SIZE = 2056
 
 let PacketLengthMap =
     let list = File.ReadLines ("PacketMap.txt") |> List.ofSeq
@@ -36,7 +36,7 @@ let Reader (queue: byte[]) (callback: OnReceivePacket) =
                                    | len -> len
                                else raise (ArgumentException (sprintf "Unmapped packet %X. bytes in queue: %d" packetType queue.Length))
             if queue.Length >= packetLength
-            then callback packetType queue.[..(packetLength - 1)]
+            then callback (packetType, ReadOnlyMemory queue.[..(packetLength - 1)])
                  queue.[packetLength..]
             else queue
     else queue

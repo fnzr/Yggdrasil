@@ -1,20 +1,21 @@
 ﻿open System
 open System.Net
-open NLog
-let Logger = LogManager.GetLogger("Sunna")
-
-type E = interface end
-type BranchA = A1 of int | A2 | A3 of (int * int)
-                interface E
-type BranchB = B1 of string
-                interface E
-type Root = BranchA of BranchA | BranchB of BranchB
-            interface E
+//open Yggdrasil.Behavior.Machines
 
 [<EntryPoint>]
-let main argv =
+let main _ =
     //let server = IPEndPoint (IPAddress.Parse "127.0.0.1", 6900)
     //let machine = DefaultMachine.Create server "roboco" "111111" 
-    //StartAgent machine
-    //Console.ReadKey() |> ignore
+    //Yggdrasil.Behavior.Behavior.StartAgent machine
+    let a = [|1; 2; 3|]    
+    Async.Start <| async {
+        let b = a.[2..]
+        do! Async.Sleep 2000
+        printfn "%A" b
+    }
+    a.[2] <- 0
+    Console.ReadKey() |> ignore
+    //let map = Yggdrasil.Navigation.Maps.GetMapData "prontera"
+    //let path = Yggdrasil.Navigation.Pathfinding.FindPath map (155, 33) (156, 22) 0
+    //printfn "%A" path
     0

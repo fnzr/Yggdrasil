@@ -31,5 +31,9 @@ let Dispatch (stream: Stream) (command: Command) =
                 BitConverter.GetBytes c.target
                 [|byte c.action|]
             |]
+        | PickUpItem id -> Array.concat [|
+                BitConverter.GetBytes 0x0362us
+                BitConverter.GetBytes id
+        |]
     Logger.Info ("{command}", command)
     stream.Write(bytes, 0, bytes.Length)

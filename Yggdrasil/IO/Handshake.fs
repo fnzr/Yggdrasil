@@ -5,10 +5,11 @@ open System.IO
 open System.Net
 open System.Net.Sockets
 open NLog
+open FSharpPlus.Lens
 open Yggdrasil.Game
-open Yggdrasil.Types
 open Yggdrasil.Utils
 open Yggdrasil.IO.Stream
+
 type LoginCredentials = {
     LoginServer: IPEndPoint
     Username: string
@@ -35,11 +36,11 @@ type ZoneCredentials = {
 }
 
 let Logger = LogManager.GetLogger("IO::Handshake")
-let private OtpTokenLogin () = new ReadOnlySpan<byte> (Array.concat([|BitConverter.GetBytes(0xacfus); (Array.zeroCreate 66)|]))
-let private CharSelect slot = new ReadOnlySpan<byte> (Array.concat[| BitConverter.GetBytes(0x0066us); [| slot |]|])
+let private OtpTokenLogin () = ReadOnlySpan<byte> (Array.concat([|BitConverter.GetBytes(0xacfus); (Array.zeroCreate 66)|]))
+let private CharSelect slot = ReadOnlySpan<byte> (Array.concat[| BitConverter.GetBytes(0x0066us); [| slot |]|])
 
 let private RequestToConnect (credentials: LoginServerResponse) =
-    new ReadOnlySpan<byte> (Array.concat([|
+    ReadOnlySpan<byte> (Array.concat([|
         BitConverter.GetBytes(0x65us)
         BitConverter.GetBytes(credentials.AccountId)
         BitConverter.GetBytes(credentials.LoginId1)
@@ -49,7 +50,7 @@ let private RequestToConnect (credentials: LoginServerResponse) =
     |]))
 
 let private LoginPacket username password =
-    new ReadOnlySpan<byte> (Array.concat([|
+    ReadOnlySpan<byte> (Array.concat([|
         BitConverter.GetBytes(0x0064us);
         BitConverter.GetBytes(0u);
         FillBytes username 24;
@@ -58,7 +59,7 @@ let private LoginPacket username password =
     |]))
     
 let WantToConnect zoneInfo =
-    new ReadOnlySpan<byte> (Array.concat [|
+    ReadOnlySpan<byte> (Array.concat [|
         BitConverter.GetBytes(0x0436us)
         BitConverter.GetBytes(zoneInfo.AccountId)
         BitConverter.GetBytes(zoneInfo.CharId)
@@ -67,7 +68,7 @@ let WantToConnect zoneInfo =
         [| zoneInfo.Gender |]
     |])
     
-let onAuthenticationResult (game: Game)
+let onAuthenticationResult callback
     (result:  Result<ZoneCredentials, string>) =
     match result with
     | Ok info ->
@@ -76,23 +77,30 @@ let onAuthenticationResult (game: Game)
         client.Connect(info.ZoneServer)
         
         let stream = client.GetStream()
-        game.World.Player.Dispatch <- Outgoing.Dispatch stream
-        game.World.Player.Name <- info.CharacterName
-        game.World.Player.Id <- info.CharId
+        callback <| fun world ->
+            setl World._Player
+                {world.Player with
+                     Dispatch = Outgoing.Dispatch stream
+                     Unit =
+                        {world.Player.Unit with
+                            Name = info.CharacterName
+                            Id = info.AccountId}}
+            <| world
         stream.Write (WantToConnect info)
         Async.Start <|
         async {
             try
                 try                
-                    let packetHandler = Incoming.OnPacketReceived game
-                    return! Array.empty |> GetReader stream packetHandler
+                    let packetReceiver = Incoming.PacketReceiver callback
+                    return! Array.empty |> GetReader stream packetReceiver
                 with
                 //| :? IOException ->
                   //  Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)                
                 | :? ObjectDisposedException -> ()
                 | e -> Logger.Error e
             finally
-                game.Connection.Status <- Event.Inactive
+                //TODO hand Event.Inactive
+                //game.Connection.Status <- Event.Inactive
                 ()
         }
     | Error error -> Logger.Error error
@@ -118,7 +126,8 @@ let EnterZone zoneInfo packetHandler =
     
 let GetCharPacketHandler (stream: Stream) characterSlot (credentials: LoginServerResponse) onReadyToEnterZone =
     let mutable name = ""
-    fun (packetType: uint16) (data: byte[]) ->
+    fun (packetType, (packetData: ReadOnlyMemory<byte>)) ->
+        let data = packetData.ToArray()
         match packetType with
         | 0x82dus | 0x9a0us | 0x20dus | 0x8b9us -> ()
         | 0x6bus ->
@@ -177,7 +186,8 @@ let rec Connect loginCredentials onReadyToEnterZone = async {
     | :? ObjectDisposedException -> ()
     }
 and GetLoginPacketHandler stream credentials onReadyToEnterZone =
-    fun (packetType: uint16) (data: byte[]) ->
+    fun (packetType, (packetData: ReadOnlyMemory<byte>)) ->
+        let data = packetData.ToArray()
         match packetType with
         | 0x81us ->
             match data.[2] with
@@ -187,7 +197,7 @@ and GetLoginPacketHandler stream credentials onReadyToEnterZone =
             | _ -> Logger.Error("Login refused. Code: {errorCode:d}", data.[2]) 
         | 0xae3us -> stream.Write (LoginPacket credentials.Username credentials.Password)
         | 0xac4us ->
-            let span = new ReadOnlySpan<byte>(data)                
+            let span = ReadOnlySpan<byte>(data)                
             let response = {
                 AccountId = BitConverter.ToUInt32(span.Slice(8, 4))
                 LoginId1 = BitConverter.ToUInt32(span.Slice(4, 4))
@@ -202,10 +212,10 @@ and GetLoginPacketHandler stream credentials onReadyToEnterZone =
             stream.Close()
         | unknown -> Logger.Error("Unknown LoginServer packet {packetType:X}", unknown)
 
-let Login loginServer username password agent =
+let Login loginServer username password callback =
     Async.Start (Connect  {
         LoginServer = loginServer
         Username = username
         Password = password
         CharacterSlot = 0uy
-    } <| onAuthenticationResult agent)
+    } <| onAuthenticationResult callback)
