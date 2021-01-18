@@ -16,10 +16,7 @@ let BlankMailbox = MailboxProcessor.Start(fun inbox ->
         return! loop ()
     }
     loop())
-let Game = {    
-    World = World(BlankMailbox)
-    Connection = Connection(BlankMailbox)
-}
+
 Game.World.Player.Id <- 2000001u
 let MapToClientCallback = Yggdrasil.IO.Incoming.OnPacketReceived Game
 //let mutable MapToClientQueue = Array.empty

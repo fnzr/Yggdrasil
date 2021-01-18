@@ -9,7 +9,7 @@ open Yggdrasil.PacketParser.Decoder
 
 let ProcessDamage (target: Unit) (source: Unit) (damageInfo: DamageInfo)  world =
     let unit = {target with HP = target.HP - damageInfo.Damage}
-    World.UpdateUnit unit world
+    World.UpdateUnit unit world, [||]
 
 //it's really not worth it to refactor this into one function...
 //08c8
@@ -24,10 +24,10 @@ let DamageDealt2 data callback (world: World) =
                 Damage = info.Damage
                 Type = info.Type
             }
-            let mutable delay = int <| (int64 info.Tick) - Connection.Tick
+            let mutable delay = int <| (int64 info.Tick) - Connection.Tick()
             if delay < 0 then delay <- 0
             Delay (fun _ ->  callback <| ProcessDamage target source damage) delay
-    world
+    world, [||]
             
 //008a
 let DamageDealt data callback (world: World) =
@@ -39,17 +39,17 @@ let DamageDealt data callback (world: World) =
             Damage = info.Damage
             Type = info.Type
         }
-        let mutable delay = int <| (int64 info.Tick) - Connection.Tick
+        let mutable delay = int <| (int64 info.Tick) - Connection.Tick()
         if delay < 0 then delay <- 0
         Delay (fun _ ->  callback <| ProcessDamage target source damage) delay
-    world
+    world, [||]
     
 let UpdateMonsterHP data (world: World) =
     let info = MakeRecord<MonsterHPInfo> data
     match World.Unit world info.aid with
     | Some unit ->
-        World.UpdateUnit {unit with HP = info.HP; MaxHP = info.MaxHP} world
-    | None -> Logger.Warn ("Unhandled HP update for {aid}", info.aid); world
+        World.UpdateUnit {unit with HP = info.HP; MaxHP = info.MaxHP} world, [||]
+    | None -> Logger.Warn ("Unhandled HP update for {aid}", info.aid); world, [||]
     
 //I assume the skill effect comes in another packet...
 let ClearSkill (actionId: Guid) (sourceId: uint32) (targetId: uint32) (skillCast: SkillCast) (world: World) =
@@ -61,13 +61,13 @@ let ClearSkill (actionId: Guid) (sourceId: uint32) (targetId: uint32) (skillCast
                 World.UpdateUnit {source with Status = Idle} world
             else world
     match World.Unit world targetId with
-    | None -> w1
+    | None -> w1, [||]
     | Some target ->
         let filter = fun (s: SkillCast, u: Unit) ->
             s.SkillId <> skillCast.SkillId || u.Id <> targetId
         World.UpdateUnit {target
                           with TargetOfSkills = List.filter filter target.TargetOfSkills}
-        <| w1
+        <| w1, [||]
             
     
 let SkillCast data callback (world: World) =
@@ -83,8 +83,8 @@ let SkillCast data callback (world: World) =
             let id = Guid.NewGuid()
             callback <| fun world ->
                 let w1 = World.UpdateUnit {caster with ActionId = id; Status = Casting} world
-                World.UpdateUnit {target with TargetOfSkills = (cast, caster) :: target.TargetOfSkills} w1
+                World.UpdateUnit {target with TargetOfSkills = (cast, caster) :: target.TargetOfSkills} w1, [||]
             do! Async.Sleep (int castRaw.delay)
             callback <| ClearSkill id caster.Id target.Id cast
         }
-    world
+    world, [||]

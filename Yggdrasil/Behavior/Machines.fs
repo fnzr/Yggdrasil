@@ -6,15 +6,15 @@ open Yggdrasil.Game
 open Yggdrasil.IO
 open Yggdrasil.Behavior.StateMachine
 open Yggdrasil.Game.Event
-let Logger = LogManager.GetLogger("Machines")
+let Logger = LogManager.GetLogger "Machines"
 
-let WalkNorth (game: Game) =
-    let (x, y) = game.World.Player.Position
-    game.World.Player.Goals.Position <- Some(x - 10, y)
+let WalkNorth (world: World) =
+    let (x, y) = world.Player.Position
+    world.Player.Goals.Position <- Some(x - 10, y)
     
-let WalkSouth (game: Game) =
-    let (x, y) = game.World.Player.Position
-    game.World.Player.Goals.Position <- Some(x + 10, y)
+let WalkSouth (world: World) =
+    let (x, y) = world.Player.Position
+    world.Player.Goals.Position <- Some(x + 10, y)
 
 module DefaultMachine =
     open Yggdrasil.Behavior
@@ -26,13 +26,12 @@ module DefaultMachine =
         | WalkingNorth
         | Idle
         | WalkingSouth
-
-    let Create server username password =
+    let Create server username password callback =
         let states = [
             configure State.Terminated
-                |> onEnter (fun (g: Game) -> Logger.Warn ("Agent disconnected: {name}", g.World.Player.Name))
+                |> onEnter (fun (w: World) -> Logger.Warn ("Agent disconnected: {name}", w.Player.Name))
             configure State.Disconnected
-                |> onEnter (Handshake.Login server username password)
+                |> onEnter (fun (_: World) -> Handshake.Login server username password callback)
                 |> on (ConnectionStatus Active) State.Connected
             configure State.Connected
                 |> transitTo Idle

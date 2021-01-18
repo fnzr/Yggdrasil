@@ -19,10 +19,10 @@
         <Compile Include="Navigation\Pathfinding.fs" />
         <Compile Include="Behavior\BehaviorTree.fs" />
         <Compile Include="Behavior\StateMachine.fs" />
+        <Compile Include="Behavior\NewBehaviorTree.fs" />
         <Compile Include="Game\GameEvent.fs" />
         <Compile Include="Game\Attributes.fs" />
         <Compile Include="Game\Components.fs" />
-        <Compile Include="Game\Movement.fs" />
         <Compile Include="Game\Skill.fs" />
         <Compile Include="Game\Unit.fs" />
         <Compile Include="Game\Player.fs" />

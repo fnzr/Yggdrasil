@@ -38,11 +38,6 @@ let Delay fn delay = Async.Start <| async {
     fn()
 }
 
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-[<RequireQualifiedAccess>]
-module Array =
-    let inline last (arr:_[]) = arr.[arr.Length - 1]
-
 module Hex =
     
         [<CompiledName("ToHexDigit")>]

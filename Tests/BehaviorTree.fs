@@ -7,10 +7,10 @@ open Yggdrasil.Behavior.BehaviorTree
 type State =
     abstract member Increase: unit -> unit
     abstract member Fail: unit -> unit
-let IncreaseSuccessNode = Action (fun (s: State) _ -> s.Increase(); Success)
-let IncreaseFailureNode = Action (fun (s: State) _ -> s.Increase(); Failure)
-let SuccessNode = Action (fun _ _ -> Success)
-let FailureNode = Action (fun _ _ -> Failure)
+let IncreaseSuccessNode = Action (fun (s: State) bb -> s.Increase(); Success, bb)
+let IncreaseFailureNode = Action (fun (s: State) bb -> s.Increase(); Failure, bb)
+let SuccessNode = Action (fun _ bb -> Success, bb)
+let FailureNode = Action (fun _ bb -> Failure, bb)
 [<Test>]
 let ``Sequence Executes All Children`` () =
     let mock = Mock<State>()

@@ -7,7 +7,7 @@ open Yggdrasil.Types
 module Connection =
     let stopwatch = Stopwatch()
     stopwatch.Start()
-    let Tick = (fun () -> stopwatch.ElapsedMilliseconds)()
+    let Tick () = stopwatch.ElapsedMilliseconds
 
 type World =
     {
