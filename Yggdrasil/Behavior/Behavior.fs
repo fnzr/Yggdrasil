@@ -14,39 +14,37 @@ let Logger = LogManager.GetLogger "Behavior"
 
 type BehaviorTreeRunner<'Data, 'Event> =
     {
-        Root: BehaviorTree.Factory<'Data>
+        Root: BehaviorTree.ActiveNode<'Data, Map<BlackboardKey, obj>>
         Inbox: ('Data -> 'Data * 'Event[]) -> unit
-        Blackboard: Map<BehaviorTree.MapKey, obj>
-        Queue: FSharpx.Collections.Queue<BehaviorTree.Node<'Data>>
+        Blackboard: Map<BlackboardKey, obj>
+        ActiveNode: BehaviorTree.ActiveNode<'Data, Map<BlackboardKey, obj>>
     }
     
     static member Create root inbox =
-        {Root=root;Inbox=inbox;Blackboard=Map.empty;Queue=FSharpx.Collections.Queue.empty}
+        {Root=root;Inbox=inbox
+         Blackboard=Map.empty;ActiveNode=root}
         
 module BehaviorTreeRunner =
     
-    let Tick (runner: BehaviorTreeRunner<World, GameEvent>) data =
-        let _runner =
-            if runner.Queue.IsEmpty then {runner with Queue = BehaviorTree.InitTree runner.Root}
-            else runner
-        let (q, status, bb) = BehaviorTree.Tick _runner.Queue data _runner.Blackboard
-        let blackboard = 
-            match status with
-                | BehaviorTree.Status.Success -> (_runner.Inbox <| fun w -> w, [|BehaviorResult Success|]); bb
-                | BehaviorTree.Status.Failure -> (_runner.Inbox <| fun w -> w, [|BehaviorResult Failure|]); bb
-                | BehaviorTree.Status.Running ->
-                    match Map.tryFind (RequestPing :> BehaviorTree.MapKey) bb with
-                    | None -> bb
-                    | Some value ->
-                        Delay (fun () ->
-                            _runner.Inbox <| (fun w -> w, [|BehaviorResult Success|])) (Convert.ToInt32 value)
-                        Map.remove (RequestPing :> BehaviorTree.MapKey) bb
-                | _ -> bb
-        {_runner with
-            Blackboard = blackboard
-            Queue = q}
+    let Tick (runner: BehaviorTreeRunner<World, GameEvent>) world =
+            match runner.ActiveNode (world, runner.Blackboard) with
+            | BehaviorTree.End status ->
+                if status = BehaviorTree.Success then runner.Inbox <| fun w -> w, [|BehaviorResult Success|]
+                else runner.Inbox <| fun w -> w, [|BehaviorResult Failure|]
+                {runner with ActiveNode = runner.Root}
+            | BehaviorTree.Next (node, bb) ->
+                {runner
+                 with ActiveNode = runner.Root
+                      Blackboard =
+                        match Map.tryFind RequestPing runner.Blackboard with
+                        | None -> bb
+                        | Some value ->
+                            Delay (fun () -> runner.Inbox <| (fun w -> w, [||])) (Convert.ToInt32 value)
+                            Map.remove RequestPing bb
+                }
                 
-let rec MoveState world inbox events (machine: StateMachine<'State, World>, runner) =
+                
+let rec MoveState world inbox events (machine: StateMachine<'State, World, Map<BlackboardKey, obj>>, runner) =
     match events with
     | [||] -> machine, runner
     | _ ->
@@ -61,7 +59,7 @@ let rec MoveState world inbox events (machine: StateMachine<'State, World>, runn
 let EventMailbox (inbox: MailboxProcessor<World -> World * GameEvent[]>) =
     let server =  IPEndPoint (IPAddress.Parse "127.0.0.1", 6900)
     let machine = DefaultMachine.Create server "roboco" "111111" inbox.Post
-    let rec loop (currentWorld: World) (currentMachine: StateMachine<'State, World>)
+    let rec loop (currentWorld: World) (currentMachine: StateMachine<'State, World, Map<BlackboardKey, obj>>)
         (currentRunner: BehaviorTreeRunner<World, GameEvent> option) = async {
         let! event = inbox.Receive()
         let (world, events) = event currentWorld

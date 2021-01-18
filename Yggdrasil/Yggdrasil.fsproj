@@ -17,9 +17,9 @@
         <Compile Include="Utils.fs" />
         <Compile Include="Navigation\Maps.fs" />
         <Compile Include="Navigation\Pathfinding.fs" />
+        <Compile Include="Behavior\_BehaviorTree.fs" />
         <Compile Include="Behavior\BehaviorTree.fs" />
-        <Compile Include="Behavior\StateMachine.fs" />
-        <Compile Include="Behavior\NewBehaviorTree.fs" />
+        <Compile Include="Behavior\StateMachine.fs" />        
         <Compile Include="Game\GameEvent.fs" />
         <Compile Include="Game\Attributes.fs" />
         <Compile Include="Game\Components.fs" />

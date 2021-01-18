@@ -2,7 +2,28 @@
 
 open Moq
 open NUnit.Framework
-open Yggdrasil.Behavior.BehaviorTree
+open Yggdrasil.Behavior.NewBehaviorTree
+
+type Data = {
+    Value: int
+}
+    
+let FailureNode =
+    Action
+        {Node<_,_>.Default with Tick = fun (_, b) -> Result (Failure, b)}
+        
+let SuccessNode =
+    Action
+        {Node<_,_>.Default with Tick = fun (_, b) -> Result (Success, b)}
+
+let RootComplete (_, _, s) = End s
+
+[<Test>]
+let ``Test``() =
+    let mock = Mock<Node<_,_>>()
+    mock.Verify((fun x -> x.Initialize()), Times.Exactly(1))
+
+(*
 
 type State =
     abstract member Increase: unit -> unit
@@ -113,3 +134,5 @@ let ``Parallel returns last child if AllSuccess AllFail``() =
     Assert.AreEqual(Failure, result2)
     
     mock.Verify((fun x -> x.Increase()), Times.Exactly(2))
+    
+*)
