@@ -11,6 +11,8 @@ module Event =
         | Health of Health
         | TargetedBySkill
         | DealtDamage
+        | PositionChanged
+        | WalkCanceled
 
     type GameEvent = interface end
     type PlayerEvent = PlayerEvent of UnitEvent

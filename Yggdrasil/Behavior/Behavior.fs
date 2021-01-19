@@ -14,27 +14,28 @@ let Logger = LogManager.GetLogger "Behavior"
 
 type BehaviorTreeRunner<'Data, 'Event> =
     {
-        Root: BehaviorTree.ActiveNode<'Data, Map<BlackboardKey, obj>>
+        Root: Map<BlackboardKey, obj> -> BehaviorTree.ActiveNode<World, Map<BlackboardKey, obj>>  * Map<BlackboardKey, obj>
         Inbox: ('Data -> 'Data * 'Event[]) -> unit
         Blackboard: Map<BlackboardKey, obj>
         ActiveNode: BehaviorTree.ActiveNode<'Data, Map<BlackboardKey, obj>>
     }
-    
     static member Create root inbox =
+        let (node, bb) = root Map.empty
         {Root=root;Inbox=inbox
-         Blackboard=Map.empty;ActiveNode=root}
+         Blackboard=bb;ActiveNode=node}
         
 module BehaviorTreeRunner =
     
     let Tick (runner: BehaviorTreeRunner<World, GameEvent>) world =
-            match runner.ActiveNode (world, runner.Blackboard) with
+            match runner.ActiveNode world runner.Blackboard with
             | BehaviorTree.End status ->
                 if status = BehaviorTree.Success then runner.Inbox <| fun w -> w, [|BehaviorResult Success|]
                 else runner.Inbox <| fun w -> w, [|BehaviorResult Failure|]
-                {runner with ActiveNode = runner.Root}
+                let (node, bb) = runner.Root Map.empty
+                {runner with ActiveNode = node; Blackboard=bb}
             | BehaviorTree.Next (node, bb) ->
                 {runner
-                 with ActiveNode = runner.Root
+                 with ActiveNode = node
                       Blackboard =
                         match Map.tryFind RequestPing runner.Blackboard with
                         | None -> bb
@@ -54,7 +55,7 @@ let rec MoveState world inbox events (machine: StateMachine<'State, World, Map<B
             | Some m -> m,
                         match m.CurrentState.Behavior with
                         | None -> None
-                        | Some root -> Some <| BehaviorTreeRunner.Create<World, GameEvent> root inbox
+                        | Some root -> Some (BehaviorTreeRunner<_, _>.Create root inbox)
                         
 let EventMailbox (inbox: MailboxProcessor<World -> World * GameEvent[]>) =
     let server =  IPEndPoint (IPAddress.Parse "127.0.0.1", 6900)

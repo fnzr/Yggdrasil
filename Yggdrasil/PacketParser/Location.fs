@@ -27,8 +27,8 @@ let rec TryTakeStep (actionId: Guid) (unitId: uint32)
                                 do! Async.Sleep (int u.Speed)
                                 callback <| TryTakeStep actionId unitId callback delay tail
                             }; u
-                    World.UpdateUnit newUnit world, [||]
-                else world, [||]
+                    World.UpdateUnit newUnit world, [|Event.PlayerEvent Event.PositionChanged :> Event.GameEvent|]
+                else world, [|Event.PlayerEvent Event.WalkCanceled :> Event.GameEvent|]
      
 let StartMove (unit: Unit) callback destination initialDelay (world: World) =
     let map = Maps.GetMapData world.Map

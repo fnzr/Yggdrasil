@@ -3,17 +3,20 @@ module Yggdrasil.Behavior.BehaviorTree
 type Status = Success | Failure
 type ParallelFlag = OneSuccess | AllSuccess 
 
-type ActiveNode<'Data, 'Blackboard> = 'Data * 'Blackboard -> NodeResult<'Data, 'Blackboard>
-and NodeResult<'Data, 'Blackboard> = | End of Status | Next of ActiveNode<'Data, 'Blackboard> * 'Blackboard
+type ActiveNode<'data, 'blackboard> = 'data -> 'blackboard -> NodeResult<'data, 'blackboard>
+and NodeResult<'data, 'blackboard> =
+    | End of Status
+    | Next of ActiveNode<'data, 'blackboard> * 'blackboard
 
-type TickResult<'Blackboard> = Running of 'Blackboard | Result of Status * 'Blackboard
-type ParentContinuation<'Data, 'Blackboard> = 'Data * 'Blackboard * Status -> NodeResult<'Data, 'Blackboard>
+type TickResult<'blackboard> = Running of 'blackboard | Result of Status * 'blackboard
+type ParentContinuation<'data, 'blackboard> = 'data * 'blackboard * Status -> NodeResult<'data, 'blackboard>
+type NodeCreator<'data, 'blackboard> = ParentContinuation<'data, 'blackboard> -> 'blackboard -> ActiveNode<'data, 'blackboard> * 'blackboard
 
-type Node<'Data, 'Blackboard> =
+type Node<'data, 'blackboard> =
     {
-        Tick: 'Data * 'Blackboard -> TickResult<'Blackboard>
-        Initialize: 'Blackboard -> 'Blackboard
-        Finalize: 'Blackboard -> 'Blackboard
+        Tick: 'data -> 'blackboard -> TickResult<'blackboard>
+        Initialize: 'blackboard -> 'blackboard
+        Finalize: 'blackboard -> 'blackboard
     }
     static member Create tick =
         {
@@ -21,17 +24,17 @@ type Node<'Data, 'Blackboard> =
             Initialize = id
             Finalize = id
         }
-let Action<'Data, 'Blackboard> (node: Node<'Data, 'Blackboard>) =
+let Action<'a, 'b> (node: Node<'a, 'b>) =
     fun parent ->
-        let rec tick (data, blackboard) =
-            match node.Tick (data, blackboard) with
+        let rec tick data blackboard =
+            match node.Tick data blackboard with
             | Result (result, bb) -> parent (data, bb, result)
             | Running bb -> Next (tick, node.Finalize bb)
         fun blackboard -> (tick, node.Initialize blackboard)
 
-let _ParallelTick (children: _[]) (data, blackboard) =
+let _ParallelTick<'a, 'b> (children: ActiveNode<'a, 'b>[]) data blackboard =
     let folder (bbAcc, completed, running) node =
-        match node (data, bbAcc) with
+        match node data bbAcc with
         | End status -> bbAcc, status :: completed, running
         | Next (next, bb2) -> bb2, completed, next :: running
     Array.fold folder (blackboard, [], []) children
@@ -43,12 +46,12 @@ let _CountParallelResult results =
             | Success -> (sc+1, fc)
             | Failure -> (sc, fc+1)
         ) (0, 0) results
-let RootComplete<'Data, 'Blackboard> (_: 'Data, _: 'Blackboard, s) = End s
+let RootComplete<'a, 'b> (_:'a, _:'b, s): NodeResult<'a, 'b> = End s
             
-let Parallel<'Data, 'Blackboard> (children: _[]) successCondition =
-    fun (continuation: ParentContinuation<'Data, 'Blackboard>) ->
-        let rec tick nodes (data, blackboard) =
-            let (bb, completed, running) = _ParallelTick nodes (data, blackboard)
+let Parallel<'a, 'b> (children: NodeCreator<'a, 'b>[]) successCondition =
+    fun continuation ->
+        let rec tick nodes data blackboard =
+            let (bb, completed, running) = _ParallelTick nodes data blackboard
             let (successCount, failCount) = _CountParallelResult completed
             if running.Length = 0 then
                 if successCondition = ParallelFlag.AllSuccess && failCount > 0
@@ -58,45 +61,47 @@ let Parallel<'Data, 'Blackboard> (children: _[]) successCondition =
                 then continuation (data, bb, Success)
             else
                 Next ((tick <| List.toArray running), bb)
-        let preparedChildren = Array.map (fun c -> c RootComplete) children
+        let preparedChildren = Array.map (fun c -> c (fun (_, _, s) -> End s)) children
         fun blackboard ->
             let (ns, bb) =
                 Array.fold
                     (fun (nodes, bb) node -> 
-                            let (n: ActiveNode<'Data, 'Blackboard>, bbAccumulator) = node bb
+                            let (n, bbAccumulator) = node bb
                             n :: nodes, bbAccumulator
                         ) ([], blackboard) preparedChildren
             (tick <| List.toArray ns), bb
             
-let _FoldChildren (children: _[]) onResult continuation =
+let _FoldChildren (children: NodeCreator<'a, 'b>[]) onResult continuation =
     Array.foldBack
         (fun factory sibling -> factory (onResult sibling))
         (children.[..children.Length-2])
-        (Array.last children <| continuation)
+        (Array.last children continuation)
 
-let Selector<'Data, 'Blackboard> (children: _[]) =    
+let Selector<'a, 'b> (children: NodeCreator<'a, 'b>[]) =    
     fun continuation ->
-        let onResult sibling (data: 'Data, bb: 'Blackboard, status) =
+        let onResult sibling (data, bb, status) =
             match status with
             | Failure -> Next (sibling bb)
             | Success -> continuation (data, bb, Success)
         let preparedChild = _FoldChildren children onResult continuation
-        fun blackboard -> preparedChild blackboard
+        preparedChild
         
-let Sequence<'Data, 'Blackboard> (children: _[]) =    
-    fun (continuation: ParentContinuation<'Data, 'Blackboard>) ->
-        let onResult sibling (data: 'Data, bb: 'Blackboard, status) =
+let Sequence<'a, 'b> (children: NodeCreator<'a, 'b>[]) =    
+    fun continuation ->
+        let onResult sibling (data, bb, status) =
             match status with
             | Success -> Next (sibling bb)
-            | Failure -> continuation (data, bb, Failure)
+            | Failure -> continuation (data, bb, Failure)        
         let preparedChild = _FoldChildren children onResult continuation
-        fun blackboard -> preparedChild blackboard
-
-let While<'Data, 'Blackboard> (condition: 'Data -> bool) child  =
-    fun (continuation: ParentContinuation<_,_>) ->        
+        preparedChild
+        
+        
+let DefaultRoot<'a, 'b>  (_:'a, _:'b, status): NodeResult<'a, 'b> = End status
+        
+let While<'a, 'b> (condition: 'a -> bool) (child: NodeCreator<'a, 'b>)  =
+    fun continuation ->        
         let rec onResult (data, bb, status) =
             if condition data then Next (child onResult bb)
             else continuation (data, bb, status)
-        //let builtChild = onResult child
-        fun (blackboard: 'Blackboard) -> child onResult blackboard
+        child onResult
 

@@ -35,7 +35,7 @@ type MachineState<'state, 'data, 'blackboard when 'state:equality> =
         Parents: MachineState<'state, 'data, 'blackboard> list
         Transitions: Map<string, Transition<'state, 'data>>
         AutoTransition: 'state option
-        Behavior: BehaviorTree.ActiveNode<'data, 'blackboard> option
+        Behavior: ('blackboard -> BehaviorTree.ActiveNode<'data, 'blackboard>  * 'blackboard) option
     }
     override x.GetHashCode () = x.State.GetHashCode ()
     override x.Equals o =

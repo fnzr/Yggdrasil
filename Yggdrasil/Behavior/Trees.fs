@@ -23,7 +23,7 @@ let Walk =
         Navigation.Pathfinding.DistanceTo
             player.Position player.Goals.Position.Value > 0
             
-    let dispatchWalk (world: World, blackboard: Map<BlackboardKey, obj>) =
+    let dispatchWalk (world: World) (blackboard: Map<BlackboardKey, obj>) =
         let player = world.Player
         match player.Goals.Position with
         | Some (x, y) ->
@@ -38,9 +38,9 @@ let Walk =
                 Result (Success, blackboard.Add (MoveRequested, Connection.Tick()))
         | None -> Result (Success, blackboard)
         
-    let DispatchWalk = Action (Node<_,Map<BlackboardKey, obj>>.Create dispatchWalk)
+    let DispatchWalk = Action (Node<World,Map<BlackboardKey, obj>>.Create dispatchWalk)
     
-    let waitWorldAck (world: World, bb:  Map<BlackboardKey, obj>) =
+    let waitWorldAck (world: World) (bb:  Map<BlackboardKey, obj>) =
         match world.Player.Unit.Status with
         | Idle ->            
             let delay = Connection.Tick() - (bb.[MoveRequested] :?> int64)
@@ -49,18 +49,19 @@ let Walk =
         | Walking -> Result (Success, bb)
         | _ -> Result (Failure, bb)
     
-    let WaitWalkAck = Action <| Node<_,_>.Create waitWorldAck
+    let WaitWalkAck = Action <| Node<World, Map<BlackboardKey, obj>>.Create waitWorldAck
     
-    let stoppedWalking (world: World, bb) =
+    let stoppedWalking (world: World) bb =
         match world.Player.Unit.Status with        
         | Walking -> Running bb
         | Idle -> Result (Success, bb)
         | _ -> Result (Failure, bb)
         
     let StoppedWalking = Action <| Node<_,_>.Create stoppedWalking
-    
-    While WalkingRequired |>
-        Sequence [|DispatchWalk; WaitWalkAck; StoppedWalking|]
+    //let Root  (_:World, _:Map<BlackboardKey, obj>, status): NodeResult<World, Map<BlackboardKey, obj>> = End status
+    While WalkingRequired
+        (Sequence [|DispatchWalk; WaitWalkAck; StoppedWalking|])
+    //While WalkingRequired |>
     (*
     let WaitWalkAck = Action (fun (world: World) blackboard ->
         match world.Player.Unit.Status with
@@ -89,11 +90,12 @@ let Wait<'Data> milliseconds =
         Initialize = fun (bb: Map<BlackboardKey, obj>) ->
             let target = Connection.Tick() + milliseconds
             bb.Add(TargetTick, target).Add(RequestPing, milliseconds).Add(PingRequested, true)
-        Tick = fun (_: 'Data, bb) ->
-                let diff = bb.[TargetTick] |> Convert.ToInt64 |> (-) (Connection.Tick())
-                if diff > 0L then Result (Success, bb)
-                else
-                     Running <|
+        Tick = fun (_: 'Data) bb ->
+                let diff = Connection.Tick() - (Convert.ToInt64 bb.[TargetTick])
+                if diff > 0L then
+                    Running <|
                         if bb.ContainsKey PingRequested then bb
                         else bb.Add(RequestPing, diff).Add(PingRequested, true)
+                else Result (Success, bb)
+                     
         }
