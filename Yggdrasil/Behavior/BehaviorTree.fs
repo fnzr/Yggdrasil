@@ -1,43 +1,43 @@
 module Yggdrasil.Behavior.BehaviorTree
 
+open NLog
+
 type Status = Success | Failure
 type ParallelFlag = OneSuccess | AllSuccess 
 
-type ActiveNode<'data, 'blackboard> = 'data -> 'blackboard -> NodeResult<'data, 'blackboard>
-and NodeResult<'data, 'blackboard> =
+type ActiveNode<'data> = 'data -> NodeResult<'data>
+and NodeResult<'data> =
     | End of Status
-    | Next of ActiveNode<'data, 'blackboard> * 'blackboard
+    | Next of ActiveNode<'data>
 
-type TickResult<'blackboard> = Running of 'blackboard | Result of Status * 'blackboard
-type ParentContinuation<'data, 'blackboard> = 'data * 'blackboard * Status -> NodeResult<'data, 'blackboard>
-type NodeCreator<'data, 'blackboard> = ParentContinuation<'data, 'blackboard> -> 'blackboard -> ActiveNode<'data, 'blackboard> * 'blackboard
+type ParentContinuation<'data> = 'data * Status -> NodeResult<'data>
+type NodeCreator<'data> = ParentContinuation<'data> -> string -> ActiveNode<'data>
 
-type Node<'data, 'blackboard> =
+type TickResult<'data, 'store> = Node of Node<'data, 'store> | Result of Status
+and Node<'data, 'store> =
     {
-        Tick: 'data -> 'blackboard -> TickResult<'blackboard>
-        Initialize: 'blackboard -> 'blackboard
-        Finalize: 'blackboard -> 'blackboard
+        State: 'store
+        Initialize: Node<'data, 'store> -> Node<'data, 'store>
+        Tick: 'data -> Node<'data, 'store> -> TickResult<'data, 'store>
     }
-    static member Create tick =
-        {
-            Tick = tick
-            Initialize = id
-            Finalize = id
-        }
-let Action<'a, 'b> (node: Node<'a, 'b>) =
-    fun parent ->
-        let rec tick data blackboard =
-            match node.Tick data blackboard with
-            | Result (result, bb) -> parent (data, bb, result)
-            | Running bb -> Next (tick, node.Finalize bb)
-        fun blackboard -> (tick, node.Initialize blackboard)
 
-let _ParallelTick<'a, 'b> (children: ActiveNode<'a, 'b>[]) data blackboard =
-    let folder (bbAcc, completed, running) node =
-        match node data bbAcc with
-        | End status -> bbAcc, status :: completed, running
-        | Next (next, bb2) -> bb2, completed, next :: running
-    Array.fold folder (blackboard, [], []) children
+let Logger = LogManager.GetLogger "BehaviorTree"
+let DefaultRoot  (_, status) = End status
+let Action (node: Node<_, _>) =
+    fun parent ->
+        let rec tick (currentNode: Node<_, _>) data =
+            Logger.Debug ("{node:A}", currentNode)
+            match node.Tick data currentNode with
+            | Result result -> parent (data, result)
+            | Node next -> Next <| tick next
+        fun data -> tick (node.Initialize node) data 
+
+let _ParallelTick (children: _[]) data =
+    let folder (completed, running) node =
+        match node data with
+        | End status -> status :: completed, running
+        | Next (next) -> completed, next :: running
+    Array.fold folder ([], []) children
     
 let _CountParallelResult results =
     List.fold
@@ -46,62 +46,49 @@ let _CountParallelResult results =
             | Success -> (sc+1, fc)
             | Failure -> (sc, fc+1)
         ) (0, 0) results
-let RootComplete<'a, 'b> (_:'a, _:'b, s): NodeResult<'a, 'b> = End s
-            
-let Parallel<'a, 'b> (children: NodeCreator<'a, 'b>[]) successCondition =
+let Parallel (children: _[]) successCondition =
     fun continuation ->
-        let rec tick nodes data blackboard =
-            let (bb, completed, running) = _ParallelTick nodes data blackboard
+        let rec tick nodes data =
+            let (completed, running) = _ParallelTick nodes data
             let (successCount, failCount) = _CountParallelResult completed
             if running.Length = 0 then
                 if successCondition = ParallelFlag.AllSuccess && failCount > 0
-                    then continuation (data, bb, Failure)
-                else continuation (data, bb, Success)
+                    then continuation (data, Failure)
+                else continuation (data, Success)
             else if successCount > 0 && successCondition = ParallelFlag.OneSuccess
-                then continuation (data, bb, Success)
+                then continuation (data, Success)
             else
-                Next ((tick <| List.toArray running), bb)
-        let preparedChildren = Array.map (fun c -> c (fun (_, _, s) -> End s)) children
-        fun blackboard ->
-            let (ns, bb) =
-                Array.fold
-                    (fun (nodes, bb) node -> 
-                            let (n, bbAccumulator) = node bb
-                            n :: nodes, bbAccumulator
-                        ) ([], blackboard) preparedChildren
-            (tick <| List.toArray ns), bb
+                Next (tick <| List.toArray running)
+        tick (Array.map (fun c -> c (fun (_, _, s) -> End s)) children)
             
-let _FoldChildren (children: NodeCreator<'a, 'b>[]) onResult continuation =
+let _FoldChildren (children: _[]) onResult continuation =
     Array.foldBack
         (fun factory sibling -> factory (onResult sibling))
         (children.[..children.Length-2])
         (Array.last children continuation)
 
-let Selector<'a, 'b> (children: NodeCreator<'a, 'b>[]) =    
+let Selector (children: _[]) =    
     fun continuation ->
-        let onResult sibling (data, bb, status) =
+        let onResult sibling (data, status) =
             match status with
-            | Failure -> Next (sibling bb)
-            | Success -> continuation (data, bb, Success)
+            | Failure -> Next sibling
+            | Success -> continuation (data, Success)
         let preparedChild = _FoldChildren children onResult continuation
         preparedChild
         
-let Sequence<'a, 'b> (children: NodeCreator<'a, 'b>[]) =    
+let Sequence (children: _[]) =    
     fun continuation ->
-        let onResult sibling (data, bb, status) =
+        let onResult sibling (data, status) =
             match status with
-            | Success -> Next (sibling bb)
-            | Failure -> continuation (data, bb, Failure)        
+            | Success -> Next sibling
+            | Failure -> continuation (data, Failure)        
         let preparedChild = _FoldChildren children onResult continuation
         preparedChild
         
-        
-let DefaultRoot<'a, 'b>  (_:'a, _:'b, status): NodeResult<'a, 'b> = End status
-        
-let While<'a, 'b> (condition: 'a -> bool) (child: NodeCreator<'a, 'b>)  =
+let While condition child  =
     fun continuation ->        
-        let rec onResult (data, bb, status) =
-            if condition data then Next (child onResult bb)
-            else continuation (data, bb, status)
+        let rec onResult (data, status) =
+            if condition data then Next (child onResult)
+            else continuation (data, status)
         child onResult
 

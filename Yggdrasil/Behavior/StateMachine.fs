@@ -26,21 +26,21 @@ type Transition<'state, 'data> = {
 }
 
 [<CustomEquality; NoComparison>]
-type MachineState<'state, 'data, 'blackboard when 'state:equality> =
+type MachineState<'state, 'data when 'state:equality> =
     {
         State: 'state
         Enter: 'data -> unit
         Exit: 'data -> unit
         Parent: 'state option
-        Parents: MachineState<'state, 'data, 'blackboard> list
+        Parents: MachineState<'state, 'data> list
         Transitions: Map<string, Transition<'state, 'data>>
         AutoTransition: 'state option
-        Behavior: ('blackboard -> BehaviorTree.ActiveNode<'data, 'blackboard>  * 'blackboard) option
+        Behavior: (BehaviorTree.ActiveNode<'data>) option
     }
     override x.GetHashCode () = x.State.GetHashCode ()
     override x.Equals o =
         match o with
-        | :? MachineState<'state, 'data, 'blackboard> as y -> x.State = y.State
+        | :? MachineState<'state, 'data> as y -> x.State = y.State
         | _ -> false
         
 
@@ -78,7 +78,7 @@ let rec DivergentPath (s1: 'a list) (s2: 'a list) =
         | None -> DivergentPath s1 s2.Tail
         | Some i -> s1.[..i-1]        
         
-let FindMachineState (machineStates: MachineState<'state, 'data, 'blackboard> list)
+let FindMachineState (machineStates: MachineState<'state, 'data> list)
     state = List.find (fun ms -> ms.State = state) machineStates
     
 let rec FindAcceptableTransition state event data =
@@ -88,10 +88,10 @@ let rec FindAcceptableTransition state event data =
             | None -> None
     List.tryPick chooseTransition (state :: state.Parents)
     
-type StateMachine<'state, 'data, 'blackboard when 'state:equality> =
+type StateMachine<'state, 'data when 'state:equality> =
     {
-        States: MachineState<'state, 'data, 'blackboard> list
-        CurrentState: MachineState<'state, 'data, 'blackboard>
+        States: MachineState<'state, 'data> list
+        CurrentState: MachineState<'state, 'data>
     }
     member this.Start data =
         List.iter (fun s -> s.Enter data) this.CurrentState.Parents
