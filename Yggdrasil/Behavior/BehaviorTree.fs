@@ -13,6 +13,8 @@ and NodeResult<'data> =
 type ParentContinuation<'data> = 'data * Status -> NodeResult<'data>
 type NodeCreator<'data> = ParentContinuation<'data> -> string -> ActiveNode<'data>
 
+let Logger = LogManager.GetLogger "BehaviorTree"
+
 type TickResult<'data, 'store> = Node of Node<'data, 'store> | Result of Status
 and Node<'data, 'store> =
     {
@@ -20,17 +22,21 @@ and Node<'data, 'store> =
         Initialize: Node<'data, 'store> -> Node<'data, 'store>
         Tick: 'data -> Node<'data, 'store> -> TickResult<'data, 'store>
     }
+    static member Stateless tick = {
+        State = ()
+        Initialize = id
+        Tick = tick
+    }
 
-let Logger = LogManager.GetLogger "BehaviorTree"
 let DefaultRoot  (_, status) = End status
 let Action (node: Node<_, _>) =
     fun parent ->
         let rec tick (currentNode: Node<_, _>) data =
-            Logger.Debug ("{node:A}", currentNode)
+            //Logger.Debug ("{node:A}", currentNode)
             match node.Tick data currentNode with
             | Result result -> parent (data, result)
             | Node next -> Next <| tick next
-        fun data -> tick (node.Initialize node) data 
+        tick (node.Initialize node) 
 
 let _ParallelTick (children: _[]) data =
     let folder (completed, running) node =

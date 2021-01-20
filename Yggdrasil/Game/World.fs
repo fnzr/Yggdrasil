@@ -16,6 +16,8 @@ type World =
         ItemsOnGround: GroundItem list
         NPCs: Map<uint32, NonPlayer>
         TickOffset: int64
+        Request: Command -> unit
+        Ping: int -> unit
     }
     static member Default = {
         Player = Player.Default
@@ -23,6 +25,8 @@ type World =
         ItemsOnGround = list.Empty
         NPCs = Map.empty
         TickOffset = 0L
+        Request = fun _ -> invalidOp "Request function not set"
+        Ping = fun _ -> invalidOp "Ping function not set"
     }
 
 module World =

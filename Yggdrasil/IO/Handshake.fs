@@ -7,6 +7,7 @@ open System.Net.Sockets
 open NLog
 open FSharpPlus.Lens
 open Yggdrasil.Game
+open Yggdrasil.Game.Event
 open Yggdrasil.Utils
 open Yggdrasil.IO.Stream
 
@@ -68,7 +69,7 @@ let WantToConnect zoneInfo =
         [| zoneInfo.Gender |]
     |])
     
-let onAuthenticationResult callback
+let onAuthenticationResult (callback: (World -> World * GameEvent[]) -> unit)
     (result:  Result<ZoneCredentials, string>) =
     match result with
     | Ok info ->
@@ -77,15 +78,17 @@ let onAuthenticationResult callback
         client.Connect(info.ZoneServer)
         
         let stream = client.GetStream()
-        callback <| fun world ->
-            setl World._Player
-                {world.Player with
-                     Dispatch = Outgoing.Dispatch stream
-                     Unit =
-                        {world.Player.Unit with
-                            Name = info.CharacterName
-                            Id = info.AccountId}}
-            <| world, [||]
+        callback
+            (fun world ->
+                { world with
+                    Request = Outgoing.Dispatch stream
+                    Ping = Delay (fun () -> callback (fun w->w, [|Ping :> GameEvent|]))
+                    Player = { world.Player with                    
+                                Dispatch = Outgoing.Dispatch stream
+                                Unit = {world.Player.Unit with
+                                            Name = info.CharacterName
+                                            Id = info.AccountId}}
+                }, [||])
         stream.Write (WantToConnect info)
         Async.Start <|
         async {

@@ -42,11 +42,12 @@ let Walk =
             Initialize = fun node -> {node with State = Connection.Tick()}
             Tick = fun world instance ->
                 match world.Player.Unit.Status with
-                | Idle ->            
-                    let delay = Connection.Tick() - instance.State
-                    //bb.Add(RequestPing, 500)
+                | Idle ->
+                    let delay = Connection.Tick() - instance.State                    
                     if delay > 500L then Result Failure
-                    else Node instance
+                    else
+                        world.Ping 500
+                        Node instance
                 | Walking -> Result Success
                 | _ -> Result Failure
         }
@@ -60,7 +61,10 @@ let Walk =
             | Idle -> Result Success
             | _ -> Result Failure
     }
-
+    
+    //let A = Action (Node.Stateless<World> <| fun (_:World) _ -> Logger.Info "A"; Result Success)
+    //let B = Action (Node.Stateless<World> <| fun (_:World) _ -> Logger.Info "B"; Result Success)
+    //Sequence [|A; B;|]
     While WalkingRequired <|
         Sequence [|DispatchWalk; WaitWalkAck; StoppedWalking|]
     (*
@@ -75,7 +79,12 @@ let Wait milliseconds =
     Action {
         State = 0L
         Initialize = fun node -> {node with State = Connection.Tick() + milliseconds}
-        Tick = fun _ instance ->             
-            if Connection.Tick() - instance.State > 0L then Result Success
-            else Node instance
+        Tick = fun world instance ->
+            let diff = instance.State - Connection.Tick()
+            if diff > 0L then
+                Logger.Info diff
+                world.Ping (int diff)
+                Node instance
+            else Result Success
+                
     }

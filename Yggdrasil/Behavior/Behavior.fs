@@ -12,56 +12,74 @@ open Yggdrasil.Game.Event
 
 let Logger = LogManager.GetLogger "Behavior"
 
-type BehaviorTreeRunner<'Data, 'Event> =
+type BehaviorTreeRunner<'data> =
     {
-        Root: BehaviorTree.ActiveNode<World>
-        Inbox: ('Data -> 'Data * 'Event[]) -> unit
-        ActiveNode: BehaviorTree.ActiveNode<'Data>
+        Root: BehaviorTree.ActiveNode<'data>
+        ActiveNode: BehaviorTree.ActiveNode<'data>
     }
-    static member Create root inbox =
-        {Root=root;Inbox=inbox;ActiveNode=root}
+    static member Create root =
+        {Root=root;ActiveNode=root}
+        
+    static member NoOp =
+        let rec noop _ = BehaviorTree.Next noop
+        {Root=noop;ActiveNode=noop}
         
 module BehaviorTreeRunner =
     
-    let Tick (runner: BehaviorTreeRunner<World, GameEvent>) world =
+    let Tick (runner: BehaviorTreeRunner<_>) world =
         match runner.ActiveNode world with
         | BehaviorTree.End status ->
-            if status = BehaviorTree.Success then runner.Inbox <| fun w -> w, [|BehaviorResult Success|]
-            else runner.Inbox <| fun w -> w, [|BehaviorResult Failure|]
-            {runner with ActiveNode = runner.Root}
+            {runner with ActiveNode = runner.Root}, (Some status)
         | BehaviorTree.Next node ->
-            {runner with ActiveNode = node}
-                
-let rec MoveState world inbox events (machine: StateMachine<'State, World>, runner) =
+            {runner with ActiveNode = node}, None
+            
+let rec MoveState world inbox events (machine: StateMachine<_, _>) =
     match events with
-    | [||] -> machine, runner
-    | _ ->
-        MoveState world inbox events.[1..] <|
-            match machine.TryTransit (BuildUnionKey events.[0]) world with
-            | None -> machine, runner
-            | Some m -> m,
-                        match m.CurrentState.Behavior with
-                        | None -> None
-                        | Some root -> Some (BehaviorTreeRunner<_, _>.Create root inbox)
+    | [] -> machine
+    | e::es ->
+        let name = BuildUnionKey e
+        let _e = if name = "Success" then "BehaviorResult.Success" else name
+        MoveState world inbox es <|
+            match machine.TryTransit _e world with
+            | None -> machine
+            | Some m -> m
+            
+let AdvanceBehavior world inbox machine runner =
+    let (_runner, result) = BehaviorTreeRunner.Tick runner world
+    match result with
+    | None -> machine, _runner
+    | Some r ->
+        Logger.Debug ("Behavior completed: {result}", r)
+        let event = if r = BehaviorTree.Success then BehaviorResult.Success else BehaviorResult.Failure
+        let _machine = MoveState world inbox [event] machine
+        _machine, match _machine.CurrentState.Behavior with
+                    | None -> BehaviorTreeRunner<_>.NoOp
+                    | Some b -> BehaviorTreeRunner<_>.Create b
+    
                         
 let EventMailbox (inbox: MailboxProcessor<World -> World * GameEvent[]>) =
     let server =  IPEndPoint (IPAddress.Parse "127.0.0.1", 6900)
     let machine = DefaultMachine.Create server "roboco" "111111" inbox.Post
-    let rec loop (currentWorld: World) (currentMachine: StateMachine<'State, World>)
-        (currentRunner: BehaviorTreeRunner<World, GameEvent> option) = async {
+    let rec loop (currentWorld: World) (currentMachine: StateMachine<_, _>)
+        (currentRunner: BehaviorTreeRunner<_>) = async {
         let! event = inbox.Receive()
         let (world, events) = event currentWorld
         Logger.Debug ("Events: {es}", events)        
         
-        let machine, runner = MoveState world inbox.Post events (currentMachine, currentRunner)
-        let nextRunner =
-            if runner.IsSome then Some <| BehaviorTreeRunner.Tick runner.Value world
-            else runner
-        return! loop world machine nextRunner
+        let (_machine, _runner) =
+            MoveState world inbox.Post (Array.toList events) currentMachine |>
+            fun m -> if m = currentMachine then m, currentRunner
+                     else m, match m.CurrentState.Behavior with
+                             | Some b -> BehaviorTreeRunner<_>.Create b
+                             | None -> BehaviorTreeRunner<_>.NoOp
+        
+        let (nextMachine, nextRunner) = AdvanceBehavior world inbox.Post _machine _runner
+            
+        return! loop world nextMachine nextRunner
     }
     machine.Start World.Default
-    loop World.Default machine None
+    loop World.Default machine (BehaviorTreeRunner<_>.NoOp)
     
 let StartAgent stateMachine =
     let mailbox = MailboxProcessor.Start(EventMailbox)
-    mailbox.Error.Add <| Logger.Error
+    mailbox.Error.Add Logger.Error

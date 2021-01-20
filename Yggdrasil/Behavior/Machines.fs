@@ -14,7 +14,7 @@ let WalkNorth (world: World) =
     
 let WalkSouth (world: World) =
     let (x, y) = world.Player.Position
-    world.Player.Goals.Position <- Some(x + 5, y)
+    world.Player.Goals.Position <- Some(x - 5, y)
 
 module DefaultMachine =
     open Yggdrasil.Behavior
