@@ -17,40 +17,33 @@ type BehaviorTreeRunner<'data> =
         Root: BehaviorTree.ActiveNode<'data>
         ActiveNode: BehaviorTree.ActiveNode<'data>
     }
-    static member Create root =
-        {Root=root;ActiveNode=root}
-        
+    static member Create root = {Root=root;ActiveNode=root}
     static member NoOp =
         let rec noop _ = BehaviorTree.Next noop
         {Root=noop;ActiveNode=noop}
-        
-module BehaviorTreeRunner =
-    
-    let Tick (runner: BehaviorTreeRunner<_>) world =
-        match runner.ActiveNode world with
+    member this.Tick world =
+        match this.ActiveNode world with
         | BehaviorTree.End status ->
-            {runner with ActiveNode = runner.Root}, (Some status)
+            {this with ActiveNode = this.Root}, Some status
         | BehaviorTree.Next node ->
-            {runner with ActiveNode = node}, None
-            
+            {this with ActiveNode = node}, None
+        
 let rec MoveState world inbox events (machine: StateMachine<_, _>) =
     match events with
     | [] -> machine
     | e::es ->
-        let name = BuildUnionKey e
-        let _e = if name = "Success" then "BehaviorResult.Success" else name
         MoveState world inbox es <|
-            match machine.TryTransit _e world with
+            match machine.TryTransit (BuildUnionKey e) world with
             | None -> machine
             | Some m -> m
             
-let AdvanceBehavior world inbox machine runner =
-    let (_runner, result) = BehaviorTreeRunner.Tick runner world
+let AdvanceBehavior world inbox machine (runner: BehaviorTreeRunner<_>) =
+    let (_runner, result) = runner.Tick world
     match result with
     | None -> machine, _runner
-    | Some r ->
-        Logger.Debug ("Behavior completed: {result}", r)
-        let event = if r = BehaviorTree.Success then BehaviorResult.Success else BehaviorResult.Failure
+    | Some s ->
+        let event = if s = BehaviorTree.Success
+                    then BehaviorResult.Success else BehaviorResult.Failure
         let _machine = MoveState world inbox [event] machine
         _machine, match _machine.CurrentState.Behavior with
                     | None -> BehaviorTreeRunner<_>.NoOp

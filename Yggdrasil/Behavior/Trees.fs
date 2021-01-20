@@ -62,9 +62,6 @@ let Walk =
             | _ -> Result Failure
     }
     
-    //let A = Action (Node.Stateless<World> <| fun (_:World) _ -> Logger.Info "A"; Result Success)
-    //let B = Action (Node.Stateless<World> <| fun (_:World) _ -> Logger.Info "B"; Result Success)
-    //Sequence [|A; B;|]
     While WalkingRequired <|
         Sequence [|DispatchWalk; WaitWalkAck; StoppedWalking|]
     (*
