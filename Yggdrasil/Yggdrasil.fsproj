@@ -19,7 +19,8 @@
         <Compile Include="Navigation\Pathfinding.fs" />
         <Compile Include="Behavior\_BehaviorTree.fs" />
         <Compile Include="Behavior\BehaviorTree.fs" />
-        <Compile Include="Behavior\StateMachine.fs" />        
+        <Compile Include="Behavior\StateMachine.fs" />
+        <Compile Include="Behavior\NewStateMachine.fs" />        
         <Compile Include="Game\GameEvent.fs" />
         <Compile Include="Game\Attributes.fs" />
         <Compile Include="Game\Components.fs" />
@@ -38,7 +39,8 @@
         <Compile Include="IO\Handshake.fs" />
         <Compile Include="Behavior\Trees.fs" />
         <Compile Include="Behavior\Machines.fs" />
-        <Compile Include="Behavior\Behavior.fs" />        
+        <Compile Include="Behavior\Behavior.fs" />
+        <Compile Include="Behavior\NewMachines.fs" />        
     </ItemGroup>
 
     <ItemGroup>

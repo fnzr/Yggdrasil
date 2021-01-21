@@ -28,6 +28,7 @@ and Node<'data, 'store> =
         Tick = tick
     }
 
+let rec NoOp _ = Next NoOp
 let DefaultRoot  (_, status) = End status
 let Action (node: Node<_, _>) =
     fun parent ->
