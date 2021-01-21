@@ -27,14 +27,14 @@ let Walk =
             | Some (x, y) ->
                 match Navigation.Pathfinding.FindPath
                       (Navigation.Maps.GetMapData world.Map) player.Position (x, y) 0 with
-                | [] -> Result Failure
+                | [] -> Output Event.Failure
                 | path ->
                     let pos = path
                             |> List.take (Math.Min (MAX_WALK_DISTANCE, path.Length))
                             |> List.last
                     player.Dispatch(Types.Command.RequestMove pos)                
-                    Result Success
-            | None -> Result Success
+                    Output Event.Success
+            | None -> Output Event.Success
     }
     
     let WaitWalkAck = Action {
@@ -48,8 +48,8 @@ let Walk =
                     else
                         world.Ping 500
                         Node instance
-                | Walking -> Result Success
-                | _ -> Result Failure
+                | Walking -> Output Event.Success
+                | _ -> Output Event.Failure
         }
     
     let StoppedWalking  = Action {

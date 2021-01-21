@@ -1,7 +1,7 @@
 module Yggdrasil.Behavior.NewMachines
 
 open NLog
-open Yggdrasil.Behavior.FSM
+open Yggdrasil.Behavior.FSM.Machine
 open Yggdrasil.Behavior.FSM.State
 open Yggdrasil.Behavior.BehaviorTree
 open Yggdrasil.Game
@@ -28,16 +28,16 @@ module DefaultMachine =
         | WalkingSouth
     let Create server username password callback =
         let states = [
-            Configure Terminated
-            Configure Disconnected
-            Configure Connected
+            configure Terminated
+            configure Disconnected
+            configure Connected
                 |> auto Idle
-            Configure WalkingNorth
+            configure WalkingNorth
                 |> behavior (Trees.Walk DefaultRoot)
-                |> withParent Connected
-            Configure WalkingSouth
+                |> parent Connected
+            configure WalkingSouth
                 |> behavior (Trees.Walk DefaultRoot)
-                |> withParent Connected
+                |> parent Connected
         ]
         states
         //Yggdrasil.Behavior.StateMachine.CreateStateMachine states Disconnected

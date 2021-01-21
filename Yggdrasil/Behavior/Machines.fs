@@ -4,10 +4,9 @@ open NLog
 open Yggdrasil.Behavior.BehaviorTree
 open Yggdrasil.Game
 open Yggdrasil.IO
-open Yggdrasil.Behavior.StateMachine
 open Yggdrasil.Game.Event
 let Logger = LogManager.GetLogger "Machines"
-
+(*
 let WalkNorth (world: World) =
     let (x, y) = world.Player.Position
     world.Player.Goals.Position <- Some(x - 5, y)
@@ -52,3 +51,4 @@ module DefaultMachine =
                 |> on (BehaviorResult Success) State.WalkingNorth
         ]
         Yggdrasil.Behavior.StateMachine.CreateStateMachine states Disconnected
+*)
