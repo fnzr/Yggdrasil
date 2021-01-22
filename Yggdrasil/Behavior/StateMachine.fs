@@ -17,6 +17,7 @@ type State<'data, 'stateId, 'event
     Parent: 'stateId option    
     Behavior: ActiveNode<'data>
     Transitions: Map<'event, Transition<'data, 'stateId>>
+    Monitor: 'data -> 'stateId option
 }
 
 type ActiveState<'data, 'stateId, 'event
@@ -24,20 +25,16 @@ type ActiveState<'data, 'stateId, 'event
     Base: State<'data, 'stateId, 'event>
     Behavior: ActiveNode<'data>
     StateMap: Map<'stateId, State<'data, 'stateId, 'event>>
-    BehaviorEvent: Status -> 'event
+    BehaviorResultEvent: Status -> 'event
 }
 
 module State =
-    (*
-    //Exists in s1 but not s2
-    let rec DivergentPath (s1: 'a list) (s2: 'a list) =
-    if s1.IsEmpty then s2
-    elif s2.IsEmpty then []
-    else
-        match List.tryFindIndex (fun e -> e = s2.Head) s1 with
-        | None -> DivergentPath s1 s2.Tail
-        | Some i -> s1.[..i-1]
-    *)
+    
+    let EnterActiveState state activeState =
+        Logger.Debug ("{stateOut} => {stateIn}", activeState.Base.Id, state.Id)
+        {activeState with
+            Base=state
+            Behavior=state.Behavior}
     let rec Enter (stateMap: Map<_, _>) state =
         let _state = stateMap.[state]
         match _state.Auto with
@@ -56,20 +53,22 @@ module State =
         
     let Handle event data activeState = 
         match TryEnter event data activeState.StateMap activeState.Base with
-        | Some s ->
-            {Base=s;Behavior=s.Behavior
-             StateMap=activeState.StateMap
-             BehaviorEvent=activeState.BehaviorEvent}
+        | Some s -> EnterActiveState s activeState
         | None -> activeState
         
-    let rec Tick data activeState =
+    let Tick data activeState =
         match activeState.Behavior data with
         | End e -> 
-            let next = Handle (activeState.BehaviorEvent e) data activeState
+            let next = Handle (activeState.BehaviorResultEvent e) data activeState
             if LanguagePrimitives.PhysicalEquality next activeState then
                 {activeState with Behavior=activeState.Base.Behavior}
             else next
         | Next n -> {activeState with Behavior = n}
+        
+    let Monitor data activeState =
+        match activeState.Base.Monitor data with
+        | None -> activeState
+        | Some id -> EnterActiveState activeState.StateMap.[id] activeState
 
 module Machine =
     let configure stateId = {
@@ -78,6 +77,7 @@ module Machine =
         Parent = None
         Behavior = NoOp
         Transitions = Map.empty
+        Monitor = fun _ -> None
     }
     let _true = fun _ -> true
     
@@ -93,12 +93,14 @@ module Machine =
     
     let behavior root (state: State<_,_,_>) = {state with Behavior=root}
     
-    let CreateMachine states initialState treeResultConverter =
+    let monitor fn state = {state with Monitor=fn}
+    
+    let CreateMachine states initialState behaviorResultConverter =
         let map = List.fold (fun (m: Map<_,_>) s -> m.Add(s.Id, s)) Map.empty states
         let state = map.[initialState]
         {
             Base = state
             Behavior = state.Behavior
             StateMap = map
-            BehaviorEvent = treeResultConverter
+            BehaviorResultEvent = behaviorResultConverter
         } 

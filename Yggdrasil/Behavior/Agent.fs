@@ -15,6 +15,7 @@ let EventMailbox initialData stateMachineFactory (inbox: MailboxProcessor<'data 
             events 
             |> Array.fold (fun s e -> State.Handle e data s) currentState 
             |> State.Tick data
+            |> State.Monitor data
         return! loop data state
         
     }
