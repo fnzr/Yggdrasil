@@ -91,11 +91,11 @@ type RequestMove = {
 }
 
 type Skill = {
-    Id: int
+    Id: int16
     Type: int
-    Level: byte
-    SpCost: byte
-    AttackRange: byte
+    Level: int16
+    SpCost: int16
+    AttackRange: int16
     Name: string
     Upgradable: byte
 }

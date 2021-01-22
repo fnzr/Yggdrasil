@@ -69,7 +69,7 @@ let WantToConnect zoneInfo =
         [| zoneInfo.Gender |]
     |])
     
-let onAuthenticationResult (callback: (World -> World * GameEvent[]) -> unit)
+let onAuthenticationResult callback
     (result:  Result<ZoneCredentials, string>) =
     match result with
     | Ok info ->
@@ -82,7 +82,6 @@ let onAuthenticationResult (callback: (World -> World * GameEvent[]) -> unit)
             (fun world ->
                 { world with
                     Request = Outgoing.Dispatch stream
-                    Ping = Delay (fun () -> callback (fun w->w, [|Ping :> GameEvent|]))
                     Player = { world.Player with                    
                                 Dispatch = Outgoing.Dispatch stream
                                 Unit = {world.Player.Unit with
@@ -117,7 +116,6 @@ let EnterZone zoneInfo packetHandler =
         
     stream.Write(WantToConnect zoneInfo)
     
-    //let packetHandler = ZonePacketHandler publish <| Write stream
     Async.Start <| async {
         try
             return! Array.empty |> GetReader stream packetHandler

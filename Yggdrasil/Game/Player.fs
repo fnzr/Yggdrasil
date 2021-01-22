@@ -15,6 +15,7 @@ type Goals() =
 type Player =
     {
         Unit: Unit
+        Credentials: string * string
         Skills: Skill list
         Inventory: Inventory
         BattleParameters: BattleParameters
@@ -29,6 +30,7 @@ type Player =
     static member Default = {
         Unit = Unit.Default
         Skills = list.Empty
+        Credentials = "", ""
         Inventory = Inventory()
         BattleParameters = BattleParameters.Default
         AttributePoints = 0s

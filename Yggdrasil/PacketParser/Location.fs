@@ -4,6 +4,7 @@ open System
 open NLog
 open FSharpPlus.Lens
 open Yggdrasil.Game
+open Yggdrasil.Game.Event
 open Yggdrasil.Navigation
 open Yggdrasil.Utils
 open Yggdrasil.PacketParser.Decoder
@@ -21,14 +22,14 @@ let rec TryTakeStep (actionId: Guid) (unitId: uint32)
                     let newUnit =
                         let u = {unit with Position = (fst path.Head, snd path.Head)}
                         match path.Tail with
-                        | [] -> {u with Status = Idle}
+                        | [] -> {u with Status = Yggdrasil.Game.Idle}
                         | tail ->
                             Async.Start <| async {
                                 do! Async.Sleep (int u.Speed)
                                 callback <| TryTakeStep actionId unitId callback delay tail
                             }; u
-                    World.UpdateUnit newUnit world, [|Event.PlayerEvent Event.PositionChanged :> Event.GameEvent|]
-                else world, [|Event.PlayerEvent Event.WalkCanceled :> Event.GameEvent|]
+                    World.UpdateUnit newUnit world, [| PlayerPositionChanged |]
+                else world, [| PlayerWalkCanceled |]
      
 let StartMove (unit: Unit) callback destination initialDelay (world: World) =
     let map = Maps.GetMapData world.Map
@@ -54,7 +55,7 @@ let UnitWalk (data: byte[]) callback (world: World) =
         
 let PlayerWalk (data: byte[]) callback (world: World) =
     let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[4..]
-    let delay = int64 (ToUInt32 data) - Connection.Tick() - world.TickOffset    
+    let delay = int64 (ToUInt32 data) - Connection.Tick() + world.TickOffset    
     let w = World.withPlayerPosition (int x0, int y0) world
     StartMove world.Player.Unit callback (int x1, int y1) delay w
     

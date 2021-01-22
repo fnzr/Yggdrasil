@@ -28,7 +28,8 @@ and Node<'data, 'store> =
         Tick = tick
     }
 
-let rec NoOp _ = Next NoOp
+let rec NoOp _ = Next NoOpNode
+and NoOpNode _ = Next NoOpNode  
 let DefaultRoot  (_, status) = End status
 let Action (node: Node<_, _>) =
     fun parent ->
@@ -37,7 +38,14 @@ let Action (node: Node<_, _>) =
             match node.Tick data currentNode with
             | Result result -> parent (data, result)
             | Node next -> Next <| tick next
-        tick (node.Initialize node) 
+        tick (node.Initialize node)
+        
+let Stateless tick =
+    Action {
+        State = ()
+        Initialize = id
+        Tick = tick
+    }
 
 let _ParallelTick (children: _[]) data =
     let folder (completed, running) node =

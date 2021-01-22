@@ -1,19 +1,12 @@
 module Yggdrasil.Behavior.Machines
 
 open NLog
+open Yggdrasil.Behavior.FSM.Machine
 open Yggdrasil.Behavior.BehaviorTree
 open Yggdrasil.Game
-open Yggdrasil.IO
 open Yggdrasil.Game.Event
+
 let Logger = LogManager.GetLogger "Machines"
-(*
-let WalkNorth (world: World) =
-    let (x, y) = world.Player.Position
-    world.Player.Goals.Position <- Some(x - 5, y)
-    
-let WalkSouth (world: World) =
-    let (x, y) = world.Player.Position
-    world.Player.Goals.Position <- Some(x - 5, y)
 
 module DefaultMachine =
     open Yggdrasil.Behavior
@@ -25,30 +18,31 @@ module DefaultMachine =
         | WalkingNorth
         | Idle
         | WalkingSouth
-    let Create server username password callback =
+    let Create () =
         let states = [
-            configure State.Terminated
-                |> onEnter (fun (w: World) -> Logger.Warn ("Agent disconnected: {name}", w.Player.Name))
-            configure State.Disconnected
-                |> onEnter (fun _ -> Handshake.Login server username password callback)
-                |> on (ConnectionStatus Active) State.Connected
-            configure State.Connected
-                |> transitTo Idle
-                |> on (ConnectionStatus Inactive) State.Terminated
-            configure State.WalkingNorth
-                |> withParent State.Connected
-                |> withBehavior (Trees.Walk DefaultRoot) 
-                |> onEnter (WalkNorth)
-                |> on (BehaviorResult Success) State.Idle
-            configure State.Idle
-                |> withParent State.Connected
-                |> withBehavior (Trees.Wait 3000L DefaultRoot)
-                |> on (BehaviorResult Success) State.WalkingSouth
-            configure State.WalkingSouth
-                |> withParent State.Connected
-                |> withBehavior (Trees.Walk DefaultRoot)
-                |> onEnter (WalkSouth)
-                |> on (BehaviorResult Success) State.WalkingNorth
+            configure Terminated
+                |> behavior (Trees.Disconnected NoOp)
+            configure Disconnected
+                |> on (ConnectionStatus Active) Connected
+                |> behavior (Trees.Login NoOp)
+            configure Connected
+                |> auto Idle
+                |> on (ConnectionStatus Inactive) Terminated
+            configure WalkingNorth
+                |> behavior (Trees.WalkNorth DefaultRoot)
+                |> parent Connected
+                |> on (BehaviorResult Success) WalkingSouth
+            configure WalkingSouth
+                |> behavior (Trees.WalkSouth DefaultRoot)
+                |> parent Connected
+                |> on (BehaviorResult Success) Idle
+            configure Idle
+                |> parent Connected
+                |> behavior (Trees.Wait 3000L DefaultRoot)
+                |> on (BehaviorResult Success) WalkingNorth
         ]
-        Yggdrasil.Behavior.StateMachine.CreateStateMachine states Disconnected
-*)
+        let converter (status: BehaviorTree.Status) =
+            match status with
+            | BehaviorTree.Success -> BehaviorResult Success
+            | BehaviorTree.Failure -> BehaviorResult Failure
+        CreateMachine states Disconnected converter

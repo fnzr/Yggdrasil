@@ -24,6 +24,7 @@ type ActiveState<'data, 'stateId, 'event
     Base: State<'data, 'stateId, 'event>
     Behavior: ActiveNode<'data>
     StateMap: Map<'stateId, State<'data, 'stateId, 'event>>
+    BehaviorEvent: Status -> 'event
 }
 
 module State =
@@ -40,7 +41,9 @@ module State =
     let rec Enter (stateMap: Map<_, _>) state =
         let _state = stateMap.[state]
         match _state.Auto with
-        | Some s -> Enter stateMap s
+        | Some s ->
+            Logger.Debug ("{stateOut} => {stateIn}", state, s)
+            Enter stateMap s
         | None -> _state
         
     let rec TryEnter event data (stateMap: Map<_, _>) state =
@@ -53,13 +56,16 @@ module State =
         
     let Handle event data activeState = 
         match TryEnter event data activeState.StateMap activeState.Base with
-        | Some s -> {Base=s;Behavior=s.Behavior;StateMap=activeState.StateMap}
+        | Some s ->
+            {Base=s;Behavior=s.Behavior
+             StateMap=activeState.StateMap
+             BehaviorEvent=activeState.BehaviorEvent}
         | None -> activeState
         
     let rec Tick data activeState =
         match activeState.Behavior data with
-        | End e ->
-            let next = Handle e data activeState
+        | End e -> 
+            let next = Handle (activeState.BehaviorEvent e) data activeState
             if LanguagePrimitives.PhysicalEquality next activeState then
                 {activeState with Behavior=activeState.Base.Behavior}
             else next
@@ -87,11 +93,12 @@ module Machine =
     
     let behavior root (state: State<_,_,_>) = {state with Behavior=root}
     
-    let CreateMachine states initialState =
+    let CreateMachine states initialState treeResultConverter =
         let map = List.fold (fun (m: Map<_,_>) s -> m.Add(s.Id, s)) Map.empty states
         let state = map.[initialState]
         {
             Base = state
             Behavior = state.Behavior
             StateMap = map
+            BehaviorEvent = treeResultConverter
         } 

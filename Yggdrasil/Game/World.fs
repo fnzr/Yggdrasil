@@ -2,6 +2,8 @@ namespace Yggdrasil.Game
 
 open System.Diagnostics
 open FSharpPlus.Lens
+open Yggdrasil
+open Yggdrasil.Game.Event
 open Yggdrasil.Types
 
 module Connection =
@@ -17,7 +19,8 @@ type World =
         NPCs: Map<uint32, NonPlayer>
         TickOffset: int64
         Request: Command -> unit
-        Ping: int -> unit
+        PingRequested: bool
+        Inbox: (World -> World * WorldEvent[]) -> unit
     }
     static member Default = {
         Player = Player.Default
@@ -25,8 +28,9 @@ type World =
         ItemsOnGround = list.Empty
         NPCs = Map.empty
         TickOffset = 0L
+        PingRequested = false
         Request = fun _ -> invalidOp "Request function not set"
-        Ping = fun _ -> invalidOp "Ping function not set"
+        Inbox = fun _ -> invalidOp "Inbox not set"
     }
 
 module World =
@@ -51,6 +55,9 @@ module World =
             let npc = world.NPCs.[unit.Id]
             {world with NPCs = world.NPCs.Add(npc.Id, {npc with Unit = unit})}
             
+    let RequestPing world delay =
+        if not world.PingRequested then
+            Utils.Delay (fun () -> world.Inbox (fun w->w, [|Ping|])) delay
 (*
 type World(inbox: MailboxProcessor<Event.GameEvent>) =    
     let player = Player(inbox)

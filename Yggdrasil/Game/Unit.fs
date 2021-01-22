@@ -60,7 +60,6 @@ type NonPlayer =
 module UnitFactory =
     let Logger = LogManager.GetLogger("Unit")
     
-    let UnitEventBuilder event = (UnitEvent event) :> GameEvent 
     let NPCLogger = LogManager.GetLogger "NPC"
     let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) =        
         let oType = match raw1.ObjectType with

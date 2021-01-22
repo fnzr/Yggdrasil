@@ -17,14 +17,13 @@ open FSharpPlus.Lens
 let Logger = LogManager.GetLogger "Incoming"
 
 let AddSkill data (world: World) =
-    let player = world.Player
     let rec ParseSkill bytes skills =        
         match bytes with
         | [||] -> skills 
         | _ ->
             //TODO SkillRaw -> Skill
             let (skill, leftover) = MakePartialRecord<Skill> data [|24|]
-            ParseSkill leftover (skill :: player.Skills)
+            ParseSkill leftover (skill :: skills)
     setl World._Player
         {world.Player with Skills = ParseSkill data world.Player.Skills}
     <| world, [||]
@@ -35,7 +34,7 @@ let ConnectionAccepted (data: byte[]) (world: World) =
     {world with
         TickOffset = data.[0..] |> ToUInt32 |> int64 |> (-) (Connection.Tick())
         Player = setl Player._Position (int x, int y) p
-    }, [| ConnectionStatus Active :> GameEvent |]
+    }, [| ConnectionStatus Active |]
     
 let WeightSoftCap (data: byte[]) (world: World) =
     world.Player.Inventory.WeightSoftCap <- ToInt32 data
@@ -66,22 +65,22 @@ let PacketReceiver callback (packetType, (packetData: ReadOnlyMemory<byte>)) =
         | 0x13aus -> ParameterChange Parameter.AttackRange data.[2..]
         | 0x00b0us -> ParameterChange (data.[2..] |> ToParameter) data.[4..] 
         | 0x0141us -> ParameterChange (data.[2..] |> ToParameter) data.[4..]
-        | 0xacbus -> ParameterChange (data.[2..] |> ToParameter) data.[4..]
-        | 0xadeus -> WeightSoftCap data.[2..] 
+        | 0xacbus -> ParameterChange (data.[2..] |> ToParameter) data.[4..]        
+        | 0xadeus -> WeightSoftCap data.[2..]
         | 0x9ffus -> NonPlayerSpawn data.[4..]
-        | 0x9feus -> PlayerSpawn data.[4..]
+        | 0x9feus -> PlayerSpawn data.[4..]        
         | 0x9fdus -> WalkingUnitSpawn data.[4..]
         | 0x0080us -> UnitDisappear data.[2..]
-        | 0x10fus -> AddSkill data.[4..]
+        | 0x10fus -> AddSkill data.[4..]        
         | 0x0087us -> PlayerWalk data.[2..] callback
-        | 0x0086us -> UnitWalk data.[2..] callback
+        | 0x0086us -> UnitWalk data.[2..] callback        
         | 0x07fbus -> SkillCast data.[2..] callback
         | 0x0088us -> MoveUnit data.[2..] callback
-        | 0x0977us -> UpdateMonsterHP data.[2..]
+        | 0x0977us -> UpdateMonsterHP data.[2..]        
         | 0x008aus -> DamageDealt data.[2..] callback
         | 0x08c8us -> DamageDealt2 data.[2..] callback        
         | 0x0addus -> ItemOnGroundAppear data.[2..]
-        | 0x00a1us -> ItemOnGroundDisappear data.[2..]
+        | 0x00a1us -> ItemOnGroundDisappear data.[2..]        
         | 0x2ebus -> ConnectionAccepted data.[2..]
         | 0x0091us -> MapChange data.[2..]
         | 0x007fus -> WorldId //world.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - Connection.Tick(); world
