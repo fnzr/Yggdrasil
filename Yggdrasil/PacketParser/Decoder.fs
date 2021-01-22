@@ -32,10 +32,9 @@ let MakePartialRecord<'T> (data: byte[]) (stringSizes: int[]) =
     
 let MakeRecord<'T> data = fst <| MakePartialRecord<'T> data [||]
 let UnpackPosition (data: byte[]) =
-    ((data.[0] <<< 2) ||| (data.[1] >>> 6),  //X
-     (data.[1] <<< 4) ||| (data.[2] >>> 4),  //Y
-     data.[2] <<< 4 //not sure about this //Direction
-    )
+    (int16 (data.[0] <<< 2)) ||| int16 (data.[1]&&&(~~~0x3fuy) >>> 6), //x
+    ((int16 (data.[1]&&&0x3fuy)) <<< 4) ||| (int16 (data.[2]>>>4)), //y
+    data.[2] <<< 4 //not sure about this //Direction
     
 let UnpackPosition2 (data: byte[]) =
     (int16 (data.[0] <<< 2)) ||| int16 (data.[1]&&&(~~~0x3fuy) >>> 6), //x0
