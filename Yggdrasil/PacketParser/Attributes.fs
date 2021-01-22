@@ -20,7 +20,7 @@ let OnU32ParameterUpdate code (value: uint32) (world: World) =
             | Parameter.MaxSP -> setl Player._MaxSP (int16 value) player
             | Parameter.SP -> setl Player._SP (int16 value) player
             | _ -> player) 
-    <| world, [||]    
+    <| world, []    
     
 let OnI16ParameterUpdate code value (world: World) =
     let bp = world.Player.BattleParameters
@@ -33,7 +33,7 @@ let OnI16ParameterUpdate code value (world: World) =
             | Parameter.Critical -> {bp with Critical = value}
             | _ -> bp)
             world.Player
-    <| world, [||]
+    <| world, []
     
 let OnU16ParameterUpdate code value (world: World) =
     setl World._Player <|
@@ -55,7 +55,7 @@ let OnU16ParameterUpdate code value (world: World) =
             | Parameter.AttackRange -> {bp with AttackRange = value}
             | _ -> bp)
         <| world.Player
-    <| world, [||]
+    <| world, []
         
     
 let OnI32ParameterUpdate code value (world: World) =
@@ -71,7 +71,7 @@ let OnI32ParameterUpdate code value (world: World) =
                 | Parameter.UINT -> {attributes with INT = int16 value}
                 | _ -> attributes)
             world.Player
-    <| world, [||]
+    <| world, []
         
 let On64ParameterUpdate code value (world: World) =
     let player = world.Player
@@ -81,7 +81,7 @@ let On64ParameterUpdate code value (world: World) =
         | Parameter.NextBaseExp -> player.Level.NextBaseExp <- value
         | Parameter.NextJobExp -> player.Level.NextJobExp <- value
         | _ -> ()
-    world, [||]
+    world, []
     
 let OnPairParameterUpdate code (value, plus) (world: World) =
     let primary = world.Player.Attributes.Primary
@@ -105,7 +105,7 @@ let OnPairParameterUpdate code (value, plus) (world: World) =
         setl Player._Attributes
             {world.Player.Attributes
              with Primary = p; Bonus = b} world.Player        
-    <| world, [||]
+    <| world, []
 
 let ParameterChange parameter value (world: World) =
     match parameter with
@@ -130,9 +130,9 @@ let ParameterChange parameter value (world: World) =
     | Parameter.STR |Parameter.AGI |Parameter.DEX | Parameter.VIT
     | Parameter.LUK |Parameter.INT -> OnPairParameterUpdate parameter (ToInt16 value.[2..], ToInt16 value.[6..])  world
     
-    | Parameter.Karma -> world, [||]
+    | Parameter.Karma -> world, []
     
-    | _ -> world, [||]
+    | _ -> world, []
     
 let InitialCharacterStatus data (world: World) =
     let info = MakeRecord<CharacterStatusRaw> data
@@ -160,4 +160,4 @@ let InitialCharacterStatus data (world: World) =
              AttributePoints = info.Points
              BattleParameters = battle
          }
-    <| world, [||]
+    <| world, []

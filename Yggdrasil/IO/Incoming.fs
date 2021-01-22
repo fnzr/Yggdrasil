@@ -12,7 +12,6 @@ open Yggdrasil.PacketParser.Attributes
 open Yggdrasil.PacketParser.Location
 open Yggdrasil.PacketParser.Spawn
 open Yggdrasil.PacketParser.Combat
-//open Yggdrasil.Game.Player
 open FSharpPlus.Lens
 let Logger = LogManager.GetLogger "Incoming"
 
@@ -26,7 +25,7 @@ let AddSkill data (world: World) =
             ParseSkill leftover (skill :: skills)
     setl World._Player
         {world.Player with Skills = ParseSkill data world.Player.Skills}
-    <| world, [||]
+    <| world, []
     
 let ConnectionAccepted (data: byte[]) (world: World) =
     let p = world.Player
@@ -34,11 +33,11 @@ let ConnectionAccepted (data: byte[]) (world: World) =
     {world with
         TickOffset = data.[0..] |> ToUInt32 |> int64 |> (-) (Connection.Tick())
         Player = setl Player._Position (int x, int y) p
-    }, [| ConnectionStatus Active |]
+    }, [ ConnectionStatus Active ]
     
 let WeightSoftCap (data: byte[]) (world: World) =
     world.Player.Inventory.WeightSoftCap <- ToInt32 data
-    world, [||]
+    world, []
     
            
 let ItemOnGroundAppear data (world: World) =
@@ -50,14 +49,14 @@ let ItemOnGroundAppear data (world: World) =
         Identified = info.Identified > 0uy
         Position = (int info.PosX, int info.PosY)
         Amount = info.Amount} :: world.ItemsOnGround
-    }, [||]
+    }, []
     
 let ItemOnGroundDisappear data (world: World) =
     let id = ToInt32 data
     {world
-      with ItemsOnGround = List.filter (fun i -> i.Id <> id) world.ItemsOnGround}, [||]
+      with ItemsOnGround = List.filter (fun i -> i.Id <> id) world.ItemsOnGround}, []
     
-let WorldId w = w, [||]   
+let WorldId w = w, []   
 let PacketReceiver callback (packetType, (packetData: ReadOnlyMemory<byte>)) =
     let data = packetData.ToArray()
     callback <|

@@ -87,7 +87,7 @@ let onAuthenticationResult callback
                                 Unit = {world.Player.Unit with
                                             Name = info.CharacterName
                                             Id = info.AccountId}}
-                }, [||])
+                }, [])
         stream.Write (WantToConnect info)
         Async.Start <|
         async {

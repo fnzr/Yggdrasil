@@ -12,7 +12,7 @@ let OnUnitSpawn data (world: World) =
     let (part2, _) = MakePartialRecord<UnitRawPart2> leftover [|24|]
     let unit = CreateNonPlayer part1 part2
     {world with
-        NPCs = world.NPCs.Add(unit.Id, unit)}, [||]   
+        NPCs = world.NPCs.Add(unit.Id, unit)}, []   
     
 let NonPlayerSpawn = OnUnitSpawn
 let PlayerSpawn = OnUnitSpawn
@@ -23,7 +23,7 @@ let WalkingUnitSpawn data (world: World) =
     let (part2, _) = MakePartialRecord<UnitRawPart2> (leftover.[4..]) [|24|]
     let unit = CreateNonPlayer part1 part2
     {world with
-        NPCs = world.NPCs.Add(unit.Id, unit)}, [||]
+        NPCs = world.NPCs.Add(unit.Id, unit)}, []
 
 let UnitDisappear data (world: World) =
     let id = ToUInt32 data
@@ -32,10 +32,10 @@ let UnitDisappear data (world: World) =
         if reason = DisappearReason.Died then
             setl World._Player
                 (Player.withStatus Dead world.Player)
-                world, [||]
-        else world, [||]
+                world, []
+        else world, []
     else
         {world with
             NPCs = world.NPCs.Remove(id)
-        }, [||]
+        }, []
 

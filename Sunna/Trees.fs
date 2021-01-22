@@ -20,10 +20,9 @@ let Walk =
         Navigation.Pathfinding.DistanceTo
             player.Position player.Goals.Position.Value > 0
     
-    let DispatchWalk = Action {
-        State = ()
-        Initialize = id
-        Tick = fun world _ -> 
+    let DispatchWalk =
+        Stateless <|
+        fun world _ -> 
             let player = world.Player
             match player.Goals.Position with
             | Some (x, y) ->
@@ -37,7 +36,6 @@ let Walk =
                     player.Dispatch(Types.Command.RequestMove pos)                
                     Result Success
             | None -> Result Success
-    }
     
     let WaitWalkAck = Action {
             State = 0L
@@ -54,15 +52,13 @@ let Walk =
                 | _ -> Result Failure
         }
     
-    let StoppedWalking  = Action {
-        State = ()
-        Initialize = id
-        Tick = fun world instance ->
+    let StoppedWalking =
+        Stateless <|
+        fun world instance ->
             match world.Player.Unit.Status with        
             | Walking -> Node instance
             | Idle -> Result Success
             | _ -> Result Failure
-    }
     
     While WalkingRequired <|
         Sequence [|DispatchWalk; WaitWalkAck; StoppedWalking|]
@@ -76,17 +72,14 @@ let Walk =
 
 let Wait milliseconds =
     Action {
-        State = (0L, false)
-        Initialize = fun node -> {node with State = (Connection.Tick() + milliseconds, false)}
+        State = 0L
+        Initialize = fun node -> {node with State = Connection.Tick() + milliseconds}
         Tick = fun world instance ->
-            let diff = (fst instance.State) - Connection.Tick()
+            let diff = instance.State - Connection.Tick()
             if diff > 0L then
-                Logger.Info diff
-                Node <|
-                    if not <| snd instance.State then
-                        World.RequestPing world (int diff)
-                        {instance with State=(fst instance.State, true)}
-                    else instance
+                //Logger.Info diff                
+                if not <| world.PingRequested then World.RequestPing world (int diff)
+                Node instance
             else Result Success
                 
     }

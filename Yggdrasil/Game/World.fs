@@ -20,7 +20,7 @@ type World =
         TickOffset: int64
         Request: Command -> unit
         PingRequested: bool
-        Inbox: (World -> World * WorldEvent[]) -> unit
+        Inbox: (World -> World * WorldEvent list) -> unit
     }
     static member Default = {
         Player = Player.Default
@@ -57,7 +57,7 @@ module World =
             
     let RequestPing world delay =
         if not world.PingRequested then
-            Utils.Delay (fun () -> world.Inbox (fun w->w, [|Ping|])) delay
+            Utils.Delay (fun () -> world.Inbox (fun w->w, [Ping])) delay
 (*
 type World(inbox: MailboxProcessor<Event.GameEvent>) =    
     let player = Player(inbox)

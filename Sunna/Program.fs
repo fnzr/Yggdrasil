@@ -9,7 +9,7 @@ let StartAgent credentials machineFactory =
                         {Player.Default with Credentials = credentials}}
     let inbox = Yggdrasil.Behavior.Agent.SetupAgent world machineFactory
     inbox.Post <|
-        fun w -> {w with Inbox = inbox.Post}, [||]
+        fun w -> {w with Inbox = inbox.Post}, []
 
 [<EntryPoint>]
 let main _ =
