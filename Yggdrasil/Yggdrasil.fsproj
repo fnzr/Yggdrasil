@@ -17,9 +17,9 @@
         <Compile Include="Utils.fs" />
         <Compile Include="Navigation\Maps.fs" />
         <Compile Include="Navigation\Pathfinding.fs" />
-        <Compile Include="Behavior\_BehaviorTree.fs" />
         <Compile Include="Behavior\BehaviorTree.fs" />
-        <Compile Include="Behavior\StateMachine.fs" />        
+        <Compile Include="Behavior\StateMachine.fs" />
+        <Compile Include="Behavior\Agent.fs" />
         <Compile Include="Game\GameEvent.fs" />
         <Compile Include="Game\Attributes.fs" />
         <Compile Include="Game\Components.fs" />
@@ -35,11 +35,7 @@
         <Compile Include="IO\Stream.fs" />
         <Compile Include="IO\Outgoing.fs" />
         <Compile Include="IO\Incoming.fs" />        
-        <Compile Include="IO\Handshake.fs" />
-        <Compile Include="Behavior\Trees.fs" />
-        <Compile Include="Behavior\_Machines.fs" />
-        <Compile Include="Behavior\Machines.fs" />
-        <Compile Include="Behavior\Behavior.fs" />           
+        <Compile Include="IO\Handshake.fs" />             
     </ItemGroup>
 
     <ItemGroup>
