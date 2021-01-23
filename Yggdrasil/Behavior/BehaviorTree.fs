@@ -38,7 +38,7 @@ let Action (node: Node<_, _>) =
             match node.Tick data currentNode with
             | Result result -> parent (data, result)
             | Node next -> Next <| tick next
-        tick (node.Initialize node)
+        fun data -> tick (node.Initialize node) <| data
         
 let Stateless tick =
     Action {
