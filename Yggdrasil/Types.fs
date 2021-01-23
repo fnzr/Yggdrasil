@@ -52,9 +52,9 @@ type UnitRawPart2 = {
     Virtue : int
     IsPKModeOn : byte
     Gender : byte
-    PosX : byte
-    PosY : byte
-    Direction : byte
+    PosPart1 : byte
+    PosPart2 : byte
+    PosPart3 : byte
     xSize : byte
     State : byte
     CLevel: int16

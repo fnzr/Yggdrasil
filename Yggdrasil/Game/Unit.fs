@@ -17,26 +17,26 @@ type Status = Idle | Dead | Casting | Walking
         
 type Unit =
     {
+        Id: uint32
         ActionId: Guid
         Status: Status
         TargetOfSkills: (SkillCast * Unit) list
         Casting: SkillCast option
         MaxHP: int
-        HP: int
-        Id: uint32
+        HP: int        
         Name: string
         Position: (int * int)
         Speed: int16
     }
     
     static member Default = {
+        Id = 0u
         ActionId = Guid.Empty
         Status = Idle
         TargetOfSkills = list.Empty
         Casting = None
         MaxHP = 0
-        HP = 0
-        Id = 0u
+        HP = 0        
         Name = ""
         Position = 0, 0
         Speed = 0s
@@ -61,17 +61,23 @@ module UnitFactory =
     let Logger = LogManager.GetLogger("Unit")
     
     let NPCLogger = LogManager.GetLogger "NPC"
-    let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) =        
+    let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) position =        
         let oType = match raw1.ObjectType with
                     | 0x1uy | 0x6uy -> ObjectType.NPC
                     | 0x0uy -> ObjectType.PlayerCharacter
                     | 0x5uy -> ObjectType.Monster
                     | t -> Logger.Warn ("Unhandled ObjectType: {type}", t);
                             ObjectType.Invalid
-                            //id, name, position, speed, hp, maxHP,
         {
             FullName = raw2.Name
             Type = oType            
-            Unit = Unit.Default
+            Unit = {Unit.Default with
+                     Id = raw1.AID
+                     MaxHP = raw2.MaxHP
+                     HP = raw2.HP
+                     Name = raw2.Name.Split("#").[0]
+                     Position = position
+                     Speed = raw1.Speed}
+                     
         }
         

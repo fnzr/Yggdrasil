@@ -81,5 +81,5 @@ let FindPath map start goal leeway =
     let result = AStarStep map queue (Dictionary()) g goals
     match result with
     | Some node -> ReconstructPath map node []
-    | None -> Logger.Error("Path not found"); []
+    | None -> []
     

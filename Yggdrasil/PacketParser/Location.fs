@@ -38,10 +38,13 @@ let StartMove (unit: Unit) callback destination initialDelay (world: World) =
         let id = Guid.NewGuid()
         let delay = if initialDelay < 0L then 0 else Convert.ToInt32 initialDelay
         Async.Start <| async {
-            callback <| fun w -> World.UpdateUnit {unit with ActionId = id} w, []
+            callback <| fun w -> World.UpdateUnit {unit with ActionId = id; Status = Walking} w, []
             do! Async.Sleep delay
             callback <| TryTakeStep id unit.Id callback (int unit.Speed) path
-        }        
+        }
+    else
+        Logger.Error("Unit {name} ({aid}): Could not find walk path: {source} => {dest}",
+                     unit.Name, unit.Id, unit.Position, destination)
     world, []
 
 let UnitWalk (data: byte[]) callback (world: World) =
@@ -75,9 +78,11 @@ let MapChange (data: byte[]) (world: World) =
                     Status = Unit.Default.Status
                     TargetOfSkills = Unit.Default.TargetOfSkills
                     Casting = Unit.Default.Casting}
+    let map = (let gatFile = ToString data.[..15]
+               gatFile.Substring(0, gatFile.Length - 4))
+    Maps.LoadMap map
     {world with
-        Map = (let gatFile = ToString data.[..15]
-               gatFile.Substring(0, gatFile.Length - 4))        
+        Map = map
         NPCs = World.Default.NPCs
         Player = setl Player._Unit unit world.Player
     }, []

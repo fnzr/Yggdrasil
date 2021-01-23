@@ -10,7 +10,8 @@ open Yggdrasil.PacketParser.Decoder
 let OnUnitSpawn data (world: World) =
     let (part1, leftover) = MakePartialRecord<UnitRawPart1> data [||]    
     let (part2, _) = MakePartialRecord<UnitRawPart2> leftover [|24|]
-    let unit = CreateNonPlayer part1 part2
+    let (x, y, _) = UnpackPosition [|part2.PosPart1; part2.PosPart2; part2.PosPart3|]
+    let unit = CreateNonPlayer part1 part2 (int x, int y)
     {world with
         NPCs = world.NPCs.Add(unit.Id, unit)}, []   
     
@@ -21,7 +22,8 @@ let WalkingUnitSpawn data (world: World) =
     let (part1, leftover) = MakePartialRecord<UnitRawPart1> data [||]
     //skip MoveStartTime: uint32 
     let (part2, _) = MakePartialRecord<UnitRawPart2> (leftover.[4..]) [|24|]
-    let unit = CreateNonPlayer part1 part2
+    let (x, y, _) = UnpackPosition [|part2.PosPart1; part2.PosPart2; part2.PosPart3|]
+    let unit = CreateNonPlayer part1 part2 (int x, int y)
     {world with
         NPCs = world.NPCs.Add(unit.Id, unit)}, []
 

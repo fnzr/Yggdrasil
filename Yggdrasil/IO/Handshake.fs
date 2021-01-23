@@ -101,9 +101,7 @@ let onAuthenticationResult callback
                 | :? ObjectDisposedException -> ()
                 | e -> Logger.Error e
             finally
-                //TODO hand Event.Inactive
-                //game.Connection.Status <- Event.Inactive
-                ()
+                callback <| fun w -> w, [ConnectionStatus Inactive]
         }
     | Error error -> Logger.Error error
     
