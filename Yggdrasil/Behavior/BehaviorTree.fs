@@ -11,7 +11,7 @@ and NodeResult<'data> =
     | Next of ActiveNode<'data>
 
 type ParentContinuation<'data> = 'data * Status -> NodeResult<'data>
-type NodeCreator<'data> = ParentContinuation<'data> -> string -> ActiveNode<'data>
+//type NodeCreator<'data> = ParentContinuation<'data> -> string -> ActiveNode<'data>
 
 let Logger = LogManager.GetLogger "BehaviorTree"
 
@@ -86,7 +86,7 @@ let Selector (children: _[]) =
     fun continuation ->
         let onResult sibling (data, status) =
             match status with
-            | Failure -> Next sibling
+            | Failure -> sibling data
             | Success -> continuation (data, Success)
         let preparedChild = _FoldChildren children onResult continuation
         preparedChild
@@ -95,7 +95,7 @@ let Sequence (children: _[]) =
     fun continuation ->
         let onResult sibling (data, status) =
             match status with
-            | Success -> Next sibling
+            | Success -> sibling data
             | Failure -> continuation (data, Failure)        
         let preparedChild = _FoldChildren children onResult continuation
         preparedChild
@@ -107,3 +107,39 @@ let While condition child  =
             else continuation (data, status)
         child onResult
 
+let Forever child =
+    fun _ ->
+        let rec onResult _ = Next (child onResult)
+        child onResult
+        
+let UntilSuccess child =
+    fun continuation ->
+        let rec onResult (data, status) =
+            match status with
+            | Success -> continuation (data, status)
+            | Failure -> Next (child onResult)
+        child onResult
+        
+let RetryTimeout currentTime timeout child =
+    Action
+        {
+            State = NoOpNode, 0L
+            Initialize = fun instance -> {instance with State = (child DefaultRoot), currentTime()}
+            Tick = fun data instance ->                
+                match fst instance.State data with
+                | Next node -> Node {instance with State=node, snd instance.State}
+                | End status ->
+                    if status = Success then Result Success
+                    else if currentTime() - snd instance.State > timeout then Result Failure
+                    else Node {instance with State = (child DefaultRoot), snd instance.State}
+        }
+    
+let Invert child =
+    fun continuation ->
+        let onResult (data, status) =
+            match status with
+            | Success -> continuation (data, Failure)
+            | Failure -> continuation (data, Success)
+        child onResult
+        
+            

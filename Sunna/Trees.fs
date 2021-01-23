@@ -2,6 +2,7 @@ module Sunna.Trees
 
 open System
 open System.Net
+open FSharpPlus.Data
 open NLog
 open Yggdrasil
 open Yggdrasil.Game
@@ -13,14 +14,39 @@ let Logger = LogManager.GetLogger "Trees"
 [<Literal>]
 let MAX_WALK_DISTANCE = 10
 
-let Walk =    
-    let WalkingRequired (world: World) =
-        let player = world.Player
-        player.Goals.Position.IsSome &&
-        Navigation.Pathfinding.DistanceTo
-            player.Position player.Goals.Position.Value > 0
+let Wait milliseconds =
+    Action {
+        State = 0L
+        Initialize = fun node -> {node with State = Connection.Tick() + milliseconds}
+        Tick = fun world instance ->
+            let diff = instance.State - Connection.Tick()
+            if diff > 0L then                             
+                if not <| world.PingRequested then World.RequestPing world (int diff)
+                Node instance
+            else Result Success
+                
+    }
     
-    let DispatchWalk =
+let PlayerIs status =
+    Stateless (fun world _ ->
+                    Result <| if world.Player.Unit.Status = status
+                        then Success
+                        else Failure)
+    
+let WantsToWalk =
+    Stateless (fun world _ ->
+                    Result <| (match world.Player.Goals.Position with
+                                | None -> Failure
+                                | Some p -> if p <> world.Player.Position
+                                            then Success
+                                            else Failure))
+    
+let RetryTimeout timeout child =
+    RetryTimeout Connection.Tick timeout child
+
+let Walk =
+    
+    let RequestWalk =
         Stateless <|
         fun world _ -> 
             let player = world.Player
@@ -36,32 +62,15 @@ let Walk =
                     player.Dispatch(Types.Command.RequestMove pos)                
                     Result Success
             | None -> Result Success
-    
-    let WaitWalkAck = Action {
-            State = 0L
-            Initialize = fun node -> {node with State = Connection.Tick()}
-            Tick = fun world instance ->
-                match world.Player.Unit.Status with
-                | Idle ->
-                    let delay = Connection.Tick() - instance.State                    
-                    if delay > 500L then Result Failure
-                    else
-                        World.RequestPing world 500
-                        Node instance
-                | Walking -> Result Success
-                | _ -> Result Failure
-        }
-    
-    let StoppedWalking =
-        Stateless <|
-        fun world instance ->
-            match world.Player.Unit.Status with        
-            | Walking -> Node instance
-            | Idle -> Result Success
-            | _ -> Result Failure
-    
-    While WalkingRequired <|
-        Sequence [|DispatchWalk; WaitWalkAck; StoppedWalking|]
+            
+    Forever <|
+        Sequence [|
+            PlayerIs Idle
+            WantsToWalk
+            RequestWalk
+            PlayerIs Walking |> RetryTimeout 2000L
+            PlayerIs Walking |> Invert |> UntilSuccess 
+        |]
     (*
     While WalkingRequired
         => (Sequence
@@ -69,20 +78,6 @@ let Walk =
             => WaitWalkAck
             => StoppedWalking)
     *)
-
-let Wait milliseconds =
-    Action {
-        State = 0L
-        Initialize = fun node -> {node with State = Connection.Tick() + milliseconds}
-        Tick = fun world instance ->
-            let diff = instance.State - Connection.Tick()
-            if diff > 0L then
-                //Logger.Info diff                
-                if not <| world.PingRequested then World.RequestPing world (int diff)
-                Node instance
-            else Result Success
-                
-    }
     
 let Login =
     Action {
@@ -108,7 +103,7 @@ let WalkNorth =
     let SetNorthGoal =
         Stateless <| fun world _ ->
                      let (x, y) = world.Player.Position
-                     world.Player.Goals.Position <- Some(x + 2, y)
+                     world.Player.Goals.Position <- Some(x + 5, y)
                      Result Success
     Sequence [|SetNorthGoal; Walk|]
     
@@ -116,6 +111,6 @@ let WalkSouth =
     let SetSouthGoal =
         Stateless <| fun world _ ->
                      let (x, y) = world.Player.Position
-                     world.Player.Goals.Position <- Some(x - 2, y)
+                     world.Player.Goals.Position <- Some(x - 5, y)
                      Result Success
     Sequence [|SetSouthGoal; Walk|]
