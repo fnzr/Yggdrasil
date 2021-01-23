@@ -150,7 +150,7 @@ type DamageInfo = {
     Type: byte
 }
 
-type GroundItemRaw = {
+type ItemDropRaw = {
     Id: int
     NameId: int16
     Type: int16

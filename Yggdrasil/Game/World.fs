@@ -15,7 +15,7 @@ type World =
     {
         Player: Player
         Map: string
-        ItemsOnGround: GroundItem list
+        ItemDrops: GroundItem list
         NPCs: Map<uint32, NonPlayer>
         TickOffset: int64
         Request: Command -> unit
@@ -25,7 +25,7 @@ type World =
     static member Default = {
         Player = Player.Default
         Map = ""
-        ItemsOnGround = list.Empty
+        ItemDrops = list.Empty
         NPCs = Map.empty
         TickOffset = 0L
         PingRequested = false
@@ -58,60 +58,3 @@ module World =
     let RequestPing world delay =
         if not world.PingRequested then
             Utils.Delay (fun () -> world.Inbox (fun w->w, [Ping])) delay
-(*
-type World(inbox: MailboxProcessor<Event.GameEvent>) =    
-    let player = Player(inbox)
-    let mutable map: string = ""
-    let mutable droppedItems: GroundItem list = []
-    let npcs = Dictionary<uint32, NonPlayer>()
-    let logger = LogManager.GetLogger("World")
-    member this.Map
-        with get() = map
-        and set v =
-            map <- v
-            npcs.Clear()            
-            inbox.Post <| Event.MapChanged
-    member this.MapData with get() = Maps.GetMapData map
-    member this.Player with get() = player
-    member this.Inbox with get() = inbox
-    
-    member val TickOffset = 0L with get, set
-    member this.GetUnit aid =
-        if player.Id = aid then Some player.Unit
-        else
-            let (success, npc) = npcs.TryGetValue aid
-            if success then Some npc.Unit
-            else None
-        
-    member this.SpawnUnit (npc: NonPlayer) =
-        if npcs.TryAdd (npc.Id, npc) then
-            inbox.Post <| match npc.Type with
-                            | ObjectType.NPC -> Event.UnitSpawn Event.NPC
-                            | ObjectType.Monster -> Event.UnitSpawn Event.Monster
-                            | ObjectType.PlayerCharacter -> Event.UnitSpawn Event.Player
-                            | _ -> logger.Warn("Unhandled unit spawn")
-                                   Event.UnitSpawn Event.Unknown
-            logger.Info("Unit spawn: {type}:{name} ({aid})", npc.Type, npc.Unit.Name, npc.Id)
-        else
-            logger.Warn("Failed spawn unit {name} ({aid})", npc.FullName, npc.Id)
-            
-    member this.DespawnUnit aid reason =
-        if player.Id = aid then player.Unit.Disappear reason
-        else
-            let (success, npc) = npcs.Remove aid        
-            if success then npc.Unit.Disappear reason
-            else logger.Warn("Failed despawning unit {aid}", aid)
-    member this.ItemDrop (item: GroundItem) =
-        droppedItems <- item :: droppedItems
-        inbox.Post <| Event.ItemDropped
-        
-    member this.ItemDropDisappear id =
-        droppedItems <- List.where (fun i -> i.Id <> id) droppedItems
-        inbox.Post <| Event.ItemDroppedDisappeared
-        
-    member this.PostEvent event delay =
-        Async.Start <| async {
-            do! Async.Sleep delay
-            inbox.Post event
-        }
-*)

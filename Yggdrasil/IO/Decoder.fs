@@ -1,4 +1,4 @@
-module Yggdrasil.PacketParser.Decoder
+module Yggdrasil.IO.Decoder
 
 open System.Collections.Generic
 open System.Reflection

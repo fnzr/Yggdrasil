@@ -1,11 +1,11 @@
-module Yggdrasil.PacketParser.Combat
+module Yggdrasil.Pipe.Combat
 
 open System
+open FSharpPlus.Lens
 open Yggdrasil.Game.Skill
 open Yggdrasil.Types
 open Yggdrasil.Utils
 open Yggdrasil.Game
-open Yggdrasil.PacketParser.Decoder
 
 let ProcessDamage (target: Unit) (source: Unit) (damageInfo: DamageInfo)  world =
     let unit = {target with HP = target.HP - damageInfo.Damage}
@@ -13,8 +13,7 @@ let ProcessDamage (target: Unit) (source: Unit) (damageInfo: DamageInfo)  world 
 
 //it's really not worth it to refactor this into one function...
 //08c8
-let DamageDealt2 data callback (world: World) =
-    let info = MakeRecord<RawDamageInfo2> data
+let DamageDealt2 (info: RawDamageInfo2) callback (world: World) =
     match World.Unit world info.Source, World.Unit world info.Target with
     | None, _ | _, None -> Logger.Error "Failed loading units to apply damage"
     | Some source, Some target ->
@@ -30,8 +29,7 @@ let DamageDealt2 data callback (world: World) =
     world, []
             
 //008a
-let DamageDealt data callback (world: World) =
-    let info = MakeRecord<RawDamageInfo> data
+let DamageDealt (info: RawDamageInfo) callback (world: World) =
     match World.Unit world info.Source, World.Unit world info.Target with
     | None, _ | _, None -> Logger.Error "Failed loading units to apply damage"
     | Some source, Some target ->
@@ -44,8 +42,7 @@ let DamageDealt data callback (world: World) =
         Delay (fun _ ->  callback <| ProcessDamage target source damage) delay
     world, []
     
-let UpdateMonsterHP data (world: World) =
-    let info = MakeRecord<MonsterHPInfo> data
+let UpdateMonsterHP (info: MonsterHPInfo) (world: World) =
     match World.Unit world info.aid with
     | Some unit ->
         World.UpdateUnit {unit with HP = info.HP; MaxHP = info.MaxHP} world, []
@@ -70,8 +67,7 @@ let ClearSkill (actionId: Guid) (sourceId: uint32) (targetId: uint32) (skillCast
         <| w1, []
             
     
-let SkillCast data callback (world: World) =
-    let castRaw = MakeRecord<RawSkillCast> data    
+let SkillCast castRaw callback (world: World) =
     match (World.Unit world castRaw.source, World.Unit world castRaw.target) with
     | (None, _) | (_, None) -> Logger.Warn "Missing skill cast units!"
     | (Some caster, Some target) ->
@@ -88,3 +84,8 @@ let SkillCast data callback (world: World) =
             callback <| ClearSkill id caster.Id target.Id cast
         }
     world, []
+
+let AddSkills skills (world: World) =
+    setl World._Player
+        {world.Player with Skills = List.concat [skills; world.Player.Skills]}
+    <| world, []

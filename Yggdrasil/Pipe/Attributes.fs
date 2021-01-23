@@ -1,10 +1,9 @@
-module Yggdrasil.PacketParser.Attributes
+module Yggdrasil.Pipe.Attributes
 
 open FSharpPlus.Lens
 open Yggdrasil.Types
 open Yggdrasil.Game
 open Yggdrasil.Utils
-open Yggdrasil.PacketParser.Decoder
 
 let OnU32ParameterUpdate code (value: uint32) (world: World) =
     //| Parameter.SkillPoints -> player.Level.SkillPoints <- value
@@ -134,8 +133,7 @@ let ParameterChange parameter value (world: World) =
     
     | _ -> world, []
     
-let InitialCharacterStatus data (world: World) =
-    let info = MakeRecord<CharacterStatusRaw> data
+let InitialCharacterStatus (info: CharacterStatusRaw) (world: World) =
     let primary = {
         STR = int16 info.STR; AGI = int16 info.STR; DEX = int16 info.DEX
         VIT = int16 info.VIT; LUK = int16 info.LUK; INT = int16 info.INT

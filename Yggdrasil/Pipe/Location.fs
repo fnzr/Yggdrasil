@@ -1,4 +1,4 @@
-module Yggdrasil.PacketParser.Location
+module Yggdrasil.Pipe.Location
 
 open System
 open NLog
@@ -6,8 +6,6 @@ open FSharpPlus.Lens
 open Yggdrasil.Game
 open Yggdrasil.Game.Event
 open Yggdrasil.Navigation
-open Yggdrasil.Utils
-open Yggdrasil.PacketParser.Decoder
 open Yggdrasil.Types
 
 let Logger = LogManager.GetLogger "Location"
@@ -47,39 +45,32 @@ let StartMove (unit: Unit) callback destination initialDelay (world: World) =
                      unit.Name, unit.Id, unit.Position, destination)
     world, []
 
-let UnitWalk (data: byte[]) callback (world: World) =
-    let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[4..]
-    let delay = int64 (ToUInt32 data) - Connection.Tick() - world.TickOffset
-    match World.Unit world <| ToUInt32 data with
+let UnitWalk id origin dest startAt callback (world: World) =
+    let delay = startAt - Connection.Tick() - world.TickOffset
+    match World.Unit world id with
     | None -> Logger.Warn "Failed handling walk packet: unknown unit"; world, []
-    | Some unit ->
-        let w = World.withPlayerPosition (int x0, int y0) world
-        StartMove unit callback (int x1, int y1) delay w
+    | Some unit ->         
+        let w = World.UpdateUnit {unit with Position = origin} world
+        StartMove unit callback dest delay w
         
-let PlayerWalk (data: byte[]) callback (world: World) =
-    let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[4..]
-    let delay = int64 (ToUInt32 data) - Connection.Tick() + world.TickOffset    
-    let w = World.withPlayerPosition (int x0, int y0) world
-    StartMove world.Player.Unit callback (int x1, int y1) delay w
+let PlayerWalk origin dest startAt callback (world: World) =
+    let delay = startAt - Connection.Tick() + world.TickOffset    
+    let w = World.withPlayerPosition origin world
+    StartMove world.Player.Unit callback dest delay w
     
-let MoveUnit data callback (world: World) =
-    let move = MakeRecord<UnitMove> data
+let MoveUnit (move: UnitMove) callback (world: World) =
     match World.Unit world move.aid with
     | None -> Logger.Warn ("Unhandled movement for {aid}", move.aid); world, []
     | Some unit -> StartMove unit callback (int move.X, int move.Y) 0L world
     
-let MapChange (data: byte[]) (world: World) =
+let MapChange position map (world: World) =
     world.Player.Dispatch DoneLoadingMap
-    let position = (data.[16..] |> ToUInt16 |> int,
-                    data.[18..] |> ToUInt16 |> int)
     let unit = {world.Player.Unit with
                     Position = position
                     ActionId = Unit.Default.ActionId                    
                     Status = Unit.Default.Status
                     TargetOfSkills = Unit.Default.TargetOfSkills
                     Casting = Unit.Default.Casting}
-    let map = (let gatFile = ToString data.[..15]
-               gatFile.Substring(0, gatFile.Length - 4))
     Maps.LoadMap map
     {world with
         Map = map

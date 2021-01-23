@@ -1,61 +1,29 @@
 module Yggdrasil.IO.Incoming
 
 open System
-open FSharpPlus.Data
 open NLog
 open Yggdrasil.Game.Event
 open Yggdrasil.Types
 open Yggdrasil.Utils
 open Yggdrasil.Game
-open Yggdrasil.PacketParser.Decoder
-open Yggdrasil.PacketParser.Attributes
-open Yggdrasil.PacketParser.Location
-open Yggdrasil.PacketParser.Spawn
-open Yggdrasil.PacketParser.Combat
+open Yggdrasil.IO.Decoder
+open Yggdrasil.Pipe.Attributes
+open Yggdrasil.Pipe.Location
+open Yggdrasil.Pipe.Spawn
+open Yggdrasil.Pipe.Combat
+open Yggdrasil.Pipe.Item
 open FSharpPlus.Lens
 let Logger = LogManager.GetLogger "Incoming"
 
-let AddSkill data (world: World) =
-    let rec ParseSkill bytes skills =        
-        match bytes with
-        | [||] -> skills 
-        | _ ->
-            //TODO SkillRaw -> Skill
-            let (skill, leftover) = MakePartialRecord<Skill> data [|24|]
-            ParseSkill leftover (skill :: skills)
-    setl World._Player
-        {world.Player with Skills = ParseSkill data world.Player.Skills}
-    <| world, []
-    
-let ConnectionAccepted (data: byte[]) (world: World) =
-    let p = world.Player
-    let (x, y, _) = UnpackPosition data.[4..]
+let ConnectionAccepted position serverTick world =
     {world with
-        TickOffset = data.[0..] |> ToUInt32 |> int64 |> (-) (Connection.Tick())
-        Player = setl Player._Position (int x, int y) p
+        TickOffset =  (Connection.Tick()) - serverTick
+        Player = setl Player._Position position world.Player
     }, [ ConnectionStatus Active ]
     
-let WeightSoftCap (data: byte[]) (world: World) =
-    world.Player.Inventory.WeightSoftCap <- ToInt32 data
-    world, []
-    
+let UpdateTickOffset serverTick world =
+    {world with TickOffset = (Connection.Tick()) - serverTick}, []
            
-let ItemOnGroundAppear data (world: World) =
-    let info = MakeRecord<GroundItemRaw> data
-    {world
-     with ItemsOnGround = {
-        Id = info.Id
-        NameId = info.NameId
-        Identified = info.Identified > 0uy
-        Position = (int info.PosX, int info.PosY)
-        Amount = info.Amount} :: world.ItemsOnGround
-    }, []
-    
-let ItemOnGroundDisappear data (world: World) =
-    let id = ToInt32 data
-    {world
-      with ItemsOnGround = List.filter (fun i -> i.Id <> id) world.ItemsOnGround}, []
-    
 let WorldId w = w, []   
 let PacketReceiver callback (packetType, (packetData: ReadOnlyMemory<byte>)) =
     let data = packetData.ToArray()
@@ -65,27 +33,52 @@ let PacketReceiver callback (packetType, (packetData: ReadOnlyMemory<byte>)) =
         | 0x00b0us -> ParameterChange (data.[2..] |> ToParameter) data.[4..] 
         | 0x0141us -> ParameterChange (data.[2..] |> ToParameter) data.[4..]
         | 0xacbus -> ParameterChange (data.[2..] |> ToParameter) data.[4..]        
-        | 0xadeus -> WeightSoftCap data.[2..]
-        | 0x9ffus -> NonPlayerSpawn data.[4..]
-        | 0x9feus -> PlayerSpawn data.[4..]        
-        | 0x9fdus -> WalkingUnitSpawn data.[4..]
-        | 0x0080us -> UnitDisappear data.[2..]
-        | 0x10fus -> AddSkill data.[4..]        
-        | 0x0087us -> PlayerWalk data.[2..] callback
-        | 0x0086us -> UnitWalk data.[2..] callback        
-        | 0x07fbus -> SkillCast data.[2..] callback
-        | 0x0088us -> MoveUnit data.[2..] callback
-        | 0x0977us -> UpdateMonsterHP data.[2..]        
-        | 0x008aus -> DamageDealt data.[2..] callback
-        | 0x08c8us -> DamageDealt2 data.[2..] callback        
-        | 0x0addus -> ItemOnGroundAppear data.[2..]
-        | 0x00a1us -> ItemOnGroundDisappear data.[2..]        
-        | 0x2ebus -> ConnectionAccepted data.[2..]
-        | 0x0091us -> MapChange data.[2..]
-        | 0x007fus -> WorldId //world.TickOffset <- Convert.ToInt64(ToUInt32 data.[2..]) - Connection.Tick(); world
+        | 0xadeus -> WeightSoftCap (ToInt32 data.[2..])
+        | 0x9ffus | 0x9feus | 0x9fdus ->
+            //skip MoveStartTime (uint32) for moving units
+            let (part1, leftover) = MakePartialRecord<UnitRawPart1> data.[4..] [||]    
+            let (part2, _) = MakePartialRecord<UnitRawPart2> leftover [|24|]
+            let (x, y, _) = UnpackPosition [|part2.PosPart1; part2.PosPart2; part2.PosPart3|]
+            UnitSpawn (CreateNonPlayer part1 part2 (int x, int y))
+        | 0x0080us ->
+            UnitDisappear (ToUInt32 data.[2..])
+                (Enum.Parse(typeof<DisappearReason>, string data.[6]) :?> DisappearReason)
+        | 0x10fus ->
+            let rec ParseSkill bytes skills =        
+                match bytes with
+                | [||] -> skills 
+                | _ ->
+                //TODO SkillRaw -> Skill
+                let (skill, leftover) = MakePartialRecord<Skill> data [|24|]
+                ParseSkill leftover (skill :: skills)
+            AddSkills (ParseSkill data.[4..] [])        
+        | 0x0087us ->
+            let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]
+            PlayerWalk (int x0, int y0) (int x1, int y1) (int64 <| ToUInt32 data.[2..]) callback
+        | 0x0086us ->
+            let id = ToUInt32 data.[2..]
+            let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]            
+            UnitWalk id (int x0, int y0) (int x1, int y1) (int64 <| ToUInt32 data.[12..]) callback
+        | 0x07fbus -> SkillCast (MakeRecord<RawSkillCast> data.[2..]) callback
+        | 0x0088us -> MoveUnit (MakeRecord<UnitMove> data.[2..]) callback
+        | 0x0977us -> UpdateMonsterHP (MakeRecord<MonsterHPInfo> data.[2..])        
+        | 0x008aus -> DamageDealt (MakeRecord<RawDamageInfo> data.[2..]) callback
+        | 0x08c8us -> DamageDealt2 (MakeRecord<RawDamageInfo2> data.[2..]) callback        
+        | 0x0addus -> AddItemDrop (MakeRecord<ItemDropRaw> data.[2..])
+        | 0x00a1us -> RemoveItemDrop (ToInt32 data.[2..])        
+        | 0x2ebus ->
+            let (x, y, _) = UnpackPosition data.[6..]
+            ConnectionAccepted (int x, int y) (int64 (ToUInt32 data.[2..]))
+        | 0x0091us ->
+            let position = (data.[18..] |> ToUInt16 |> int,
+                            data.[20..] |> ToUInt16 |> int)
+            let map = (let gatFile = ToString data.[..17]
+               gatFile.Substring(0, gatFile.Length - 4))
+            MapChange position map        
+        | 0x007fus -> UpdateTickOffset (int64 (ToUInt32 data.[2..]))
+        | 0x0bdus -> InitialCharacterStatus (MakeRecord<CharacterStatusRaw> data.[2..])
         | 0x0adfus (* ZC_REQNAME_TITLE *) -> WorldId
-        | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> WorldId
-        | 0x0bdus (* ZC_STATUS *) -> WorldId
+        | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> WorldId        
         | 0x121us (* cart info *) -> WorldId
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> WorldId
         | 0x0a9bus (* list of items in the equip switch window *) -> WorldId
