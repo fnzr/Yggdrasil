@@ -239,3 +239,5 @@ type Request =
     | RequestMove of int * int
     | Action of CommandAction
     | PickUpItem of int
+    | Attack of uint32
+    | ContinuousAttack of uint32

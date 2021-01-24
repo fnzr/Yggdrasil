@@ -34,6 +34,16 @@ let OnlineRequest (stream: Stream) (request: Request) =
         | PickUpItem id -> Array.concat [|
                 BitConverter.GetBytes 0x0362us
                 BitConverter.GetBytes id
+            |]
+        | Attack id -> Array.concat [|
+                BitConverter.GetBytes 0x0437us
+                BitConverter.GetBytes id
+                [| byte ActionType.Attack |]
+            |]
+        | ContinuousAttack id -> Array.concat [|
+                BitConverter.GetBytes 0x0437us
+                BitConverter.GetBytes id
+                [| byte ActionType.ContinuousAttack |]
         |]
     Logger.Info ("{request}", request)
     stream.Write(bytes, 0, bytes.Length)
