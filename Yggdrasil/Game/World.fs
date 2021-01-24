@@ -13,6 +13,7 @@ module Connection =
 
 type World =
     {
+        IsConnected: bool
         Player: Player
         Map: string
         ItemDrops: GroundItem list
@@ -20,9 +21,10 @@ type World =
         TickOffset: int64
         Request: Command -> unit
         PingRequested: bool
-        Inbox: (World -> World * WorldEvent list) -> unit
+        Inbox: (World -> World) -> unit
     }
     static member Default = {
+        IsConnected = false
         Player = Player.Default
         Map = ""
         ItemDrops = list.Empty
@@ -57,4 +59,4 @@ module World =
             
     let RequestPing world delay =
         if not world.PingRequested then
-            Utils.Delay (fun () -> world.Inbox (fun w->w, [Ping])) delay
+            Utils.Delay (fun () -> world.Inbox id) delay

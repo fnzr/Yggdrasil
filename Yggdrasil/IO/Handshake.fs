@@ -78,8 +78,8 @@ let onAuthenticationResult callback
         client.Connect(info.ZoneServer)
         
         let stream = client.GetStream()
-        callback
-            (fun world ->
+        callback <|
+            fun world ->
                 { world with
                     Request = Outgoing.Dispatch stream
                     Player = { world.Player with                    
@@ -87,7 +87,7 @@ let onAuthenticationResult callback
                                 Unit = {world.Player.Unit with
                                             Name = info.CharacterName
                                             Id = info.AccountId}}
-                }, [])
+                }
         stream.Write (WantToConnect info)
         Async.Start <|
         async {
@@ -101,7 +101,7 @@ let onAuthenticationResult callback
                 | :? ObjectDisposedException -> ()
                 | e -> Logger.Error e
             finally
-                callback <| fun w -> w, [ConnectionStatus Inactive]
+                callback <| fun w -> {w with IsConnected = false}
         }
     | Error error -> Logger.Error error
     

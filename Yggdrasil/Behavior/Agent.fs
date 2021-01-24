@@ -5,17 +5,16 @@ open Yggdrasil.Behavior.FSM
 
 let Logger = LogManager.GetLogger "Agent"
 
-let EventMailbox initialData initialMachineState (inbox: MailboxProcessor<'data -> 'data * 'event list>) =
+let EventMailbox initialData initialMachineState (inbox: MailboxProcessor<'data -> 'data>) =
     let rec loop currentData currentState = async {
         let! update = inbox.Receive()
-        let (data, events) = update currentData
+        let data = update currentData
         //Logger.Debug ("Updater: {es}", update)
             
         let state =
-            events 
-            |> List.fold (fun s e -> State.Handle e data s) currentState 
+            currentState
+            |> State.MoveState data
             |> State.Tick data
-            |> State.Monitor data
         return! loop data state
         
     }

@@ -19,12 +19,12 @@ let ConnectionAccepted position serverTick world =
     {world with
         TickOffset =  (Connection.Tick()) - serverTick
         Player = setl Player._Position position world.Player
-    }, [ ConnectionStatus Active ]
+        IsConnected = true
+    }
     
 let UpdateTickOffset serverTick world =
-    {world with TickOffset = (Connection.Tick()) - serverTick}, []
+    {world with TickOffset = (Connection.Tick()) - serverTick}
            
-let WorldId w = w, []   
 let PacketReceiver callback (packetType, (packetData: ReadOnlyMemory<byte>)) =
     let data = packetData.ToArray()
     callback <|
@@ -77,21 +77,21 @@ let PacketReceiver callback (packetType, (packetData: ReadOnlyMemory<byte>)) =
             MapChange position map        
         | 0x007fus -> UpdateTickOffset (int64 (ToUInt32 data.[2..]))
         | 0x0bdus -> InitialCharacterStatus (MakeRecord<CharacterStatusRaw> data.[2..])
-        | 0x0adfus (* ZC_REQNAME_TITLE *) -> WorldId
-        | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> WorldId        
-        | 0x121us (* cart info *) -> WorldId
-        | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> WorldId
-        | 0x0a9bus (* list of items in the equip switch window *) -> WorldId
-        | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> WorldId
-        | 0x00b4us (* ZC_SAY_DIALOG *) -> WorldId
-        | 0x00b5us (* ZC_WAIT_DIALOG *) -> WorldId
-        | 0x00b7us (* ZC_MENU_LIST *) -> WorldId
-        | 0x0a30us (* ZC_ACK_REQNAMEALL2 *) -> WorldId
+        | 0x0adfus (* ZC_REQNAME_TITLE *) -> id
+        | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> id        
+        | 0x121us (* cart info *) -> id
+        | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> id
+        | 0x0a9bus (* list of items in the equip switch window *) -> id
+        | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> id
+        | 0x00b4us (* ZC_SAY_DIALOG *) -> id
+        | 0x00b5us (* ZC_WAIT_DIALOG *) -> id
+        | 0x00b7us (* ZC_MENU_LIST *) -> id
+        | 0x0a30us (* ZC_ACK_REQNAMEALL2 *) -> id
         | 0x283us | 0x9e7us (* ZC_NOTIFY_UNREADMAIL *) | 0x1d7us (* ZC_SPRITE_CHANGE2 *)
         | 0x008eus (* ZC_NOTIFY_PLAYERCHAT *) | 0xa24us (* ZC_ACH_UPDATE *) | 0xa23us (* ZC_ALL_ACH_LIST *)
         | 0xa00us (* ZC_SHORTCUT_KEY_LIST_V3 *) | 0x2c9us (* ZC_PARTY_CONFIG *) | 0x02daus (* ZC_CONFIG_NOTIFY *)
         | 0x02d9us (* ZC_CONFIG *) | 0x00b6us (* ZC_CLOSE_DIALOG *) | 0x01b3us (* ZC_SHOW_IMAGE2 *)
-        | 0x00c0us (* ZC_EMOTION *) -> WorldId
-        | 0x0081us -> WorldId//Logger.Error ("Forced disconnect. Code %d", data.[2])
+        | 0x00c0us (* ZC_EMOTION *) -> id
+        | 0x0081us -> id//Logger.Error ("Forced disconnect. Code %d", data.[2])
         | unknown -> Logger.Warn("Unhandled packet {packetType:X}", unknown, data.Length);
-                        WorldId
+                        id

@@ -5,22 +5,19 @@ open Yggdrasil.Behavior.BehaviorTree
 
 let Logger = LogManager.GetLogger "StateMachine"
 
-type State<'data, 'stateId, 'event
-    when 'event:comparison and 'stateId:comparison> = {
+type State<'data, 'stateId when 'stateId:comparison> = {
     Id: 'stateId
     Auto: 'stateId option
     Parent: 'stateId option    
     Behavior: ActiveNode<'data>
-    Events: Map<'event, 'stateId>
-    Monitors: ('data -> 'stateId option) list
+    Transitions: (('data -> bool) * 'stateId) list
 }
 
-type ActiveState<'data, 'stateId, 'event
-    when 'event:comparison and 'stateId:comparison> = {
-    Base: State<'data, 'stateId, 'event>
+type ActiveState<'data, 'stateId
+    when 'stateId:comparison> = {
+    Base: State<'data, 'stateId>
     Behavior: ActiveNode<'data>
-    StateMap: Map<'stateId, State<'data, 'stateId, 'event>>
-    BehaviorResultEvent: Status -> 'event
+    StateMap: Map<'stateId, State<'data, 'stateId>>
 }
 
 module State =
@@ -35,65 +32,46 @@ module State =
             Logger.Debug ("{stateOut} => {stateIn} (auto)", state, s)
             Enter stateMap s
         | None -> _state
-        
-    let rec TryEnter event data (stateMap: Map<_, _>) state =
-        match state.Events.TryFind event with
+            
+    let rec TryTransition (stateMap : Map<_,_>) data state =
+        match List.tryPick (fun (c, s) -> if c data then Some s else None) state.Transitions with
         | None ->
             match state.Parent with
-            | Some p -> TryEnter event data stateMap stateMap.[p]
+            | Some p -> TryTransition stateMap data stateMap.[p]
             | None -> None
         | Some id ->
             Logger.Debug ("{stateOut} => {stateIn}", state.Id, id)
             Some <| Enter stateMap id
         
-    let Handle event data activeState = 
-        match TryEnter event data activeState.StateMap activeState.Base with
-        | Some s -> EnterActiveState s activeState
+    let MoveState data activeState =
+        match TryTransition activeState.StateMap data activeState.Base with
         | None -> activeState
+        | Some s -> EnterActiveState s activeState
         
     let Tick data activeState =
         match activeState.Behavior data with
-        | End e -> 
-            let next = Handle (activeState.BehaviorResultEvent e) data activeState
-            if LanguagePrimitives.PhysicalEquality next activeState then
-                {activeState with Behavior=activeState.Base.Behavior}
-            else next
+        | End _ -> {activeState with Behavior=activeState.Base.Behavior} 
         | Next n -> {activeState with Behavior = n}
         
-    let Monitor data activeState =
-        match List.tryPick (fun m -> m data) activeState.Base.Monitors with
-        | Some id ->
-            EnterActiveState (Enter activeState.StateMap id) activeState
-        | None -> activeState
-
 module Machine =
     let configure stateId = {
         Id = stateId
         Auto = None
         Parent = None
         Behavior = NoOp
-        Events = Map.empty
-        Monitors = []
+        Transitions = []
     }
-    let _true = fun _ -> true
+    let on condition outState state =
+        {state with Transitions= (condition, outState) :: state.Transitions}
+    let parent parent state = {state with Parent = Some parent}
+    let auto autoState state = {state with Auto = Some autoState}
+    let behavior root (state: State<_,_>) = {state with Behavior = root}
     
-    let on event outState state =
-        {state with Events=state.Events.Add(event, outState)}
-
-    let parent parent state = {state with Parent=Some parent}
-        
-    let auto autoState state = {state with Auto=Some autoState}
-    
-    let behavior root (state: State<_,_,_>) = {state with Behavior=root}
-    
-    let monitor fn state = {state with Monitors=fn :: state.Monitors}
-    
-    let CreateMachine states initialState behaviorResultConverter =
+    let CreateMachine states initialState =
         let map = List.fold (fun (m: Map<_,_>) s -> m.Add(s.Id, s)) Map.empty states
         let state = map.[initialState]
         {
             Base = state
             Behavior = state.Behavior
             StateMap = map
-            BehaviorResultEvent = behaviorResultConverter
         } 

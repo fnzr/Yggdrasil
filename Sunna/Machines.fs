@@ -8,6 +8,12 @@ open Yggdrasil.Game.Event
 
 let Logger = LogManager.GetLogger "Machines"
 
+let IsConnected world = world.IsConnected
+let IsDisconnected world = not <| IsConnected world
+
+let PlayerIs status world = world.Player.Unit.Status = status
+    
+
 module DefaultMachine =
     open Yggdrasil.Behavior
     
@@ -23,26 +29,22 @@ module DefaultMachine =
             configure Terminated
                 |> behavior (Trees.Disconnected NoOp)
             configure Disconnected
-                |> on (ConnectionStatus Active) Connected
+                |> on IsConnected Connected
                 |> behavior (Trees.Login NoOp)
             configure Connected
                 |> auto Idle
-                |> on (ConnectionStatus Inactive) Terminated
+                |> on IsDisconnected Terminated
             configure WalkingNorth
                 |> behavior (Trees.WalkNorth DefaultRoot)
                 |> parent Connected
-                |> on (BehaviorResult Success) WalkingSouth
+                |> on (PlayerIs Yggdrasil.Game.Idle) WalkingSouth
             configure WalkingSouth
                 |> behavior (Trees.WalkSouth DefaultRoot)
                 |> parent Connected
-                |> on (BehaviorResult Success) Idle
+                //|> on (BehaviorResult Success) Idle
             configure Idle
                 |> parent Connected
                 |> behavior (Trees.Wait 3000L DefaultRoot)
-                |> on (BehaviorResult Success) WalkingNorth
+                //|> on (BehaviorResult Success) WalkingNorth
         ]
-        let converter (status: BehaviorTree.Status) =
-            match status with
-            | BehaviorTree.Success -> BehaviorResult Success
-            | BehaviorTree.Failure -> BehaviorResult Failure
-        CreateMachine states Disconnected converter
+        CreateMachine states Disconnected

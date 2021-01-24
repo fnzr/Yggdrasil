@@ -5,11 +5,11 @@ open Yggdrasil.Types
 
 let WeightSoftCap value (world: World) =
     world.Player.Inventory.WeightSoftCap <- value
-    world, []
+    world
     
 let RemoveItemDrop id (world: World) =
     {world
-      with ItemDrops = List.filter (fun i -> i.Id <> id) world.ItemDrops}, []
+      with ItemDrops = List.filter (fun i -> i.Id <> id) world.ItemDrops}
     
 let AddItemDrop (info: ItemDropRaw) (world: World) =
     {world
@@ -19,4 +19,4 @@ let AddItemDrop (info: ItemDropRaw) (world: World) =
         Identified = info.Identified > 0uy
         Position = (int info.PosX, int info.PosY)
         Amount = info.Amount} :: world.ItemDrops
-    }, []
+    }

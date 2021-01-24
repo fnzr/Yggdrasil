@@ -14,7 +14,7 @@ type Point = int * int
 let rec TryTakeStep (actionId: Guid) (unitId: uint32)
     callback delay (path: Point list) (world: World) =
         match World.Unit world unitId with
-        | None -> world, []
+        | None -> world
         | Some unit ->            
                 if unit.ActionId = actionId then
                     let newUnit =
@@ -26,8 +26,8 @@ let rec TryTakeStep (actionId: Guid) (unitId: uint32)
                                 do! Async.Sleep (int u.Speed)
                                 callback <| TryTakeStep actionId unitId callback delay tail
                             }; u
-                    World.UpdateUnit newUnit world, [ PlayerPositionChanged ]
-                else world, [ PlayerWalkCanceled ]
+                    World.UpdateUnit newUnit world
+                else world
      
 let StartMove (unit: Unit) callback destination initialDelay (world: World) =
     let map = Maps.GetMapData world.Map
@@ -36,19 +36,19 @@ let StartMove (unit: Unit) callback destination initialDelay (world: World) =
         let id = Guid.NewGuid()
         let delay = if initialDelay < 0L then 0 else Convert.ToInt32 initialDelay
         Async.Start <| async {
-            callback <| fun w -> World.UpdateUnit {unit with ActionId = id; Status = Walking} w, []
+            callback <| World.UpdateUnit {unit with ActionId = id; Status = Walking}
             do! Async.Sleep delay
             callback <| TryTakeStep id unit.Id callback (int unit.Speed) path
         }
     else
         Logger.Error("Unit {name} ({aid}): Could not find walk path: {source} => {dest}",
                      unit.Name, unit.Id, unit.Position, destination)
-    world, []
+    world
 
 let UnitWalk id origin dest startAt callback (world: World) =
     let delay = startAt - Connection.Tick() - world.TickOffset
     match World.Unit world id with
-    | None -> Logger.Warn "Failed handling walk packet: unknown unit"; world, []
+    | None -> Logger.Warn "Failed handling walk packet: unknown unit"; world
     | Some unit ->         
         let w = World.UpdateUnit {unit with Position = origin} world
         StartMove unit callback dest delay w
@@ -60,7 +60,7 @@ let PlayerWalk origin dest startAt callback (world: World) =
     
 let MoveUnit (move: UnitMove) callback (world: World) =
     match World.Unit world move.aid with
-    | None -> Logger.Warn ("Unhandled movement for {aid}", move.aid); world, []
+    | None -> Logger.Warn ("Unhandled movement for {aid}", move.aid); world
     | Some unit -> StartMove unit callback (int move.X, int move.Y) 0L world
     
 let MapChange position map (world: World) =
@@ -76,4 +76,4 @@ let MapChange position map (world: World) =
         Map = map
         NPCs = World.Default.NPCs
         Player = setl Player._Unit unit world.Player
-    }, []
+    }
