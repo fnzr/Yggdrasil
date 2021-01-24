@@ -22,6 +22,7 @@ module Components =
             Id: uint16
             Index: int16
             Type: byte
+            Location: uint32
             WearState: uint32
             IsIdentified: bool
             IsDamaged: bool
@@ -31,6 +32,7 @@ module Components =
                 Id = raw.Base.Id
                 Index = raw.Base.Index
                 Type = raw.Base.Type
+                Location = raw.Base.Location
                 WearState = raw.Base.WearState
                 IsIdentified = raw.Flags.IsIdentified
                 IsDamaged = raw.Flags.IsDamaged

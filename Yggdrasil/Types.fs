@@ -241,3 +241,5 @@ type Request =
     | PickUpItem of int
     | Attack of uint32
     | ContinuousAttack of uint32
+    | Unequip of int16
+    | Equip of int16 * uint32

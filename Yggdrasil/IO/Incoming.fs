@@ -128,6 +128,8 @@ let PacketReceiver callback (packetType: uint16, (packetData: ReadOnlyMemory<byt
             | 0x02d9us (* ZC_CONFIG *) | 0x00b6us (* ZC_CLOSE_DIALOG *) | 0x01b3us (* ZC_SHOW_IMAGE2 *)
             | 0x00c0us (* ZC_EMOTION *) -> None
             | 0x01c3us (* ZC_BROADCAST2 *) -> None
+            | 0x099aus (* ZC_ACK_TAKEOFF_EQUIP_V5 *) -> None
+            | 0x0999us (* ZC_ACK_WEAR_EQUIP_V5 *) -> None
             | unknown -> Logger.Warn("Unhandled packet {packetType:X}", unknown, data.Length); None
         
         match pipeOpt with

@@ -44,6 +44,15 @@ let OnlineRequest (stream: Stream) (request: Request) =
                 BitConverter.GetBytes 0x0437us
                 BitConverter.GetBytes id
                 [| byte ActionType.ContinuousAttack |]
-        |]
+            |]
+        | Unequip index -> Array.concat [|
+                BitConverter.GetBytes 0x00ab
+                BitConverter.GetBytes index
+            |]
+        | Equip (index, location) -> Array.concat [|
+                BitConverter.GetBytes 0x0998us
+                BitConverter.GetBytes index
+                BitConverter.GetBytes location
+            |]
     Logger.Info ("{request}", request)
     stream.Write(bytes, 0, bytes.Length)
