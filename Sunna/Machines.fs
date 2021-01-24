@@ -17,14 +17,14 @@ let IsReady world = world.IsMapReady
 
 let WalkNorth world =
     let (x, y) = world.Player.Position
-    let goal = Some(x + 2, y)
+    let goal = Some(x + 5, y)
     setl World._Player <|
         setl Player._Goals {world.Player.Goals with Position = goal} world.Player
     <| world
     
 let WalkSouth world =
     let (x, y) = world.Player.Position
-    let goal = Some(x - 2, y)
+    let goal = Some(x - 5, y)
     setl World._Player <|
         setl Player._Goals {world.Player.Goals with Position = goal} world.Player
     <| world
@@ -46,7 +46,7 @@ module DefaultMachine =
             configure Terminated
                 |> behavior (Trees.Disconnected NoOp)
             configure Disconnected
-                |> enter Login
+                |> behavior (Trees.Login NoOp)
                 |> on IsConnected Connected
             configure Connected
                 |> auto Idle
@@ -55,16 +55,15 @@ module DefaultMachine =
                 |> enter WalkNorth
                 |> behavior (Trees.Walk DefaultRoot)
                 |> parent Connected
-                |> on (PlayerIs Yggdrasil.Game.Idle) WalkingSouth
+                |> behaviorSuccess WalkingSouth
             configure WalkingSouth
                 |> enter WalkSouth
                 |> behavior (Trees.Walk DefaultRoot)
                 |> parent Connected
                 |> behaviorSuccess Idle
-                |> on (PlayerIs Yggdrasil.Game.Idle) Idle
             configure Idle
                 |> parent Connected
-                |> behavior (Trees.Wait 3000L DefaultRoot)
+                |> behavior (Trees.Wait 1000L DefaultRoot)
                 |> behaviorSuccess WalkingNorth
         ]
         CreateMachine states Disconnected

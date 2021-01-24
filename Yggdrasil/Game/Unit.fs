@@ -39,7 +39,7 @@ type Unit =
         HP = 0        
         Name = ""
         Position = 0, 0
-        Speed = 0s
+        Speed = 150s
     }
     
 module Unit =

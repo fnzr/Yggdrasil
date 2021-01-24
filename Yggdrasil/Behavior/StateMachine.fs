@@ -77,15 +77,19 @@ module State =
         | None -> data, activeState
         | Some (newData, newState) -> newData, EnterActiveState newState activeState
         
-    let Tick (data, activeState) =
+    let rec Tick (data, activeState) =
+        //Logger.Trace ("{state}: Ticking behavior", activeState.Base.Id.ToString())
         match activeState.Behavior data with
         | End result ->
+            Logger.Trace ("{state}: Completed behavior", activeState.Base.Id.ToString())
             if result = Success && activeState.Base.BehaviorSuccess.IsSome then
                 let state = activeState.Base
                 let inState = activeState.StateMap.[state.BehaviorSuccess.Value]
                 let (newData, newState) = ChangeState activeState.StateMap state inState data
-                newData, EnterActiveState newState activeState
-            else data, {activeState with Behavior = activeState.Base.Behavior} 
+                Tick (newData, EnterActiveState newState activeState)
+            else
+                Logger.Trace ("{state}: Resetting behavior tree", activeState.Base.Id.ToString())
+                data, {activeState with Behavior = activeState.Base.Behavior} 
         | Next n -> data, {activeState with Behavior = n}
         
 module Machine =

@@ -16,13 +16,16 @@ let MAX_WALK_DISTANCE = 10
 
 let Wait milliseconds =
     Action {
-        State = 0L
-        Initialize = fun node -> {node with State = Connection.Tick() + milliseconds}
+        State = 0L, 0L
+        Initialize = fun node -> {node with State = Connection.Tick() + milliseconds, 0L}
         Tick = fun world instance ->
-            let diff = instance.State - Connection.Tick()
-            if diff > 0L then                             
-                if not <| world.PingRequested then World.RequestPing world (int diff)
-                Node instance
+            let time = Connection.Tick()
+            let diff = fst instance.State - time
+            if diff > 0L then
+                if time > snd instance.State then
+                    World.Ping world (int diff+1)
+                    Node {instance with State=fst instance.State, time+diff}
+                else Node instance
             else Result Success
                 
     }
@@ -62,7 +65,7 @@ let Walk: NodeCreator<World> =
                     let pos = path
                             |> List.take (Math.Min (MAX_WALK_DISTANCE, path.Length))
                             |> List.last
-                    player.Dispatch(Types.Request.RequestMove pos)                
+                    world.Request(Types.Request.RequestMove pos)                
                     Result Success
             | None -> Result Success
             
@@ -71,7 +74,7 @@ let Walk: NodeCreator<World> =
             PlayerIs Idle
             RequestWalk
             PlayerIs Walking |> RetryTimeout 2000L
-            PlayerIs Idle |> UntilSuccess 
+            PlayerIs Walking |> Not |> UntilSuccess 
         |]
     (*
     While WalkingRequired
@@ -89,3 +92,7 @@ let Disconnected =
             Logger.Warn ("Disconnected: {name}", world.Player.Name)
             Result Success
     }
+    
+let Login =
+    Stateless <|
+        fun world _ -> world.Login world; Result Success

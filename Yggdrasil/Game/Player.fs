@@ -24,7 +24,6 @@ type Player =
         Goals: Goals
         SP: int16
         MaxSP: int16
-        Dispatch: Request -> unit
     }
     static member Default = {
         Unit = Unit.Default
@@ -38,7 +37,6 @@ type Player =
         Goals = Goals.Default
         SP = 0s
         MaxSP = 0s
-        Dispatch = fun _ -> ()
     }
     member this.Id = this.Unit.Id
     member this.Position = this.Unit.Position

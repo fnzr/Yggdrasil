@@ -21,7 +21,6 @@ type World =
         NPCs: Map<uint32, NonPlayer>
         TickOffset: int64
         Request: Request -> unit
-        PingRequested: bool
         Inbox: (World -> World) -> unit
         Login: World -> unit
     }
@@ -33,7 +32,6 @@ type World =
         ItemDrops = list.Empty
         NPCs = Map.empty
         TickOffset = 0L
-        PingRequested = false
         Request = fun _ -> invalidOp "Request function not set"
         Inbox = fun _ -> invalidOp "Inbox not set"
         Login = fun _ -> invalidOp "Login function not set"
@@ -61,6 +59,4 @@ module World =
             let npc = world.NPCs.[unit.Id]
             {world with NPCs = world.NPCs.Add(npc.Id, {npc with Unit = unit})}
             
-    let RequestPing world delay =
-        if not world.PingRequested then
-            Utils.Delay (fun () -> world.Inbox id) delay
+    let Ping world = Utils.Delay (fun () -> world.Inbox id)

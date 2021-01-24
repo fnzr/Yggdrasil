@@ -9,7 +9,7 @@ let EventMailbox initialData initialMachineState (inbox: MailboxProcessor<'data 
     let rec loop currentData currentState = async {
         let! update = inbox.Receive()
         let data = update currentData
-        //Logger.Debug ("Updater: {es}", update)
+        //Logger.Info ("{es}", update)
             
         let (newData, newState) =
             (data, currentState)

@@ -134,7 +134,7 @@ let RetryTimeout currentTime timeout child =
                     else Node {instance with State = (child DefaultRoot), snd instance.State}
         }
     
-let Invert child =
+let Not child =
     fun continuation ->
         let onResult (data, status) =
             match status with

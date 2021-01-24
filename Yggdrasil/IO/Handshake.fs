@@ -81,9 +81,8 @@ let onAuthenticationResult callback
         callback <|
             fun world ->
                 { world with
-                    Request = Outgoing.Dispatch stream
+                    Request = Outgoing.OnlineRequest stream
                     Player = { world.Player with                    
-                                Dispatch = Outgoing.Dispatch stream
                                 Unit = {world.Player.Unit with
                                             Name = info.CharacterName
                                             Id = info.AccountId}}
