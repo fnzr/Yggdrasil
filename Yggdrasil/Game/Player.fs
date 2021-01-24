@@ -16,9 +16,9 @@ type Player =
         Unit: Unit
         Credentials: string * string
         Skills: Skill list
+        SkillPoints: uint32
         Inventory: Inventory
         BattleParameters: BattleParameters
-        AttributePoints: int16
         Attributes: Attributes
         Level: Level
         Goals: Goals
@@ -28,12 +28,12 @@ type Player =
     static member Default = {
         Unit = Unit.Default
         Skills = list.Empty
+        SkillPoints = 0u
         Credentials = "", ""
         Inventory = Inventory.Default
         BattleParameters = BattleParameters.Default
-        AttributePoints = 0s
         Attributes = Attributes.Default
-        Level = Level()
+        Level = Level.Default
         Goals = Goals.Default
         SP = 0s
         MaxSP = 0s
@@ -45,6 +45,7 @@ type Player =
 module Player =
     let inline _Unit f p = f p.Unit <&> fun x -> {p with Unit = x}
     let inline _Inventory f p = f p.Inventory <&> fun x -> {p with Inventory = x}
+    let inline _Level f p = f p.Level <&> fun x -> {p with Level = x}
     let inline _Attributes f p = f p.Attributes <&> fun x -> {p with Attributes = x}
     let inline _MaxSP f p = f p.MaxSP <&> fun x -> {p with MaxSP = x}
     let inline _SP f p = f p.SP <&> fun x -> {p with SP = x}

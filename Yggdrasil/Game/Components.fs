@@ -4,15 +4,18 @@ open FSharpPlus.Lens
 open Yggdrasil.Types
 
 module Components = 
-    type Level() =
-        member val BaseLevel = 0u with get, set
-        member val JobLevel = 0u with get, set
-        member val BaseExp = 0L with get, set
-        member val JobExp = 0L with get, set
-        member val NextBaseExp = 0L with get, set
-        member val NextJobExp = 0L with get, set
-        member val StatusPoints = 0u with get, set
-        member val SkillPoints = 0u with get, set
+    type Level =
+        {
+            BaseLevel: uint32
+            JobLevel: uint32
+            BaseExp: int64
+            JobExp: int64
+            NextBaseExp: int64
+            NextJobExp: int64
+        }
+        static member Default =
+         {BaseLevel=0u;JobLevel=0u;BaseExp=0L;JobExp=0L;
+         NextBaseExp=0L;NextJobExp=0L}
         
     type Equipment =
         {

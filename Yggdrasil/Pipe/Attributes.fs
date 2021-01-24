@@ -11,9 +11,17 @@ let OnU32ParameterUpdate code (value: uint32) (world: World) =
         setl World._Player {world.Player with Inventory = i} world
     else if code = Parameter.Weight then
         setl World._Player (setl Player._Weight value world.Player) world
+    else if code = Parameter.SkillPoints then
+        setl World._Player ({world.Player with SkillPoints = value}) world
+    else if code = Parameter.JobLevel then
+        setl World._Player
+        <| setl Player._Level ({world.Player.Level with JobLevel = value}) world.Player
+        <| world
+    else if code = Parameter.BaseLevel then
+        setl World._Player
+        <| setl Player._Level ({world.Player.Level with BaseLevel = value}) world.Player
+        <| world
     else
-        //| Parameter.SkillPoints -> player.Level.SkillPoints <- value
-        //| Parameter.JobLevel -> player.Level.JobLevel <- value
         //| Parameter.BaseLevel -> player.Level.BaseLevel <- value
         let player = world.Player
         setl World._Player <|
@@ -80,14 +88,17 @@ let OnI32ParameterUpdate code value (world: World) =
         <| world
         
 let On64ParameterUpdate code value (world: World) =
-    let player = world.Player
-    match code with
-        | Parameter.BaseExp -> player.Level.BaseExp <- value
-        | Parameter.JobExp -> player.Level.JobExp <- value
-        | Parameter.NextBaseExp -> player.Level.NextBaseExp <- value
-        | Parameter.NextJobExp -> player.Level.NextJobExp <- value
-        | _ -> ()
-    world
+    let level = world.Player.Level
+    setl World._Player
+    <| setl Player._Level
+        (match code with
+            | Parameter.BaseExp -> {level with BaseExp = value}
+            | Parameter.JobExp -> {level with JobExp = value}
+            | Parameter.NextBaseExp -> {level with NextBaseExp = value}
+            | Parameter.NextJobExp -> {level with NextJobExp = value}
+            | _ -> level)
+        world.Player
+    <| world
     
 let OnPairParameterUpdate code (value, plus) (world: World) =
     let primary = world.Player.Attributes.Primary
@@ -157,12 +168,13 @@ let InitialCharacterStatus (info: CharacterStatusRaw) (world: World) =
                       MagicDefense1 = info.MDEF;MagicDefense2 = info.MDEF2;Hit = info.HIT
                       Flee1 = info.FLEE; Flee2 = info.FLEE;Critical = info.CRIT;}
     let attributes = {world.Player.Attributes
-                        with Primary = primary; UpgradeCost = upgrade}
+                        with Primary = primary
+                             UpgradeCost = upgrade
+                             Points = info.Points}
     
     setl World._Player
         {world.Player with
              Attributes = attributes
-             AttributePoints = info.Points
              BattleParameters = battle
          }
     <| world

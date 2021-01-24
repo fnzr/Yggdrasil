@@ -41,12 +41,13 @@ type BattleParameters =
 
 type Attributes =
     {
+        Points: int16
         Primary: PrimaryAttributes
         Bonus: PrimaryAttributes
         UpgradeCost: PrimaryAttributes
     }
     
-    static member Default = {Primary = PrimaryAttributes.Default
+    static member Default = {Points=0s;Primary = PrimaryAttributes.Default
                              Bonus = PrimaryAttributes.Default
                              UpgradeCost = PrimaryAttributes.Default}
     
