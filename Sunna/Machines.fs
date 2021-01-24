@@ -10,11 +10,7 @@ open Yggdrasil.Game.Event
 let Logger = LogManager.GetLogger "Machines"
 
 let IsConnected world = world.IsConnected
-let IsDisconnected world = not <| IsConnected world
-let PlayerIs status world = world.Player.Unit.Status = status
-
-let IsReady world = world.IsMapReady
-
+let IsDisconnected world = world |> IsConnected |> not
 let WalkNorth world =
     let (x, y) = world.Player.Position
     let goal = Some(x + 5, y)
@@ -28,8 +24,6 @@ let WalkSouth world =
     setl World._Player <|
         setl Player._Goals {world.Player.Goals with Position = goal} world.Player
     <| world
-    
-let Login world = world.Login world; world
     
 module DefaultMachine =
     open Yggdrasil.Behavior
