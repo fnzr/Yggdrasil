@@ -87,5 +87,5 @@ let SkillCast castRaw callback (world: World) =
 
 let AddSkills skills (world: World) =
     setl World._Player
-        {world.Player with Skills = List.concat [skills; world.Player.Skills]}
+        {world.Player with Skills = List.append world.Player.Skills skills}
     <| world

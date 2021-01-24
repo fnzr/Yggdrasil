@@ -6,20 +6,24 @@ open Yggdrasil.Game
 open Yggdrasil.Utils
 
 let OnU32ParameterUpdate code (value: uint32) (world: World) =
-    //| Parameter.SkillPoints -> player.Level.SkillPoints <- value
-            //| Parameter.Weight -> player.Inventory.Weight <- value
-            //| Parameter.MaxWeight -> player.Inventory.MaxWeight <- value
-            //| Parameter.JobLevel -> player.Level.JobLevel <- value
-            //| Parameter.BaseLevel -> player.Level.BaseLevel <- value
-    let player = world.Player
-    setl World._Player <|
-        (match code with
-            | Parameter.MaxHP -> setl Player._MaxHP (int value) player
-            | Parameter.HP -> setl Player._HP (int value) player
-            | Parameter.MaxSP -> setl Player._MaxSP (int16 value) player
-            | Parameter.SP -> setl Player._SP (int16 value) player
-            | _ -> player) 
-    <| world   
+    if code = Parameter.MaxWeight then
+        let i = {world.Player.Inventory with MaxWeight = value}
+        setl World._Player {world.Player with Inventory = i} world
+    else if code = Parameter.Weight then
+        setl World._Player (setl Player._Weight value world.Player) world
+    else
+        //| Parameter.SkillPoints -> player.Level.SkillPoints <- value
+        //| Parameter.JobLevel -> player.Level.JobLevel <- value
+        //| Parameter.BaseLevel -> player.Level.BaseLevel <- value
+        let player = world.Player
+        setl World._Player <|
+            (match code with
+                | Parameter.MaxHP -> setl Player._MaxHP (int value) player
+                | Parameter.HP -> setl Player._HP (int value) player
+                | Parameter.MaxSP -> setl Player._MaxSP (int16 value) player
+                | Parameter.SP -> setl Player._SP (int16 value) player
+                | _ -> player) 
+        <| world   
     
 let OnI16ParameterUpdate code value (world: World) =
     let bp = world.Player.BattleParameters
@@ -58,19 +62,22 @@ let OnU16ParameterUpdate code value (world: World) =
         
     
 let OnI32ParameterUpdate code value (world: World) =
-    let attributes = world.Player.Attributes.Primary
-    setl World._Player <|
-        setl Player._PrimaryAttributes
-            (match code with
-                | Parameter.USTR -> {attributes with STR = int16 value}
-                | Parameter.UAGI -> {attributes with AGI = int16 value}
-                | Parameter.UDEX -> {attributes with DEX = int16 value}
-                | Parameter.UVIT -> {attributes with VIT = int16 value}
-                | Parameter.ULUK -> {attributes with LUK = int16 value}
-                | Parameter.UINT -> {attributes with INT = int16 value}
-                | _ -> attributes)
-            world.Player
-    <| world
+    if code = Parameter.Zeny then
+        setl World._Player (setl Player._Zeny value world.Player) world
+    else 
+        let attributes = world.Player.Attributes.Primary
+        setl World._Player <|
+            setl Player._PrimaryAttributes
+                (match code with
+                    | Parameter.USTR -> {attributes with STR = int16 value}
+                    | Parameter.UAGI -> {attributes with AGI = int16 value}
+                    | Parameter.UDEX -> {attributes with DEX = int16 value}
+                    | Parameter.UVIT -> {attributes with VIT = int16 value}
+                    | Parameter.ULUK -> {attributes with LUK = int16 value}
+                    | Parameter.UINT -> {attributes with INT = int16 value}
+                    | _ -> attributes)
+                world.Player
+        <| world
         
 let On64ParameterUpdate code value (world: World) =
     let player = world.Player
@@ -159,3 +166,8 @@ let InitialCharacterStatus (info: CharacterStatusRaw) (world: World) =
              BattleParameters = battle
          }
     <| world
+    
+let UpdatePartyMemberHP id hp maxHp world =
+    match World.Unit world id with
+    | None -> Logger.Warn ("Unit {aid}: Could not find party member to update HP.", id); world
+    | Some unit -> World.UpdateUnit {unit with HP=hp; MaxHP=maxHp} world

@@ -2,6 +2,7 @@ module Yggdrasil.IO.Incoming
 
 open System
 open NLog
+open Yggdrasil.Game.Components
 open Yggdrasil.Game.Event
 open Yggdrasil.Types
 open Yggdrasil.Utils
@@ -33,18 +34,27 @@ let ParseEquipItem data =
     let parse bytes =
         let (equip, leftover) = MakePartialRecord<RawEquipItemBase> bytes [||]
         let options =
-            leftover.[..leftover.Length-4]
-            |> Array.chunkBySize 5
-            |> Array.fold (fun l o -> (fst <| MakePartialRecord<RawEquipItemOption> o [||]) :: l) []
-        let flags = MakeRecord<RawEquipFlags> leftover.[leftover.Length-4..]
+            //not actually sure if this option count is worth something
+            //maybe it's always 0 but server always(?) sends 5
+            //maybe it's a real value that just defaults to 5
+            [0 .. int equip.OptionCount]
+            |> List.map (fun i -> leftover.[i*5..])
+            |> List.fold (fun t e -> MakeRecord<RawEquipItemOption> e :: t) []
         {
-            Base = equip
-            Flags = flags
+            Base = equip            
             Options = options
+            Flags = {
+                IsIdentified = bytes.[56] &&& 1uy = 1uy
+                IsDamaged = bytes.[56] &&& 2uy = 2uy
+                //didnt check this one, not like I'm gonna use it
+                PlaceEtcTab = bytes.[56] &&& 4uy = 4uy
+            }
         }
     data 
     |> Array.chunkBySize 57
-    |> Array.map parse 
+    |> Array.map parse
+    |> Array.map Equipment.FromRaw
+    |> Array.toList
            
 let PacketReceiver callback (packetType: uint16, (packetData: ReadOnlyMemory<byte>)) =
     let data = packetData.ToArray()
@@ -70,13 +80,12 @@ let PacketReceiver callback (packetType: uint16, (packetData: ReadOnlyMemory<byt
                     (Enum.Parse(typeof<DisappearReason>, string data.[6]) :?> DisappearReason)
             | 0x10fus ->                
                  //TODO SkillRaw -> Skill
-                let rec ParseSkill bytes skills =        
-                    match bytes with
-                    | [||] -> skills 
-                    | _ ->
-                        let (skill, leftover) = MakePartialRecord<Skill> bytes [|24|]
-                        ParseSkill leftover (skill :: skills)
-                Some <| AddSkills (ParseSkill data.[4..] [])        
+                data.[4..]
+                |> Array.chunkBySize 37
+                |> Array.map (fun s -> fst <| MakePartialRecord<Skill> s [|24|])
+                |> Array.toList
+                |> AddSkills
+                |> Some
             | 0x0087us ->
                 let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]
                 Some <| PlayerWalk (int x0, int y0) (int x1, int y1) (int64 <| ToUInt32 data.[2..]) callback

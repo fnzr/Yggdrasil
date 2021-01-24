@@ -2,10 +2,12 @@ module Yggdrasil.Pipe.Item
 
 open Yggdrasil.Game
 open Yggdrasil.Types
-
+open FSharpPlus.Lens
 let WeightSoftCap value (world: World) =
-    world.Player.Inventory.WeightSoftCap <- value
-    world
+    let i = {world.Player.Inventory with WeightSoftCap = value}
+    setl World._Player
+        {world.Player with Inventory = i}
+    <| world
     
 let RemoveItemDrop id (world: World) =
     {world
@@ -20,3 +22,10 @@ let AddItemDrop (info: ItemDropRaw) (world: World) =
         Position = (int info.PosX, int info.PosY)
         Amount = info.Amount} :: world.ItemDrops
     }
+    
+let AddEquipment items world =
+    let i = {world.Player.Inventory with
+              Equipment = List.append world.Player.Inventory.Equipment items}
+    setl World._Player
+    <| setl Player._Inventory i world.Player
+    <| world

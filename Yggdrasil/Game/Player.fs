@@ -29,7 +29,7 @@ type Player =
         Unit = Unit.Default
         Skills = list.Empty
         Credentials = "", ""
-        Inventory = Inventory()
+        Inventory = Inventory.Default
         BattleParameters = BattleParameters.Default
         AttributePoints = 0s
         Attributes = Attributes.Default
@@ -44,6 +44,7 @@ type Player =
 
 module Player =
     let inline _Unit f p = f p.Unit <&> fun x -> {p with Unit = x}
+    let inline _Inventory f p = f p.Inventory <&> fun x -> {p with Inventory = x}
     let inline _Attributes f p = f p.Attributes <&> fun x -> {p with Attributes = x}
     let inline _MaxSP f p = f p.MaxSP <&> fun x -> {p with MaxSP = x}
     let inline _SP f p = f p.SP <&> fun x -> {p with SP = x}
@@ -56,6 +57,9 @@ module Player =
     let inline _HP p = _Unit << Unit._HP <| p
     let inline _MaxHP p = _Unit << Unit._MaxHP <| p
     let inline _Status p = _Unit << Unit._Status <| p
+    
+    let inline _Zeny p = _Inventory << Inventory._Zeny <| p
+    let inline _Weight p = _Inventory << Inventory._Weight <| p
     
     let withStatus status player = setl _Status status player
     

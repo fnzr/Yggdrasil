@@ -66,6 +66,41 @@ type UnitRawPart2 = {
     Name: string
 }
 
+type RawEquipItemBase = {
+    Index: int16
+    Id: uint16
+    Type: byte
+    Location: uint32
+    WearState: uint32
+    RefineLevel: byte
+    Card1: uint16
+    Card2: uint16
+    Card3: uint16
+    Card4: uint16
+    ExpireDate: int
+    BindOnEquipType: uint16
+    SpriteNumber: uint16
+    OptionCount: byte
+}
+
+type EquipFlags = {
+    IsIdentified: bool
+    IsDamaged: bool
+    PlaceEtcTab: bool
+}
+
+type RawEquipItemOption = {
+    Index: int16
+    Value: int16
+    Param: byte
+}
+
+type RawEquipItem = {
+    Base: RawEquipItemBase
+    Flags: EquipFlags
+    Options: RawEquipItemOption list
+}
+
 type RawSkillCast = {
     source: uint32
     target: uint32
