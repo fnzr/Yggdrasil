@@ -31,7 +31,7 @@ let rec TryTakeStep (actionId: Guid) (unitId: uint32)
      
 let StartMove (unit: Unit) callback destination initialDelay (world: World) =
     let map = Maps.GetMapData world.Map
-    let path = Pathfinding.FindPath map unit.Position destination 0        
+    let path = Pathfinding.FindPath map unit.Position destination
     if path.Length > 0 then
         let id = Guid.NewGuid()
         let delay = if initialDelay < 0L then 0 else Convert.ToInt32 initialDelay

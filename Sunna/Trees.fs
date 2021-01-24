@@ -59,7 +59,7 @@ let Walk: NodeCreator<World> =
             match player.Goals.Position with
             | Some (x, y) ->
                 match Navigation.Pathfinding.FindPath
-                      (Navigation.Maps.GetMapData world.Map) player.Position (x, y) 0 with
+                      (Navigation.Maps.GetMapData world.Map) player.Position (x, y) with
                 | [] -> Result Failure
                 | path ->
                     let pos = path
