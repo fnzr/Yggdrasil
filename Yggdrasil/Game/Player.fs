@@ -5,12 +5,11 @@ open Yggdrasil.Game.Components
 open Yggdrasil.Types
 open FSharpPlus.Lens
 
-type Goals() =
-    let mutable position: (int * int) option = None
-    member this.Logger = LogManager.GetLogger("Goals")
-    member this.Position
-        with get() = position
-        and set v = position <- v
+type Goals =
+    {
+        Position: (int * int) option
+    }
+    static member Default = {Position=None}    
         
 type Player =
     {
@@ -25,7 +24,7 @@ type Player =
         Goals: Goals
         SP: int16
         MaxSP: int16
-        Dispatch: Command -> unit
+        Dispatch: Request -> unit
     }
     static member Default = {
         Unit = Unit.Default
@@ -36,7 +35,7 @@ type Player =
         AttributePoints = 0s
         Attributes = Attributes.Default
         Level = Level()
-        Goals = Goals()
+        Goals = Goals.Default
         SP = 0s
         MaxSP = 0s
         Dispatch = fun _ -> ()
@@ -51,6 +50,7 @@ module Player =
     let inline _MaxSP f p = f p.MaxSP <&> fun x -> {p with MaxSP = x}
     let inline _SP f p = f p.SP <&> fun x -> {p with SP = x}
     let inline _BattleParameters f p = f p.BattleParameters <&> fun x -> {p with BattleParameters = x}
+    let inline _Goals f p = f p.Goals <&> fun x -> {p with Goals = x}
     let inline _Position p = _Unit << Unit.__position <| p
     let inline _PrimaryAttributes p = _Attributes << Attributes._Primary <| p
     let inline _BonusAttributes p = _Attributes << Attributes._Bonus <| p

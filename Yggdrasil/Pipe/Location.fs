@@ -73,7 +73,12 @@ let MapChange position map (world: World) =
                     Casting = Unit.Default.Casting}
     Maps.LoadMap map
     {world with
+        IsMapReady = false
         Map = map
         NPCs = World.Default.NPCs
         Player = setl Player._Unit unit world.Player
     }
+    
+let MapProperty property flag world =
+    //dont know what this is yet, but use it as flag
+    {world with IsMapReady = true}

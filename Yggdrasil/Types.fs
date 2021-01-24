@@ -198,7 +198,7 @@ type MonsterHPInfo = {
     HP: int
     MaxHP: int
 }
-type Command =
+type Request =
     | DoneLoadingMap
     | RequestServerTick
     | RequestMove of int * int

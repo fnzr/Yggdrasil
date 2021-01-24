@@ -1,6 +1,7 @@
 module Sunna.Machines
 
 open NLog
+open FSharpPlus.Lens
 open Yggdrasil.Behavior.FSM.Machine
 open Yggdrasil.Behavior.BehaviorTree
 open Yggdrasil.Game
@@ -10,10 +11,26 @@ let Logger = LogManager.GetLogger "Machines"
 
 let IsConnected world = world.IsConnected
 let IsDisconnected world = not <| IsConnected world
-
 let PlayerIs status world = world.Player.Unit.Status = status
-    
 
+let IsReady world = world.IsMapReady
+
+let WalkNorth world =
+    let (x, y) = world.Player.Position
+    let goal = Some(x + 2, y)
+    setl World._Player <|
+        setl Player._Goals {world.Player.Goals with Position = goal} world.Player
+    <| world
+    
+let WalkSouth world =
+    let (x, y) = world.Player.Position
+    let goal = Some(x - 2, y)
+    setl World._Player <|
+        setl Player._Goals {world.Player.Goals with Position = goal} world.Player
+    <| world
+    
+let Login world = world.Login world; world
+    
 module DefaultMachine =
     open Yggdrasil.Behavior
     
@@ -29,22 +46,25 @@ module DefaultMachine =
             configure Terminated
                 |> behavior (Trees.Disconnected NoOp)
             configure Disconnected
+                |> enter Login
                 |> on IsConnected Connected
-                |> behavior (Trees.Login NoOp)
             configure Connected
                 |> auto Idle
                 |> on IsDisconnected Terminated
             configure WalkingNorth
-                |> behavior (Trees.WalkNorth DefaultRoot)
+                |> enter WalkNorth
+                |> behavior (Trees.Walk DefaultRoot)
                 |> parent Connected
                 |> on (PlayerIs Yggdrasil.Game.Idle) WalkingSouth
             configure WalkingSouth
-                |> behavior (Trees.WalkSouth DefaultRoot)
+                |> enter WalkSouth
+                |> behavior (Trees.Walk DefaultRoot)
                 |> parent Connected
-                //|> on (BehaviorResult Success) Idle
+                |> behaviorSuccess Idle
+                |> on (PlayerIs Yggdrasil.Game.Idle) Idle
             configure Idle
                 |> parent Connected
                 |> behavior (Trees.Wait 3000L DefaultRoot)
-                //|> on (BehaviorResult Success) WalkingNorth
+                |> behaviorSuccess WalkingNorth
         ]
         CreateMachine states Disconnected

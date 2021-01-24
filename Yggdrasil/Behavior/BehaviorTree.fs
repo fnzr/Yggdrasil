@@ -11,7 +11,7 @@ and NodeResult<'data> =
     | Next of ActiveNode<'data>
 
 type ParentContinuation<'data> = 'data * Status -> NodeResult<'data>
-//type NodeCreator<'data> = ParentContinuation<'data> -> string -> ActiveNode<'data>
+type NodeCreator<'data> = ParentContinuation<'data> -> ActiveNode<'data>
 
 let Logger = LogManager.GetLogger "BehaviorTree"
 

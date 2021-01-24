@@ -77,12 +77,12 @@ let PacketReceiver callback (packetType, (packetData: ReadOnlyMemory<byte>)) =
             MapChange position map        
         | 0x007fus -> UpdateTickOffset (int64 (ToUInt32 data.[2..]))
         | 0x0bdus -> InitialCharacterStatus (MakeRecord<CharacterStatusRaw> data.[2..])
+        | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> MapProperty (ToInt16 data.[2..]) (ToInt32 data.[4..])
         | 0x0adfus (* ZC_REQNAME_TITLE *) -> id
         | 0x080eus (* ZC_NOTIFY_HP_TO_GROUPM_R2 *) -> id        
         | 0x121us (* cart info *) -> id
         | 0xa0dus (* inventorylistequipType equipitem_info size 57*) -> id
-        | 0x0a9bus (* list of items in the equip switch window *) -> id
-        | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> id
+        | 0x0a9bus (* list of items in the equip switch window *) -> id        
         | 0x00b4us (* ZC_SAY_DIALOG *) -> id
         | 0x00b5us (* ZC_WAIT_DIALOG *) -> id
         | 0x00b7us (* ZC_MENU_LIST *) -> id

@@ -33,9 +33,9 @@
         <Compile Include="Pipe\Combat.fs" />
         <Compile Include="Pipe\Item.fs" />
         <Compile Include="IO\Decoder.fs" />
-        <Compile Include="IO\Stream.fs" />
+        <Compile Include="IO\Stream.fs" />        
+        <Compile Include="IO\Incoming.fs" />
         <Compile Include="IO\Outgoing.fs" />
-        <Compile Include="IO\Incoming.fs" />        
         <Compile Include="IO\Handshake.fs" />       
                
     </ItemGroup>

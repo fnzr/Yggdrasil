@@ -10,21 +10,24 @@ module Connection =
     let stopwatch = Stopwatch()
     stopwatch.Start()
     let Tick () = stopwatch.ElapsedMilliseconds
-
+    
 type World =
     {
         IsConnected: bool
+        IsMapReady: bool
         Player: Player
         Map: string
         ItemDrops: GroundItem list
         NPCs: Map<uint32, NonPlayer>
         TickOffset: int64
-        Request: Command -> unit
+        Request: Request -> unit
         PingRequested: bool
         Inbox: (World -> World) -> unit
+        Login: World -> unit
     }
     static member Default = {
         IsConnected = false
+        IsMapReady = false
         Player = Player.Default
         Map = ""
         ItemDrops = list.Empty
@@ -33,6 +36,7 @@ type World =
         PingRequested = false
         Request = fun _ -> invalidOp "Request function not set"
         Inbox = fun _ -> invalidOp "Inbox not set"
+        Login = fun _ -> invalidOp "Login function not set"
     }
 
 module World =

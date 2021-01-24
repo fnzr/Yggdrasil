@@ -5,7 +5,7 @@ open System.IO
 open NLog
 open Yggdrasil
 open Yggdrasil.Types
-let Logger = LogManager.GetLogger("Dispatcher")
+let Logger = LogManager.GetLogger "Dispatcher"
 
 let PackPosition (x: int) y (dir: byte) =
     [|
@@ -14,9 +14,9 @@ let PackPosition (x: int) y (dir: byte) =
         byte ((y <<< 4)) ||| (dir &&& 0xfuy)
     |]
     
-let Dispatch (stream: Stream) (command: Command) =
+let OnlineRequest (stream: Stream) (request: Request) =
     let bytes =
-        match command with
+        match request with
         | DoneLoadingMap -> BitConverter.GetBytes 0x7dus
         | RequestServerTick -> Array.concat [|
                 BitConverter.GetBytes 0x0360us
@@ -35,5 +35,5 @@ let Dispatch (stream: Stream) (command: Command) =
                 BitConverter.GetBytes 0x0362us
                 BitConverter.GetBytes id
         |]
-    Logger.Info ("{command}", command)
+    Logger.Info ("{request}", request)
     stream.Write(bytes, 0, bytes.Length)

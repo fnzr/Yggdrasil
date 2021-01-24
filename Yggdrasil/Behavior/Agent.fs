@@ -11,12 +11,12 @@ let EventMailbox initialData initialMachineState (inbox: MailboxProcessor<'data 
         let data = update currentData
         //Logger.Debug ("Updater: {es}", update)
             
-        let state =
-            currentState
-            |> State.MoveState data
-            |> State.Tick data
-        return! loop data state
-        
+        let (newData, newState) =
+            (data, currentState)
+            |> State.MoveState
+            |> State.Tick
+        //let newState =  data midState
+        return! loop newData newState
     }
     loop initialData initialMachineState
     

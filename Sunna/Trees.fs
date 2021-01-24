@@ -44,8 +44,11 @@ let WantsToWalk =
 let RetryTimeout timeout child =
     RetryTimeout Connection.Tick timeout child
 
-let Walk =
-    
+let Walk: NodeCreator<World> =
+    let WalkingRequired world =
+        world.Player.Goals.Position.IsSome &&
+            world.Player.Goals.Position.Value <> world.Player.Position
+            
     let RequestWalk =
         Stateless <|
         fun world _ -> 
@@ -59,17 +62,16 @@ let Walk =
                     let pos = path
                             |> List.take (Math.Min (MAX_WALK_DISTANCE, path.Length))
                             |> List.last
-                    player.Dispatch(Types.Command.RequestMove pos)                
+                    player.Dispatch(Types.Request.RequestMove pos)                
                     Result Success
             | None -> Result Success
             
-    Forever <|
+    While WalkingRequired <|
         Sequence [|
             PlayerIs Idle
-            WantsToWalk
             RequestWalk
             PlayerIs Walking |> RetryTimeout 2000L
-            PlayerIs Walking |> Invert |> UntilSuccess 
+            PlayerIs Idle |> UntilSuccess 
         |]
     (*
     While WalkingRequired
@@ -79,17 +81,6 @@ let Walk =
             => StoppedWalking)
     *)
     
-let Login =
-    Action {
-        State = ()
-        Initialize = id
-        Tick = fun world _ ->
-            let server = IPEndPoint (IPAddress.Parse "127.0.0.1", 6900)
-            let (user, pass) = world.Player.Credentials
-            Handshake.Login server user pass world.Inbox
-            Result Success
-    }
-    
 let Disconnected =
     Action {
         State = ()
@@ -98,19 +89,3 @@ let Disconnected =
             Logger.Warn ("Disconnected: {name}", world.Player.Name)
             Result Success
     }
-    
-let WalkNorth =
-    let SetNorthGoal =
-        Stateless <| fun world _ ->
-                     let (x, y) = world.Player.Position
-                     world.Player.Goals.Position <- Some(x + 5, y)
-                     Result Success
-    Sequence [|SetNorthGoal; Walk|]
-    
-let WalkSouth =
-    let SetSouthGoal =
-        Stateless <| fun world _ ->
-                     let (x, y) = world.Player.Position
-                     world.Player.Goals.Position <- Some(x - 5, y)
-                     Result Success
-    Sequence [|SetSouthGoal; Walk|]
