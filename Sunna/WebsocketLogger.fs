@@ -4,9 +4,26 @@ open NLog
 open NLog.Targets
 open Suave.Sockets
 open Suave.WebSocket
+open Microsoft.FSharpLu.Json
+
+type Message<'a> = {
+    Label: string
+    Message: 'a
+}
+
+type WebsocketLogger() =
+    inherit Logger()
+    
+    member this.Send label message =
+        let msg = Default.serialize {
+            Label = label
+            Message = message
+        }
+        base.Info(msg)
+        
 
 [<Target("Websocket")>]
-type WebsocketLogger() =
+type WebsocketTarget() =
     inherit TargetWithLayout()
     static let mutable socket: WebSocket option = None
     

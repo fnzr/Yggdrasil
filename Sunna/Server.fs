@@ -9,8 +9,8 @@ open Suave.Operators
 open Suave.Successful
 open Sunna.JsonLogger
 
-let ws (webSocket: WebSocket) (context: HttpContext) =
-    WebsocketLogger.Socket <- Some webSocket
+let ws (webSocket: WebSocket) (_: HttpContext) =
+    WebsocketTarget.Socket <- Some webSocket
     socket {
         let mutable loop = true
 

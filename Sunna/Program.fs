@@ -3,13 +3,15 @@ open System
 open System.Diagnostics
 open System.Net
 open NLog
+open NLog
 open NLog.Config
+open Sunna.JsonLogger
 open Yggdrasil.Behavior
 open Yggdrasil.Game
 open Yggdrasil.Behavior.BehaviorTree
 open Sunna.Machines
 open Sunna.Trees
-
+open Microsoft.FSharpLu.Json
 let OnlineLogin world =
     let server = IPEndPoint (IPAddress.Parse "192.168.2.10", 6900)
     let (user, pass) = world.Player.Credentials
@@ -24,11 +26,15 @@ let StartAgent credentials initialMachineState =
     let inbox = Agent.SetupAgent world initialMachineState
     inbox.Post <|
         fun w -> {w with Inbox = inbox.Post}
+let Tracer = LogManager.GetLogger ("Tracer", typeof<WebsocketLogger>) :?> WebsocketLogger
 
 [<EntryPoint>]
 let main _ =
     Async.Start <| async { Sunna.Server.StartServer() }
+    //printfn "%s" <| (Default.serialize World.Default)
     Console.ReadKey() |> ignore
+    Tracer.Send "Hello" World.Default
+    Tracer.Send "Two" {World.Default with Map="aaaaaaaa"}
     //LogManager.Setup().SetupExtensions(
      //   fun s -> s.RegisterTarget<JsonLogger.MyFirstTarget>("first") |> ignore) |> ignore
     //ConfigurationItemFactory.Default.Targets.RegisterDefinition("first", typeof<JsonLogger.MyFirstTarget>)
