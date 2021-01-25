@@ -5,9 +5,7 @@ open System.IO
 open System.Net
 open System.Net.Sockets
 open NLog
-open FSharpPlus.Lens
 open Yggdrasil.Game
-open Yggdrasil.Game.Event
 open Yggdrasil.Utils
 open Yggdrasil.IO.Stream
 

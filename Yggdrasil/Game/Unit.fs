@@ -3,7 +3,6 @@ namespace Yggdrasil.Game
 open System
 open NLog
 open Yggdrasil.Types
-open Yggdrasil.Game.Event
 open Yggdrasil.Game.Skill
 open FSharpPlus.Lens
 

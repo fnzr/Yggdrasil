@@ -20,7 +20,6 @@
         <Compile Include="Behavior\BehaviorTree.fs" />
         <Compile Include="Behavior\StateMachine.fs" />
         <Compile Include="Behavior\Agent.fs" />
-        <Compile Include="Game\GameEvent.fs" />
         <Compile Include="Game\Attributes.fs" />
         <Compile Include="Game\Components.fs" />
         <Compile Include="Game\Skill.fs" />

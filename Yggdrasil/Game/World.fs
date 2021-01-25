@@ -3,7 +3,6 @@ namespace Yggdrasil.Game
 open System.Diagnostics
 open FSharpPlus.Lens
 open Yggdrasil
-open Yggdrasil.Game.Event
 open Yggdrasil.Types
 
 module Connection =

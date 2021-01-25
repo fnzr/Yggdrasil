@@ -4,7 +4,6 @@ open System
 open NLog
 open FSharpPlus.Lens
 open Yggdrasil.Game
-open Yggdrasil.Game.Event
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 
@@ -67,6 +66,7 @@ let MoveUnit (move: UnitMove) callback (world: World) =
     | Some unit -> StartMove unit callback (int move.X, int move.Y) 0L world
     world
     
+let Tracer = LogManager.GetLogger "Tracer"
 let MapChange position map (world: World) =
     world.Request DoneLoadingMap
     let unit = {world.Player.Unit with

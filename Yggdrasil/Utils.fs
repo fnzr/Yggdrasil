@@ -33,7 +33,7 @@ let SetValue (logger: Logger) (field: byref<'T>) (value: 'T) (description: strin
         field <- value
         true
         
-let Delay fn delay = Async.Start <| async {
+let Delay fn (delay: int) = Async.Start <| async {
     do! Async.Sleep delay
     fn()
 }

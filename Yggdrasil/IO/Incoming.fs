@@ -3,7 +3,6 @@ module Yggdrasil.IO.Incoming
 open System
 open NLog
 open Yggdrasil.Game.Components
-open Yggdrasil.Game.Event
 open Yggdrasil.Types
 open Yggdrasil.Utils
 open Yggdrasil.Game
