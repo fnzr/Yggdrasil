@@ -10,19 +10,24 @@ let Logger = LogManager.GetLogger("LivePacket")
 let ServerIP = IPAddress.Parse "192.168.2.10"
 let ClientIP = IPAddress.Parse "192.168.2.3"
 
-let BlankMailbox = MailboxProcessor.Start(fun inbox ->
-    let rec loop () = async {
-        let! _ = inbox.Receive()
-        return! loop ()
+let Player =
+    {Player.Default with
+        Unit = {Unit.Default with
+                 Id = 2000001u}
+     }
+let initialWorld =
+    {World.Default with Player = Player}
+    
+let Mailbox = MailboxProcessor.Start(fun inbox ->
+    let rec loop currentWorld = async {
+        let! pipe = inbox.Receive()
+        let world = pipe currentWorld
+        return! loop world
     }
-    loop())
+    loop initialWorld)
+let MapToClientCallback = Yggdrasil.IO.Incoming.PacketReceiver Mailbox.Post
 
-Game.World.Player.Id <- 2000001u
-let MapToClientCallback = Yggdrasil.IO.Incoming.OnPacketReceived Game
-//let mutable MapToClientQueue = Array.empty
-//let mutable ClientToMapQueue = Array.empty
-
-let OnClientToServerPacket (packetType: uint16) packetData =
+let OnClientToServerPacket (packetType: uint16, packetData) =
     match packetType with
     | 0x0087us -> () //ZC_NOTIFY_PLAYERMOVE
     | 0x0360us -> () //CZ_REQUEST_TIME2
@@ -36,8 +41,6 @@ let OnClientToServerPacket (packetType: uint16) packetData =
     | 0x0361us-> () //CZ_CHANGE_DIRECTION2
     | _ -> Logger.Info ("Packet: {packetType:X}", packetType)
 
-let CSLock = obj()
-let SCLock = obj()
 let MapToClientQueue = ConcurrentQueue<byte []>()
 let ClientToMapQueue = ConcurrentQueue<byte []>()
 let OnPacketArrival (e: CaptureEventArgs) =
