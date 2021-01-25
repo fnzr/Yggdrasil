@@ -5,7 +5,6 @@ open FSharpPlus.Lens
 open Yggdrasil.Behavior.FSM.Machine
 open Yggdrasil.Behavior.BehaviorTree
 open Yggdrasil.Game
-open Yggdrasil.Game.Event
 
 let Logger = LogManager.GetLogger "Machines"
 
@@ -58,6 +57,6 @@ module DefaultMachine =
             configure Idle
                 |> parent Connected
                 |> behavior (Trees.Wait 1000L DefaultRoot)
-                |> behaviorSuccess WalkingNorth
+                //|> behaviorSuccess WalkingNorth
         ]
         CreateMachine states Disconnected

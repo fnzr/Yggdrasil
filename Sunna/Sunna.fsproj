@@ -6,13 +6,16 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="WebsocketLogger.fs" />
         <Compile Include="Trees.fs" />
         <Compile Include="Machines.fs" />
-        <Compile Include="Program.fs" />        
+        <Compile Include="Server.fs" />
+        <Compile Include="Program.fs" />         
     </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="NLog" Version="4.7.5" />
+      <PackageReference Include="Suave" Version="2.6.0" />
     </ItemGroup>
 
     <ItemGroup>
