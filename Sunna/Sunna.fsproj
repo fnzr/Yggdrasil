@@ -6,7 +6,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="WebsocketLogger.fs" />
+        <Compile Include="WebsocketLoggerTarget.fs" />
         <Compile Include="Trees.fs" />
         <Compile Include="Machines.fs" />
         <Compile Include="Server.fs" />

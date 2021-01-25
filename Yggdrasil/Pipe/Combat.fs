@@ -2,14 +2,16 @@ module Yggdrasil.Pipe.Combat
 
 open System
 open FSharpPlus.Lens
+open NLog
 open Yggdrasil.Game.Skill
 open Yggdrasil.Types
 open Yggdrasil.Utils
 open Yggdrasil.Game
+let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
 
 let ProcessDamage (target: Unit) (source: Unit) (damageInfo: DamageInfo)  world =
     let unit = {target with HP = target.HP - damageInfo.Damage}
-    World.UpdateUnit unit world
+    Tracer.Send World.UpdateUnit unit world
 
 //it's really not worth it to refactor this into one function...
 //08c8
@@ -45,7 +47,7 @@ let DamageDealt (info: RawDamageInfo) callback (world: World) =
 let UpdateMonsterHP (info: MonsterHPInfo) (world: World) =
     match World.Unit world info.aid with
     | Some unit ->
-        World.UpdateUnit {unit with HP = info.HP; MaxHP = info.MaxHP} world
+        Tracer.Send World.UpdateUnit {unit with HP = info.HP; MaxHP = info.MaxHP} world
     | None -> Logger.Warn ("Unhandled HP update for {aid}", info.aid); world
     
 //I assume the skill effect comes in another packet...
@@ -55,15 +57,15 @@ let ClearSkill (actionId: Guid) (sourceId: uint32) (targetId: uint32) (skillCast
         | None -> world
         | Some source ->
             if source.ActionId = actionId then
-                World.UpdateUnit {source with Status = Idle} world
+                Tracer.Send World.UpdateUnit {source with Status = Idle} world
             else world
     match World.Unit world targetId with
     | None -> w1
     | Some target ->
         let filter = fun (s: SkillCast, u: Unit) ->
             s.SkillId <> skillCast.SkillId || u.Id <> targetId
-        World.UpdateUnit {target
-                          with TargetOfSkills = List.filter filter target.TargetOfSkills}
+        Tracer.Send World.UpdateUnit
+            {target with TargetOfSkills = List.filter filter target.TargetOfSkills}
         <| w1
             
     
@@ -79,13 +81,14 @@ let SkillCast castRaw callback (world: World) =
             let id = Guid.NewGuid()
             callback <| fun world ->
                 let w1 = World.UpdateUnit {caster with ActionId = id; Status = Casting} world
-                World.UpdateUnit {target with TargetOfSkills = (cast, caster) :: target.TargetOfSkills} w1
+                Tracer.Send World.UpdateUnit {target with TargetOfSkills = (cast, caster) :: target.TargetOfSkills} w1
             do! Async.Sleep (int castRaw.delay)
             callback <| ClearSkill id caster.Id target.Id cast
         }
     world
 
 let AddSkills skills (world: World) =
+    Tracer.Send <|
     setl World._Player
         {world.Player with Skills = List.append world.Player.Skills skills}
     <| world

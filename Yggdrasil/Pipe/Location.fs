@@ -6,8 +6,10 @@ open FSharpPlus.Lens
 open Yggdrasil.Game
 open Yggdrasil.Navigation
 open Yggdrasil.Types
+open Yggdrasil.Utils
 
 let Logger = LogManager.GetLogger "Location"
+let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
 
 type Point = int * int
 let rec TryTakeStep (actionId: Guid) (unitId: uint32)
@@ -19,14 +21,14 @@ let rec TryTakeStep (actionId: Guid) (unitId: uint32)
                     let newUnit =
                         let u = {unit with Position = (fst path.Head, snd path.Head)}
                         match path.Tail with
-                        | [] -> {u with Status = Yggdrasil.Game.Idle}
+                        | [] -> {u with Status = Idle}
                         | tail ->
                             Async.Start <| async {
                                 do! Async.Sleep (int u.Speed)
                                 callback <| TryTakeStep actionId unitId callback delay tail
                             }; u
-                    World.UpdateUnit newUnit world
-                else world
+                    Tracer.Send World.UpdateUnit newUnit world
+                else Tracer.Send (world, "Cancelled Walk")
      
 let StartMove (unit: Unit) callback destination initialDelay (world: World) =
     let map = Maps.GetMapData world.Map
@@ -51,22 +53,21 @@ let UnitWalk id origin dest startAt callback (world: World) =
     | Some unit ->         
         let w = World.UpdateUnit {unit with Position = origin} world
         StartMove unit callback dest delay w
-        w
+        Tracer.Send w
     
         
 let PlayerWalk origin dest startAt callback (world: World) =
     let delay = startAt - Connection.Tick() + world.TickOffset    
     let w = World.withPlayerPosition origin world
     StartMove world.Player.Unit callback dest delay w
-    world
+    Tracer.Send world
     
 let MoveUnit (move: UnitMove) callback (world: World) =
     match World.Unit world move.aid with
     | None -> Logger.Warn ("Unhandled movement for {aid}", move.aid)
     | Some unit -> StartMove unit callback (int move.X, int move.Y) 0L world
-    world
+    Tracer.Send world
     
-let Tracer = LogManager.GetLogger "Tracer"
 let MapChange position map (world: World) =
     world.Request DoneLoadingMap
     let unit = {world.Player.Unit with
@@ -76,12 +77,14 @@ let MapChange position map (world: World) =
                     TargetOfSkills = Unit.Default.TargetOfSkills
                     Casting = Unit.Default.Casting}
     Maps.LoadMap map
-    {world with
-        IsMapReady = false
-        Map = map
-        NPCs = World.Default.NPCs
-        Player = setl Player._Unit unit world.Player
-    }
+    Tracer.Send
+        {world with
+            IsMapReady = false
+            Map = map
+            NPCs = World.Default.NPCs
+            Player = setl Player._Unit unit world.Player
+        }
+    
     
 let MapProperty property flag world =
     //dont know what this is yet, but use it as flag

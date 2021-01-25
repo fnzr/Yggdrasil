@@ -46,6 +46,7 @@
     <ItemGroup>
       <PackageReference Include="FSharpPlus" Version="1.2.0-CI01803" />
       <PackageReference Include="FSharpx.Collections" Version="2.1.3" />
+      <PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.6" />
       <PackageReference Include="NLog" Version="4.7.5" />
       <PackageReference Include="OptimizedPriorityQueue" Version="5.0.0" />
       <PackageReference Include="YamlDotNet" Version="9.1.0" />

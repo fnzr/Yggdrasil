@@ -1,7 +1,10 @@
 module Yggdrasil.Utils
 
 open System
+open System.Runtime.CompilerServices
+open System.Runtime.InteropServices
 open System.Text
+open Microsoft.FSharpLu.Json
 open NLog
 open Yggdrasil.Types
 
@@ -38,6 +41,22 @@ let Delay fn (delay: int) = Async.Start <| async {
     fn()
 }
 
+type Message<'a> = {
+    Label: string
+    Message: 'a
+}
+
+type JsonLogger() =
+    inherit Logger()
+    member this.Send (message,
+                      [<CallerMemberName; Optional; DefaultParameterValue("")>] label: string) =
+        let msg = Default.serialize {
+            Label = label
+            Message = message
+        }
+        base.Info(msg)
+        message
+
 module Hex =
     
         [<CompiledName("ToHexDigit")>]
@@ -49,7 +68,7 @@ module Hex =
             if c >= '0' && c <= '9' then int c - int '0'
             elif c >= 'A' && c <= 'F' then (int c - int 'A') + 10
             elif c >= 'a' && c <= 'f' then (int c - int 'a') + 10
-            else raise <| new ArgumentException()
+            else raise <| ArgumentException()
         
         [<CompiledName("Encode")>]
         let encode (buf:byte array) (prefix:bool) =
@@ -60,8 +79,8 @@ module Hex =
                 n <- n + 1
                 hex.[n] <- toHexDigit (int buf.[i] &&& 0xF)
                 n <- n + 1
-            if prefix then String.Concat("0x", new String(hex)) 
-            else new String(hex)
+            if prefix then String.Concat("0x", String(hex)) 
+            else String(hex)
             
         [<CompiledName("Decode")>]
         let decode (s:string) =

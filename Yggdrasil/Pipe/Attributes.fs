@@ -1,10 +1,11 @@
 module Yggdrasil.Pipe.Attributes
 
 open FSharpPlus.Lens
+open NLog
 open Yggdrasil.Types
 open Yggdrasil.Game
 open Yggdrasil.Utils
-
+let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
 let OnU32ParameterUpdate code (value: uint32) (world: World) =
     if code = Parameter.MaxWeight then
         let i = {world.Player.Inventory with MaxWeight = value}
@@ -24,17 +25,19 @@ let OnU32ParameterUpdate code (value: uint32) (world: World) =
     else
         //| Parameter.BaseLevel -> player.Level.BaseLevel <- value
         let player = world.Player
-        setl World._Player <|
-            (match code with
-                | Parameter.MaxHP -> setl Player._MaxHP (int value) player
-                | Parameter.HP -> setl Player._HP (int value) player
-                | Parameter.MaxSP -> setl Player._MaxSP (int16 value) player
-                | Parameter.SP -> setl Player._SP (int16 value) player
-                | _ -> player) 
-        <| world   
+        Tracer.Send <|
+            (setl World._Player <|
+                (match code with
+                    | Parameter.MaxHP -> setl Player._MaxHP (int value) player
+                    | Parameter.HP -> setl Player._HP (int value) player
+                    | Parameter.MaxSP -> setl Player._MaxSP (int16 value) player
+                    | Parameter.SP -> setl Player._SP (int16 value) player
+                    | _ -> player) 
+            <| world)   
     
 let OnI16ParameterUpdate code value (world: World) =
     let bp = world.Player.BattleParameters
+    Tracer.Send <|
     setl World._Player <|
         setl Player._BattleParameters 
             (match code with
@@ -47,11 +50,12 @@ let OnI16ParameterUpdate code value (world: World) =
     <| world
     
 let OnU16ParameterUpdate code value (world: World) =
+    Tracer.Send <|
     setl World._Player <|
-    if code = Parameter.Speed then
+    if code = Parameter.Speed then        
         setl Player._Unit {world.Player.Unit with Speed = int16 value} world.Player
     else
-        let bp = world.Player.BattleParameters        
+        let bp = world.Player.BattleParameters
         setl Player._BattleParameters
             (match code with    
             | Parameter.AttackSpeed -> {bp with AttackSpeed = value}
@@ -71,9 +75,11 @@ let OnU16ParameterUpdate code value (world: World) =
     
 let OnI32ParameterUpdate code value (world: World) =
     if code = Parameter.Zeny then
+        Tracer.Send <|
         setl World._Player (setl Player._Zeny value world.Player) world
     else 
         let attributes = world.Player.Attributes.Primary
+        Tracer.Send <|
         setl World._Player <|
             setl Player._PrimaryAttributes
                 (match code with
@@ -89,6 +95,7 @@ let OnI32ParameterUpdate code value (world: World) =
         
 let On64ParameterUpdate code value (world: World) =
     let level = world.Player.Level
+    Tracer.Send <|
     setl World._Player
     <| setl Player._Level
         (match code with
@@ -118,6 +125,7 @@ let OnPairParameterUpdate code (value, plus) (world: World) =
             | Parameter.INT ->
                 {primary with INT = value}, {bonus with INT = plus}
             | _ -> (primary, bonus)
+    Tracer.Send <|
     setl World._Player <|
         setl Player._Attributes
             {world.Player.Attributes
@@ -172,6 +180,7 @@ let InitialCharacterStatus (info: CharacterStatusRaw) (world: World) =
                              UpgradeCost = upgrade
                              Points = info.Points}
     
+    Tracer.Send <|
     setl World._Player
         {world.Player with
              Attributes = attributes
