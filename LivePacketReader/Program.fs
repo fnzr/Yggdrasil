@@ -11,12 +11,14 @@ let ServerIP = IPAddress.Parse "192.168.2.10"
 let ClientIP = IPAddress.Parse "192.168.2.3"
 
 let Player =
-    {Player.Default with
-        Unit = {Unit.Default with
-                 Id = 2000001u}
-     }
+    {Unit.Default with
+        Type = UnitType.Player
+        Id = 2000001u
+    }
 let initialWorld =
-    {World.Default with Player = Player}
+    {Game.Default with
+        PlayerId = Player.Id
+        Units = Map.empty.Add(Player.Id, Player)}
     
 let Mailbox = MailboxProcessor.Start(fun inbox ->
     let rec loop currentWorld = async {

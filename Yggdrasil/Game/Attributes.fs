@@ -37,7 +37,7 @@ type BattleParameters =
     static member Default = {AttackRange = 0us;AttackSpeed = 0us;Attack1 = 0s;Attack2 = 0s
                              MagicAttack1 = 0s;MagicAttack2 = 0s;Defense1 = 0s;Defense2 = 0s
                              MagicDefense1 = 0s;MagicDefense2 = 0s;Hit = 0s;Flee1 = 0s
-                             Flee2 = 0s;Critical = 0s;}
+                             Flee2 = 0s;Critical = 0s}
 
 type Attributes =
     {

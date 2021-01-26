@@ -31,14 +31,14 @@ let Wait milliseconds =
     }
     
 let PlayerIs status =
-    Stateless (fun world _ ->
-                    Result <| if world.Player.Unit.Status = status
+    Stateless (fun (world: Game) _ ->
+                    Result <| if world.Player.Status = status
                         then Success
                         else Failure)
     
 let WantsToWalk =
     Stateless (fun world _ ->
-                    Result <| (match world.Player.Goals.Position with
+                    Result <| (match world.Goals.Position with
                                 | None -> Failure
                                 | Some p -> if p <> world.Player.Position
                                             then Success
@@ -47,16 +47,16 @@ let WantsToWalk =
 let RetryTimeout timeout child =
     RetryTimeout Connection.Tick timeout child
 
-let Walk: NodeCreator<World> =
+let Walk: NodeCreator<Game> =
     let WalkingRequired world =
-        world.Player.Goals.Position.IsSome &&
-            world.Player.Goals.Position.Value <> world.Player.Position
+        world.Goals.Position.IsSome &&
+            world.Goals.Position.Value <> world.Player.Position
             
     let RequestWalk =
         Stateless <|
-        fun world _ -> 
+        fun (world: Game) _ -> 
             let player = world.Player
-            match player.Goals.Position with
+            match world.Goals.Position with
             | Some (x, y) ->
                 match Navigation.Pathfinding.FindPath
                       (Navigation.Maps.GetMapData world.Map) player.Position (x, y) with
@@ -88,7 +88,7 @@ let Disconnected =
     Action {
         State = ()
         Initialize = id
-        Tick = fun world _ ->
+        Tick = fun (world: Game) _ ->
             Logger.Warn ("Disconnected: {name}", world.Player.Name)
             Result Success
     }

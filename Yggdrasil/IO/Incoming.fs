@@ -15,10 +15,11 @@ open Yggdrasil.Pipe.Item
 open FSharpPlus.Lens
 let Logger = LogManager.GetLogger "Incoming"
 
-let ConnectionAccepted position serverTick world =
+let ConnectionAccepted position serverTick (world: Game) =
+    let player = {world.Player with Position = position}
     {world with
         TickOffset =  (Connection.Tick()) - serverTick
-        Player = setl Player._Position position world.Player
+        Units = world.Units.Add(player.Id, player)
         IsConnected = true
     }
     

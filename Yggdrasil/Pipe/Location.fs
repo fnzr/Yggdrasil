@@ -13,8 +13,8 @@ let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
 
 type Point = int * int
 let rec TryTakeStep (actionId: Guid) (unitId: uint32)
-    callback delay (path: Point list) (world: World) =
-        match World.Unit world unitId with
+    callback delay (path: Point list) (world: Game) =
+        match world.Units.TryFind unitId with
         | None -> world
         | Some unit ->            
                 if unit.ActionId = actionId then
@@ -30,7 +30,7 @@ let rec TryTakeStep (actionId: Guid) (unitId: uint32)
                     Tracer.Send World.UpdateUnit newUnit world
                 else Tracer.Send (world, "Cancelled Walk")
      
-let StartMove (unit: Unit) callback destination initialDelay (world: World) =
+let StartMove (unit: Unit) callback destination initialDelay (world: Game) =
     let map = Maps.GetMapData world.Map
     let path = Pathfinding.FindPath map unit.Position destination
     if path.Length > 0 then
@@ -46,31 +46,32 @@ let StartMove (unit: Unit) callback destination initialDelay (world: World) =
                      unit.Name, unit.Id, unit.Position, destination)
     
 
-let UnitWalk id origin dest startAt callback (world: World) =
+let UnitWalk id origin dest startAt callback (world: Game) =
     let delay = startAt - Connection.Tick() - world.TickOffset
-    match World.Unit world id with
+    match world.Units.TryFind id with
     | None -> Logger.Warn "Failed handling walk packet: unknown unit"; world
     | Some unit ->         
-        let w = World.UpdateUnit {unit with Position = origin} world
+        let w = world.UpdateUnit {unit with Position = origin}
         StartMove unit callback dest delay w
         Tracer.Send w
     
         
-let PlayerWalk origin dest startAt callback (world: World) =
-    let delay = startAt - Connection.Tick() + world.TickOffset    
-    let w = World.withPlayerPosition origin world
-    StartMove world.Player.Unit callback dest delay w
+let PlayerWalk origin dest startAt callback (world: Game) =
+    let delay = startAt - Connection.Tick() + world.TickOffset
+    
+    let w = world.UpdateUnit {world.Player with Position = origin}
+    StartMove world.Player callback dest delay w
     Tracer.Send world
     
-let MoveUnit (move: UnitMove) callback (world: World) =
-    match World.Unit world move.aid with
+let MoveUnit (move: UnitMove) callback (world: Game) =
+    match world.Units.TryFind move.aid with
     | None -> Logger.Warn ("Unhandled movement for {aid}", move.aid)
     | Some unit -> StartMove unit callback (int move.X, int move.Y) 0L world
     Tracer.Send world
     
-let MapChange position map (world: World) =
+let MapChange position map (world: Game) =
     world.Request DoneLoadingMap
-    let unit = {world.Player.Unit with
+    let player = {world.Player with
                     Position = position
                     ActionId = Unit.Default.ActionId                    
                     Status = Unit.Default.Status
@@ -81,8 +82,7 @@ let MapChange position map (world: World) =
         {world with
             IsMapReady = false
             Map = map
-            NPCs = World.Default.NPCs
-            Player = setl Player._Unit unit world.Player
+            Units = Map.empty.Add(world.Player.Id, player)
         }
     
     

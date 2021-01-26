@@ -3,7 +3,6 @@ module Yggdrasil.Pipe.Combat
 open System
 open FSharpPlus.Lens
 open NLog
-open Yggdrasil.Game.Skill
 open Yggdrasil.Types
 open Yggdrasil.Utils
 open Yggdrasil.Game
@@ -15,8 +14,8 @@ let ProcessDamage (target: Unit) (source: Unit) (damageInfo: DamageInfo)  world 
 
 //it's really not worth it to refactor this into one function...
 //08c8
-let DamageDealt2 (info: RawDamageInfo2) callback (world: World) =
-    match World.Unit world info.Source, World.Unit world info.Target with
+let DamageDealt2 (info: RawDamageInfo2) callback (world: Game) =
+    match world.Units.TryFind info.Source, world.Units.TryFind info.Target with
     | None, _ | _, None -> Logger.Error "Failed loading units to apply damage"
     | Some source, Some target ->
         if info.IsSPDamage > 0uy then Logger.Warn "Unhandled SP damage"
@@ -31,8 +30,8 @@ let DamageDealt2 (info: RawDamageInfo2) callback (world: World) =
     world
             
 //008a
-let DamageDealt (info: RawDamageInfo) callback (world: World) =
-    match World.Unit world info.Source, World.Unit world info.Target with
+let DamageDealt (info: RawDamageInfo) callback (world: Game) =
+    match world.Units.TryFind info.Source, world.Units.TryFind info.Target with
     | None, _ | _, None -> Logger.Error "Failed loading units to apply damage"
     | Some source, Some target ->
         let damage = {
@@ -44,22 +43,22 @@ let DamageDealt (info: RawDamageInfo) callback (world: World) =
         Delay (fun _ ->  callback <| ProcessDamage target source damage) delay
     world
     
-let UpdateMonsterHP (info: MonsterHPInfo) (world: World) =
-    match World.Unit world info.aid with
+let UpdateMonsterHP (info: MonsterHPInfo) (world: Game) =
+    match world.Units.TryFind info.aid with
     | Some unit ->
         Tracer.Send World.UpdateUnit {unit with HP = info.HP; MaxHP = info.MaxHP} world
     | None -> Logger.Warn ("Unhandled HP update for {aid}", info.aid); world
     
 //I assume the skill effect comes in another packet...
-let ClearSkill (actionId: Guid) (sourceId: uint32) (targetId: uint32) (skillCast: SkillCast) (world: World) =
+let ClearSkill (actionId: Guid) (sourceId: uint32) (targetId: uint32) (skillCast: SkillCast) (world: Game) =
     let w1 =
-        match World.Unit world sourceId with
+        match world.Units.TryFind sourceId with
         | None -> world
         | Some source ->
             if source.ActionId = actionId then
                 Tracer.Send World.UpdateUnit {source with Status = Idle} world
             else world
-    match World.Unit world targetId with
+    match world.Units.TryFind targetId with
     | None -> w1
     | Some target ->
         let filter = fun (s: SkillCast, u: Unit) ->
@@ -69,8 +68,8 @@ let ClearSkill (actionId: Guid) (sourceId: uint32) (targetId: uint32) (skillCast
         <| w1
             
     
-let SkillCast castRaw callback (world: World) =
-    match (World.Unit world castRaw.source, World.Unit world castRaw.target) with
+let SkillCast castRaw callback (world: Game) =
+    match (world.Units.TryFind castRaw.source, world.Units.TryFind castRaw.target) with
     | (None, _) | (_, None) -> Logger.Warn "Missing skill cast units!"
     | (Some caster, Some target) ->
         let cast: SkillCast = {
@@ -87,8 +86,8 @@ let SkillCast castRaw callback (world: World) =
         }
     world
 
-let AddSkills skills (world: World) =
+let AddSkills skills (world: Game) =
     Tracer.Send <|
-    setl World._Player
-        {world.Player with Skills = List.append world.Player.Skills skills}
-    <| world
+        {world with
+            Skills = {world.Skills with
+                        List = List.append world.Skills.List skills}}

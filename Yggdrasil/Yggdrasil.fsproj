@@ -25,7 +25,7 @@
         <Compile Include="Game\Skill.fs" />
         <Compile Include="Game\Unit.fs" />
         <Compile Include="Game\Player.fs" />
-        <Compile Include="Game\World.fs" />
+        <Compile Include="Game\Game.fs" />
         <Compile Include="Pipe\Location.fs" />
         <Compile Include="Pipe\Attributes.fs" />
         <Compile Include="Pipe\Spawn.fs" />

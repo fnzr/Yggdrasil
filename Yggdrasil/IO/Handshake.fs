@@ -76,14 +76,18 @@ let onAuthenticationResult callback
         client.Connect(info.ZoneServer)
         
         let stream = client.GetStream()
+        let player = {
+            Unit.Default with
+                Id = info.AccountId
+                Name = info.CharacterName
+                Type = UnitType.Player
+        }
         callback <|
             fun world ->
                 { world with
+                    PlayerId = player.Id
                     Request = Outgoing.OnlineRequest stream
-                    Player = { world.Player with                    
-                                Unit = {world.Player.Unit with
-                                            Name = info.CharacterName
-                                            Id = info.AccountId}}
+                    Units = world.Units.Add(player.Id, player)
                 }
         stream.Write (WantToConnect info)
         Async.Start <|

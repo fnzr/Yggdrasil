@@ -1,8 +1,17 @@
 namespace Yggdrasil.Game
 
-module Skill =
+open Yggdrasil.Types
+
+type Skills =
+    {
+        List: Skill list
+        Points: uint32
+    }
+    static member Default = {List=List.empty;Points=0u}
+
     
-    type SkillCast = {
+type SkillCast =
+    {
         SkillId: int16
         Property: int
     }

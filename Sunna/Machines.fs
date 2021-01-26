@@ -10,19 +10,15 @@ let Logger = LogManager.GetLogger "Machines"
 
 let IsConnected world = world.IsConnected
 let IsDisconnected world = world |> IsConnected |> not
-let WalkNorth world =
+let WalkNorth (world: Game) =
     let (x, y) = world.Player.Position
     let goal = Some(x + 5, y)
-    setl World._Player <|
-        setl Player._Goals {world.Player.Goals with Position = goal} world.Player
-    <| world
+    setl World._Goals {world.Goals with Position = goal} world
     
-let WalkSouth world =
+let WalkSouth (world: Game) =
     let (x, y) = world.Player.Position
     let goal = Some(x - 5, y)
-    setl World._Player <|
-        setl Player._Goals {world.Player.Goals with Position = goal} world.Player
-    <| world
+    setl World._Goals {world.Goals with Position = goal} world
     
 module DefaultMachine =
     open Yggdrasil.Behavior
