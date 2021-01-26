@@ -8,17 +8,17 @@ open Yggdrasil.Game
 
 let Logger = LogManager.GetLogger "Machines"
 
-let IsConnected world = world.IsConnected
-let IsDisconnected world = world |> IsConnected |> not
-let WalkNorth (world: Game) =
-    let (x, y) = world.Player.Position
+let IsConnected game = game.IsConnected
+let IsDisconnected game = game |> IsConnected |> not
+let WalkNorth (game: Game) =
+    let (x, y) = game.Player.Position
     let goal = Some(x + 5, y)
-    setl World._Goals {world.Goals with Position = goal} world
+    setl Game._Goals {game.Goals with Position = goal} game
     
-let WalkSouth (world: Game) =
-    let (x, y) = world.Player.Position
+let WalkSouth (game: Game) =
+    let (x, y) = game.Player.Position
     let goal = Some(x - 5, y)
-    setl World._Goals {world.Goals with Position = goal} world
+    setl Game._Goals {game.Goals with Position = goal} game
     
 module DefaultMachine =
     open Yggdrasil.Behavior

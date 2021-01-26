@@ -7,25 +7,23 @@ open FSharpPlus.Lens
 open Yggdrasil.Utils
 let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
 
-let WeightSoftCap value (world: Game) =
-    Tracer.Send <| setl World._Inventory {world.Inventory with WeightSoftCap = value} world
+let WeightSoftCap value (game: Game) =
+    Tracer.Send <| setl Game._Inventory {game.Inventory with WeightSoftCap = value} game
     
-let RemoveItemDrop id (world: Game) =
+let RemoveDroppedItem id (game: Game) =
     Tracer.Send <|
-        {world with ItemDrops = List.filter (fun i -> i.Id <> id) world.ItemDrops}
+        {game with DroppedItems = List.filter (fun i -> i.Id <> id) game.DroppedItems}
     
-let AddItemDrop (info: ItemDropRaw) (world: Game) =
+let AddDroppedItem (info: ItemDropRaw) (game: Game) =
     Tracer.Send <|
-    {world
-     with ItemDrops = {
+    {game
+     with DroppedItems = {
         Id = info.Id
         NameId = info.NameId
         Identified = info.Identified > 0uy
         Position = (int info.PosX, int info.PosY)
-        Amount = info.Amount} :: world.ItemDrops
+        Amount = info.Amount} :: game.DroppedItems
     }
     
-let AddEquipment items world =
-    let i = {world.Inventory with
-              Equipment = List.append world.Inventory.Equipment items}
-    Tracer.Send {world with Inventory = i}
+let AddGear items game =
+    Tracer.Send {game with Gear = List.append game.Gear items}

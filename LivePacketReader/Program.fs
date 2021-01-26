@@ -23,8 +23,8 @@ let initialWorld =
 let Mailbox = MailboxProcessor.Start(fun inbox ->
     let rec loop currentWorld = async {
         let! pipe = inbox.Receive()
-        let world = pipe currentWorld
-        return! loop world
+        let game = pipe currentWorld
+        return! loop game
     }
     loop initialWorld)
 let MapToClientCallback = Yggdrasil.IO.Incoming.PacketReceiver Mailbox.Post

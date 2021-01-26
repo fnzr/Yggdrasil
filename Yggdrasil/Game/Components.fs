@@ -44,11 +44,10 @@ module Components =
             Weight: uint32
             MaxWeight: uint32
             Zeny: int
-            Equipment: Equipment list
         }
         
         static member Default =
-            {WeightSoftCap=0;Weight=0u;MaxWeight=0u;Zeny=0;Equipment=list.Empty}
+            {WeightSoftCap=0;Weight=0u;MaxWeight=0u;Zeny=0}
             
     module Inventory =
         let inline _Zeny f p = f p.Zeny <&> fun x -> {p with Zeny = x}

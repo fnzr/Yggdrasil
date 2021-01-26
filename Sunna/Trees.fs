@@ -18,12 +18,12 @@ let Wait milliseconds =
     Action {
         State = 0L, 0L
         Initialize = fun node -> {node with State = Connection.Tick() + milliseconds, 0L}
-        Tick = fun world instance ->
+        Tick = fun game instance ->
             let time = Connection.Tick()
             let diff = fst instance.State - time
             if diff > 0L then
                 if time > snd instance.State then
-                    World.Ping world (int diff+1)
+                    Game.Ping game (int diff+1)
                     Node {instance with State=fst instance.State, time+diff}
                 else Node instance
             else Result Success
@@ -31,16 +31,16 @@ let Wait milliseconds =
     }
     
 let PlayerIs status =
-    Stateless (fun (world: Game) _ ->
-                    Result <| if world.Player.Status = status
+    Stateless (fun (game: Game) _ ->
+                    Result <| if game.Player.Status = status
                         then Success
                         else Failure)
     
 let WantsToWalk =
-    Stateless (fun world _ ->
-                    Result <| (match world.Goals.Position with
+    Stateless (fun game _ ->
+                    Result <| (match game.Goals.Position with
                                 | None -> Failure
-                                | Some p -> if p <> world.Player.Position
+                                | Some p -> if p <> game.Player.Position
                                             then Success
                                             else Failure))
     
@@ -48,24 +48,24 @@ let RetryTimeout timeout child =
     RetryTimeout Connection.Tick timeout child
 
 let Walk: NodeCreator<Game> =
-    let WalkingRequired world =
-        world.Goals.Position.IsSome &&
-            world.Goals.Position.Value <> world.Player.Position
+    let WalkingRequired game =
+        game.Goals.Position.IsSome &&
+            game.Goals.Position.Value <> game.Player.Position
             
     let RequestWalk =
         Stateless <|
-        fun (world: Game) _ -> 
-            let player = world.Player
-            match world.Goals.Position with
+        fun (game: Game) _ -> 
+            let player = game.Player
+            match game.Goals.Position with
             | Some (x, y) ->
                 match Navigation.Pathfinding.FindPath
-                      (Navigation.Maps.GetMapData world.Map) player.Position (x, y) with
+                      (Navigation.Maps.GetMapData game.Map) player.Position (x, y) with
                 | [] -> Result Failure
                 | path ->
                     let pos = path
                             |> List.take (Math.Min (MAX_WALK_DISTANCE, path.Length))
                             |> List.last
-                    world.Request(Types.Request.RequestMove pos)                
+                    game.Request(Types.Request.RequestMove pos)                
                     Result Success
             | None -> Result Success
             
@@ -88,11 +88,11 @@ let Disconnected =
     Action {
         State = ()
         Initialize = id
-        Tick = fun (world: Game) _ ->
-            Logger.Warn ("Disconnected: {name}", world.Player.Name)
+        Tick = fun (game: Game) _ ->
+            Logger.Warn ("Disconnected: {name}", game.Player.Name)
             Result Success
     }
     
 let Login =
     Stateless <|
-        fun world _ -> world.Login world; Result Success
+        fun game _ -> game.Login game; Result Success

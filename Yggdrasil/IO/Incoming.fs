@@ -15,20 +15,20 @@ open Yggdrasil.Pipe.Item
 open FSharpPlus.Lens
 let Logger = LogManager.GetLogger "Incoming"
 
-let ConnectionAccepted position serverTick (world: Game) =
-    let player = {world.Player with Position = position}
-    {world with
+let ConnectionAccepted position serverTick (game: Game) =
+    let player = {game.Player with Position = position}
+    {game with
         TickOffset =  (Connection.Tick()) - serverTick
-        Units = world.Units.Add(player.Id, player)
+        Units = game.Units.Add(player.Id, player)
         IsConnected = true
     }
     
-let Disconnected (code: byte) world =
+let Disconnected (code: byte) game =
     Logger.Warn ("Forced disconnect. Code {code}", code);
-    {world with IsConnected = false}
+    {game with IsConnected = false}
     
-let UpdateTickOffset serverTick world =
-    {world with TickOffset = serverTick - Connection.Tick()}
+let UpdateTickOffset serverTick game =
+    {game with TickOffset = serverTick - Connection.Tick()}
     
 let ParseEquipItem data =
     let parse bytes =
@@ -98,8 +98,8 @@ let PacketReceiver callback (packetType: uint16, (packetData: ReadOnlyMemory<byt
             | 0x0977us -> Some <| UpdateMonsterHP (MakeRecord<MonsterHPInfo> data.[2..])        
             | 0x008aus -> Some <| DamageDealt (MakeRecord<RawDamageInfo> data.[2..]) callback
             | 0x08c8us -> Some <| DamageDealt2 (MakeRecord<RawDamageInfo2> data.[2..]) callback        
-            | 0x0addus -> Some <| AddItemDrop (MakeRecord<ItemDropRaw> data.[2..])
-            | 0x00a1us -> Some <| RemoveItemDrop (ToInt32 data.[2..])        
+            | 0x0addus -> Some <| AddDroppedItem (MakeRecord<ItemDropRaw> data.[2..])
+            | 0x00a1us -> Some <| RemoveDroppedItem (ToInt32 data.[2..])        
             | 0x2ebus ->
                 let (x, y, _) = UnpackPosition data.[6..]
                 Some <| ConnectionAccepted (int x, int y) (int64 (ToUInt32 data.[2..]))
@@ -114,7 +114,7 @@ let PacketReceiver callback (packetType: uint16, (packetData: ReadOnlyMemory<byt
             | 0x0081us -> Some <| Disconnected data.[2]
             | 0x099bus -> Some <| MapProperty (ToInt16 data.[2..]) (ToInt32 data.[4..])
             | 0x080eus -> Some <| UpdatePartyMemberHP (ToUInt32 data.[2..]) (ToInt32 data.[6..]) (ToInt32 data.[10..])
-            | 0xa0dus  -> Some <| AddEquipment (ParseEquipItem data.[4..])
+            | 0xa0dus  -> Some <| AddGear (ParseEquipItem data.[4..])
             | 0x0adfus (* ZC_REQNAME_TITLE *) -> None
             | 0x121us (* cart info *) -> None
             | 0x0a9bus (* list of items in the equip switch window *) -> None    

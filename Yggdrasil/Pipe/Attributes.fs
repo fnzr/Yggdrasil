@@ -7,23 +7,23 @@ open Yggdrasil.Types
 open Yggdrasil.Game
 open Yggdrasil.Utils
 let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
-let OnU32ParameterUpdate code (value: uint32) (world: Game) =
+let OnU32ParameterUpdate code (value: uint32) (game: Game) =
     if code = Parameter.MaxWeight then
-        setl World._Inventory {world.Inventory with MaxWeight = value} world
+        setl Game._Inventory {game.Inventory with MaxWeight = value} game
     else if code = Parameter.Weight then
-        setl World._Inventory {world.Inventory with Weight = value} world
+        setl Game._Inventory {game.Inventory with Weight = value} game
     else if code = Parameter.SkillPoints then
-        let s = {world.Skills with Points = value}
-        {world with Skills = s}
+        let s = {game.Skills with Points = value}
+        {game with Skills = s}
     else if code = Parameter.JobLevel then
-        {world with
-            Level = {world.Level with JobLevel = value}}
+        {game with
+            Level = {game.Level with JobLevel = value}}
     else if code = Parameter.BaseLevel then
-        {world with
-            Level = {world.Level with BaseLevel = value}}
+        {game with
+            Level = {game.Level with BaseLevel = value}}
     else
         let player =
-            world.Player |>
+            game.Player |>
             fun p -> 
                 match code with
                 | Parameter.MaxHP -> {p with MaxHP = (int value)}
@@ -31,11 +31,11 @@ let OnU32ParameterUpdate code (value: uint32) (world: Game) =
                 | Parameter.MaxSP -> {p with MaxSP = (int value)}
                 | Parameter.SP -> {p with SP = (int value)}
                 | _ -> p
-        Tracer.Send <| setl World._Unit player world            
+        Tracer.Send <| setl Game._Unit player game            
     
-let OnI16ParameterUpdate code value (world: Game) =
+let OnI16ParameterUpdate code value (game: Game) =
     let param =
-        world.BattleParameters |>
+        game.BattleParameters |>
         fun bp ->
             match code with
             | Parameter.Hit -> {bp with Hit = value}
@@ -43,14 +43,14 @@ let OnI16ParameterUpdate code value (world: Game) =
             | Parameter.Flee2 -> {bp with Flee2 = value}
             | Parameter.Critical -> {bp with Critical = value}
             | _ -> bp
-    Tracer.Send <| {world with BattleParameters = param}
+    Tracer.Send <| {game with BattleParameters = param}
     
-let OnU16ParameterUpdate code value (world: Game) =
+let OnU16ParameterUpdate code value (game: Game) =
     Tracer.Send <|
         if code = Parameter.Speed then        
-            world.UpdateUnit {world.Player with Speed = int16 value}
+            game.UpdateUnit {game.Player with Speed = int16 value}
         else
-            world.BattleParameters |>
+            game.BattleParameters |>
             fun bp ->
                 match code with    
                 | Parameter.AttackSpeed -> {bp with AttackSpeed = value}
@@ -64,17 +64,17 @@ let OnU16ParameterUpdate code value (world: Game) =
                 | Parameter.MagicDefense2 -> {bp with MagicDefense2 = int16 value}
                 | Parameter.AttackRange -> {bp with AttackRange = value}
                 | _ -> bp
-            |> fun param -> {world with BattleParameters = param}
+            |> fun param -> {game with BattleParameters = param}
         
     
-let OnI32ParameterUpdate code value (world: Game) =
+let OnI32ParameterUpdate code value (game: Game) =
     if code = Parameter.Zeny then
-        Tracer.Send <| setl World._Zeny value world
+        Tracer.Send <| setl Game._Zeny value game
     else 
         Tracer.Send <|
-             world.Attributes.Primary |>
+             game.Attributes.Primary |>
              fun attributes ->
-                setl World._PrimaryAttributes
+                setl Game._PrimaryAttributes
                     (match code with
                         | Parameter.USTR -> {attributes with STR = int16 value}
                         | Parameter.UAGI -> {attributes with AGI = int16 value}
@@ -83,12 +83,12 @@ let OnI32ParameterUpdate code value (world: Game) =
                         | Parameter.ULUK -> {attributes with LUK = int16 value}
                         | Parameter.UINT -> {attributes with INT = int16 value}
                         | _ -> attributes)
-                <| world
+                <| game
         
-let On64ParameterUpdate code value (world: Game) =
+let On64ParameterUpdate code value (game: Game) =
     Tracer.Send <|
-        setl World._Level
-            (world.Level |>
+        setl Game._Level
+            (game.Level |>
             fun level ->
                 (match code with
                     | Parameter.BaseExp -> {level with BaseExp = value}
@@ -96,11 +96,11 @@ let On64ParameterUpdate code value (world: Game) =
                     | Parameter.NextBaseExp -> {level with NextBaseExp = value}
                     | Parameter.NextJobExp -> {level with NextJobExp = value}
                     | _ -> level))
-            <| world
+            <| game
     
-let OnPairParameterUpdate code (value, plus) (world: Game) =
+let OnPairParameterUpdate code (value, plus) (game: Game) =
     Tracer.Send <|
-        (world.Attributes.Primary, world.Attributes.Bonus) |>
+        (game.Attributes.Primary, game.Attributes.Bonus) |>
         fun (primary, bonus) ->
             match code with
                 | Parameter.STR ->
@@ -117,38 +117,38 @@ let OnPairParameterUpdate code (value, plus) (world: Game) =
                     {primary with INT = value}, {bonus with INT = plus}
                 | _ -> (primary, bonus)
         |> fun (p, b) ->
-            setl World._Attributes
-                {world.Attributes with Primary = p; Bonus = b}        
-            <| world
+            setl Game._Attributes
+                {game.Attributes with Primary = p; Bonus = b}        
+            <| game
 
-let ParameterChange parameter value (world: Game) =
+let ParameterChange parameter value (game: Game) =
     match parameter with
     | Parameter.Weight | Parameter.MaxWeight | Parameter.SkillPoints | Parameter.StatusPoints
     | Parameter.JobLevel | Parameter.BaseLevel | Parameter.MaxHP | Parameter.MaxSP
-    | Parameter.SP | Parameter.HP -> OnU32ParameterUpdate parameter (ToUInt32 value) world
+    | Parameter.SP | Parameter.HP -> OnU32ParameterUpdate parameter (ToUInt32 value) game
     
     | Parameter.Manner | Parameter.Hit | Parameter.Flee1
-    | Parameter.Flee2 | Parameter.Critical -> OnI16ParameterUpdate parameter (ToInt16 value) world
+    | Parameter.Flee2 | Parameter.Critical -> OnI16ParameterUpdate parameter (ToInt16 value) game
     
     | Parameter.Speed | Parameter.AttackSpeed | Parameter.Attack1 | Parameter.Attack2
     | Parameter.Defense1 | Parameter.Defense2 | Parameter.MagicAttack1
     | Parameter.MagicAttack2 | Parameter.MagicDefense1 | Parameter.MagicDefense2
-    | Parameter.AttackRange -> OnU16ParameterUpdate parameter (ToUInt16 value) world
+    | Parameter.AttackRange -> OnU16ParameterUpdate parameter (ToUInt16 value) game
     
     | Parameter.Zeny | Parameter.USTR |Parameter.UAGI |Parameter.UDEX
-    | Parameter.UVIT |Parameter.ULUK |Parameter.UINT -> OnI32ParameterUpdate parameter (ToInt32 value) world
+    | Parameter.UVIT |Parameter.ULUK |Parameter.UINT -> OnI32ParameterUpdate parameter (ToInt32 value) game
     
     | Parameter.JobExp | Parameter.NextBaseExp
-    | Parameter.BaseExp | Parameter.NextJobExp -> On64ParameterUpdate parameter (ToInt64 value) world
+    | Parameter.BaseExp | Parameter.NextJobExp -> On64ParameterUpdate parameter (ToInt64 value) game
     
     | Parameter.STR |Parameter.AGI |Parameter.DEX | Parameter.VIT
-    | Parameter.LUK |Parameter.INT -> OnPairParameterUpdate parameter (ToInt16 value.[2..], ToInt16 value.[6..])  world
+    | Parameter.LUK |Parameter.INT -> OnPairParameterUpdate parameter (ToInt16 value.[2..], ToInt16 value.[6..])  game
     
-    | Parameter.Karma -> world
+    | Parameter.Karma -> game
     
-    | _ -> world
+    | _ -> game
     
-let InitialCharacterStatus (info: CharacterStatusRaw) (world: Game) =
+let InitialCharacterStatus (info: CharacterStatusRaw) (game: Game) =
     let primary = {
         STR = int16 info.STR; AGI = int16 info.STR; DEX = int16 info.DEX
         VIT = int16 info.VIT; LUK = int16 info.LUK; INT = int16 info.INT
@@ -158,24 +158,24 @@ let InitialCharacterStatus (info: CharacterStatusRaw) (world: Game) =
         VIT = int16 info.UVIT; LUK = int16 info.ULUK; INT = int16 info.UINT
     }
     
-    let battle = {world.BattleParameters with
+    let battle = {game.BattleParameters with
                       Attack1 = info.ATK;Attack2 = info.ATK2;
                       MagicAttack1 = info.MATK_MIN;MagicAttack2 = info.MATK_MAX
                       Defense1 = info.DEF;Defense2 = info.DEF2
                       MagicDefense1 = info.MDEF;MagicDefense2 = info.MDEF2;Hit = info.HIT
                       Flee1 = info.FLEE; Flee2 = info.FLEE;Critical = info.CRIT;}
-    let attributes = {world.Attributes
+    let attributes = {game.Attributes
                         with Primary = primary
                              UpgradeCost = upgrade
                              Points = info.Points}
     
     Tracer.Send <|
-        {world with
+        {game with
              Attributes = attributes
              BattleParameters = battle
         }
     
-let UpdatePartyMemberHP id hp maxHp world =
-    match world.Units.TryFind id with
-    | None -> Logger.Warn ("Unit {aid}: Could not find party member to update HP.", id); world
-    | Some unit -> World.UpdateUnit {unit with HP=hp; MaxHP=maxHp} world
+let UpdatePartyMemberHP id hp maxHp game =
+    match game.Units.TryFind id with
+    | None -> Logger.Warn ("Unit {aid}: Could not find party member to update HP.", id); game
+    | Some unit -> Game.UpdateUnit {unit with HP=hp; MaxHP=maxHp} game

@@ -83,11 +83,11 @@ let onAuthenticationResult callback
                 Type = UnitType.Player
         }
         callback <|
-            fun world ->
-                { world with
+            fun game ->
+                { game with
                     PlayerId = player.Id
                     Request = Outgoing.OnlineRequest stream
-                    Units = world.Units.Add(player.Id, player)
+                    Units = game.Units.Add(player.Id, player)
                 }
         stream.Write (WantToConnect info)
         Async.Start <|

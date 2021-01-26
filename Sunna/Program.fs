@@ -5,17 +5,17 @@ open Yggdrasil.Behavior
 open Yggdrasil.Game
 open Sunna.Machines
 
-let OnlineLogin world =
+let OnlineLogin game =
     let server = IPEndPoint (IPAddress.Parse "127.0.0.1", 6900)
-    let (user, pass) = world.Credentials
-    Yggdrasil.IO.Handshake.Login server user pass world.Inbox
+    let (user, pass) = game.Credentials
+    Yggdrasil.IO.Handshake.Login server user pass game.Inbox
 
 let StartAgent credentials initialMachineState =
-    let world = {Game.Default
+    let game = {Game.Default
                  with
                     Login = OnlineLogin
                     Credentials = credentials}
-    let inbox = Agent.SetupAgent world initialMachineState
+    let inbox = Agent.SetupAgent game initialMachineState
     inbox.Post <|
         fun w -> {w with Inbox = inbox.Post}
 

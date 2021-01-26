@@ -199,7 +199,7 @@ type ItemDropRaw = {
     DropEffectMode: byte
 }
 
-type GroundItem = {
+type DroppedItem = {
     Id: int
     NameId: int16
     Identified: bool

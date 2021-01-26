@@ -17,12 +17,13 @@ type Game =
         IsMapReady: bool
         Credentials: string * string
         Inventory: Inventory
+        Gear: Equipment list
         BattleParameters: BattleParameters
         Attributes: Attributes
         Level: Level
         Skills: Skills
         Map: string
-        ItemDrops: GroundItem list
+        DroppedItems: DroppedItem list
         Units: Map<uint32, Unit>
         TickOffset: int64
         PlayerId: uint32
@@ -37,12 +38,13 @@ type Game =
         Credentials = ("","")
         PlayerId = 0u
         Map = ""
+        Gear = List.empty
         Inventory = Inventory.Default
         BattleParameters = BattleParameters.Default
         Attributes = Attributes.Default
         Level = Level.Default
         Skills = Skills.Default     
-        ItemDrops = list.Empty
+        DroppedItems = list.Empty
         Units = Map.empty
         TickOffset = 0L
         Goals = Goals.Default
@@ -54,7 +56,7 @@ type Game =
     member this.UpdateUnit (unit: Unit) =
         {this with Units = this.Units.Add(unit.Id, unit)}
 
-module World =
+module Game =
     
     let inline _Unit f p = f p.Units <&> fun (x: Unit) -> { p with Units = p.Units.Add(x.Id, x)}
     let inline _Inventory f p = f p.Inventory <&> fun x -> {p with Inventory = x}
@@ -64,6 +66,6 @@ module World =
     let inline _Level f p = f p.Level <&> fun x -> {p with Level = x}
     let inline _Zeny p = _Inventory << Inventory._Zeny <| p
             
-    let Ping world = Utils.Delay (fun () -> world.Inbox id)
+    let Ping game = Utils.Delay (fun () -> game.Inbox id)
     
-    let UpdateUnit (unit: Unit) (world: Game) = world.UpdateUnit unit
+    let UpdateUnit (unit: Unit) (game: Game) = game.UpdateUnit unit
