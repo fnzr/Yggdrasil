@@ -11,7 +11,7 @@ open Yggdrasil.Utils
 let Logger = LogManager.GetLogger "Location"
 let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
 
-type Point = int * int
+type Point = int16 * int16
 let rec TryTakeStep (actionId: Guid) (unitId: uint32)
     callback delay (path: Point list) (game: Game) =
         match game.Units.TryFind unitId with
@@ -66,7 +66,7 @@ let PlayerWalk origin dest startAt callback (game: Game) =
 let MoveUnit (move: UnitMove) callback (game: Game) =
     match game.Units.TryFind move.aid with
     | None -> Logger.Warn ("Unhandled movement for {aid}", move.aid)
-    | Some unit -> StartMove unit callback (int move.X, int move.Y) 0L game
+    | Some unit -> StartMove unit callback (move.X, move.Y) 0L game
     Tracer.Send game
     
 let MapChange position map (game: Game) =

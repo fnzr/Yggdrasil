@@ -7,10 +7,10 @@ open Yggdrasil
 open Yggdrasil.Types
 let Logger = LogManager.GetLogger "Dispatcher"
 
-let PackPosition (x: int) y (dir: byte) =
+let PackPosition (x: int16) y (dir: byte) =
     [|
         byte (x >>> 2);
-        byte ((x <<< 6) ||| ((y >>> 4) &&& 0x3f))
+        byte ((x <<< 6) ||| ((y >>> 4) &&& 0x3fs))
         byte ((y <<< 4)) ||| (dir &&& 0xfuy)
     |]
     

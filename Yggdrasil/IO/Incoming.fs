@@ -12,7 +12,6 @@ open Yggdrasil.Pipe.Location
 open Yggdrasil.Pipe.Spawn
 open Yggdrasil.Pipe.Combat
 open Yggdrasil.Pipe.Item
-open FSharpPlus.Lens
 let Logger = LogManager.GetLogger "Incoming"
 
 let ConnectionAccepted position serverTick (game: Game) =
@@ -73,7 +72,7 @@ let PacketReceiver callback (packetType: uint16, (packetData: ReadOnlyMemory<byt
                 let (part1, leftover) = MakePartialRecord<UnitRawPart1> data.[4..] [||]    
                 let (part2, _) = MakePartialRecord<UnitRawPart2> leftover [|24|]
                 let (x, y, _) = UnpackPosition [|part2.PosPart1; part2.PosPart2; part2.PosPart3|]
-                UnitSpawn (CreateNonPlayer part1 part2 (int x, int y))
+                UnitSpawn (CreateNonPlayer part1 part2 (x, y))
             | 0x0080us ->
                 Some <| 
                 UnitDisappear (ToUInt32 data.[2..])
@@ -88,11 +87,11 @@ let PacketReceiver callback (packetType: uint16, (packetData: ReadOnlyMemory<byt
                 |> Some
             | 0x0087us ->
                 let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]
-                Some <| PlayerWalk (int x0, int y0) (int x1, int y1) (int64 <| ToUInt32 data.[2..]) callback
+                Some <| PlayerWalk (x0, y0) (x1, y1) (int64 <| ToUInt32 data.[2..]) callback
             | 0x0086us ->
                 let id = ToUInt32 data.[2..]
                 let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]            
-                Some <| UnitWalk id (int x0, int y0) (int x1, int y1) (int64 <| ToUInt32 data.[12..]) callback
+                Some <| UnitWalk id (x0, y0) (x1, y1) (int64 <| ToUInt32 data.[12..]) callback
             | 0x07fbus -> Some <| SkillCast (MakeRecord<RawSkillCast> data.[2..]) callback
             | 0x0088us -> Some <| MoveUnit (MakeRecord<UnitMove> data.[2..]) callback
             | 0x0977us -> Some <| UpdateMonsterHP (MakeRecord<MonsterHPInfo> data.[2..])        
@@ -102,10 +101,10 @@ let PacketReceiver callback (packetType: uint16, (packetData: ReadOnlyMemory<byt
             | 0x00a1us -> Some <| RemoveDroppedItem (ToInt32 data.[2..])        
             | 0x2ebus ->
                 let (x, y, _) = UnpackPosition data.[6..]
-                Some <| ConnectionAccepted (int x, int y) (int64 (ToUInt32 data.[2..]))
+                Some <| ConnectionAccepted (x, y) (int64 (ToUInt32 data.[2..]))
             | 0x0091us ->
-                let position = (data.[18..] |> ToUInt16 |> int,
-                                data.[20..] |> ToUInt16 |> int)
+                let position = (data.[18..] |> ToInt16,
+                                data.[20..] |> ToInt16)
                 let map = (let gatFile = ToString data.[..17]
                    gatFile.Substring(0, gatFile.Length - 4))
                 Some <| MapChange position map        

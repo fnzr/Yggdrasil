@@ -27,7 +27,7 @@ type Unit =
         SP: int32
         MaxSP: int32
         Name: string
-        Position: (int * int)
+        Position: (int16 * int16)
         Speed: int16
     }
     
@@ -43,7 +43,7 @@ type Unit =
         MaxSP = 0
         SP = 0
         Name = ""
-        Position = 0, 0
+        Position = 0s, 0s
         Speed = 150s
     }
     

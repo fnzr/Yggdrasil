@@ -12,12 +12,12 @@ let IsConnected game = game.IsConnected
 let IsDisconnected game = game |> IsConnected |> not
 let WalkNorth (game: Game) =
     let (x, y) = game.Player.Position
-    let goal = Some(x + 5, y)
+    let goal = Some(x + 5s, y)
     setl Game._Goals {game.Goals with Position = goal} game
     
 let WalkSouth (game: Game) =
     let (x, y) = game.Player.Position
-    let goal = Some(x - 5, y)
+    let goal = Some(x - 5s, y)
     setl Game._Goals {game.Goals with Position = goal} game
     
 module DefaultMachine =

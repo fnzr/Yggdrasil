@@ -12,11 +12,11 @@ let MAX_WALK_PATH = 32
 
 let ToPoint map index =
     let y, x = Math.DivRem (index, int map.Width)
-    x, y
+    int16 x, int16 y
 
 let ToIndex map point = (int map.Width * snd point) + fst point
 
-let ManhattanDistance (x1: int, y1: int) (x2, y2) =
+let ManhattanDistance (x1: int16, y1: int16) (x2, y2) =
     Math.Abs(x1 - x2) + Math.Abs(y1 - y2) 
 let ManhattanDistanceFlat map a b =
     ManhattanDistance (ToPoint map a) (ToPoint map b)
@@ -63,10 +63,10 @@ let rec ReconstructPath map (node: Node) path =
     | None -> path
     | Some (parent) -> ReconstructPath map parent ((ToPoint map node.Index) :: path)
 
-let FindPath map start goal =
+let FindPath map (x0: int16, y0: int16) (x1: int16, y1: int16) =
     let queue = FastPriorityQueue<Node>(MAX_WALK_PATH * MAX_WALK_PATH)
-    let s = ToIndex map start
-    let g = ToIndex map goal
+    let s = ToIndex map (int x0, int y0)
+    let g = ToIndex map (int x1, int y1)
     
     queue.Enqueue (Node(s, None), 0.0f)
     let result = AStarStep map queue (Dictionary()) g

@@ -236,7 +236,7 @@ type MonsterHPInfo = {
 type Request =
     | DoneLoadingMap
     | RequestServerTick
-    | RequestMove of int * int
+    | RequestMove of int16 * int16
     | Action of CommandAction
     | PickUpItem of int
     | Attack of uint32
