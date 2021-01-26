@@ -2,7 +2,6 @@ module Yggdrasil.Behavior.Agent
 
 open NLog
 open Yggdrasil.Behavior.FSM
-
 let Logger = LogManager.GetLogger "Agent"
 
 let EventMailbox initialData initialMachineState (inbox: MailboxProcessor<'data -> 'data>) =

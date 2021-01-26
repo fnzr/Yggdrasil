@@ -26,19 +26,18 @@ let StartAgent credentials initialMachineState =
     let inbox = Agent.SetupAgent world initialMachineState
     inbox.Post <|
         fun w -> {w with Inbox = inbox.Post}
-let Tracer = LogManager.GetLogger ("Tracer", typeof<WebsocketLogger>) :?> WebsocketLogger
 
 [<EntryPoint>]
 let main _ =
     Async.Start <| async { Sunna.Server.StartServer() }
     //printfn "%s" <| (Default.serialize World.Default)
     Console.ReadKey() |> ignore
-    Tracer.Send "Hello" World.Default
-    Tracer.Send "Two" {World.Default with Map="aaaaaaaa"}
+    //Tracer.Send World.Default
+    //Tracer.Send {World.Default with Map="aaaaaaaa"}
     //LogManager.Setup().SetupExtensions(
      //   fun s -> s.RegisterTarget<JsonLogger.MyFirstTarget>("first") |> ignore) |> ignore
     //ConfigurationItemFactory.Default.Targets.RegisterDefinition("first", typeof<JsonLogger.MyFirstTarget>)
-    //StartAgent ("roboco", "111111") (DefaultMachine.Create())
+    StartAgent ("roboco", "111111") (DefaultMachine.Create())
     let rec a () = 
         LogManager.GetLogger("mylogger").Info("hello world")
         Console.ReadKey() |> ignore
