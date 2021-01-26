@@ -67,5 +67,14 @@ module Game =
     let inline _Zeny p = _Inventory << Inventory._Zeny <| p
             
     let Ping game = Utils.Delay (fun () -> game.Inbox id)
-    
     let UpdateUnit (unit: Unit) (game: Game) = game.UpdateUnit unit
+    
+    let PlayerIsDead (game: Game) =
+        match game.Player.Action with
+        | Dead -> true
+        | _ -> false
+        
+    let PlayerIsIdle (game: Game) =
+        match game.Player.Action with
+        | Idle -> true
+        | _ -> false

@@ -12,16 +12,14 @@ type UnitType =
   | Monster
   | Invalid  
   
-type Status = Idle | Dead | Casting | Walking
-        
+type Action = Idle | Dead | Casting of SkillCast | Walking of (int16 * int16) * int64
+
 type Unit =
     {
         Id: uint32
         Type: UnitType
-        ActionId: Guid
-        Status: Status
+        Action: Action
         TargetOfSkills: (SkillCast * Unit) list
-        Casting: SkillCast option
         MaxHP: int
         HP: int
         SP: int32
@@ -34,10 +32,8 @@ type Unit =
     static member Default = {
         Id = 0u
         Type = UnitType.Invalid
-        ActionId = Guid.Empty
-        Status = Idle
+        Action = Idle
         TargetOfSkills = list.Empty
-        Casting = None
         MaxHP = 0
         HP = 0
         MaxSP = 0
@@ -50,7 +46,7 @@ type Unit =
 module Unit =
     let inline __position f p = f p.Position <&> fun x -> { p with Position = x }
     let inline _HP f p = f p.HP <&> fun x -> { p with HP = x }
-    let inline _Status f p = f p.Status <&> fun x -> { p with Status = x }
+    let inline _Status f p = f p.Action <&> fun x -> { p with Action = x }
     let inline _MaxHP f p = f p.MaxHP <&> fun x -> { p with MaxHP = x }
     
 [<AutoOpen>]

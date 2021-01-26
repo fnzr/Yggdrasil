@@ -32,7 +32,7 @@ let Wait milliseconds =
     
 let PlayerIs status =
     Stateless (fun (game: Game) _ ->
-                    Result <| if game.Player.Status = status
+                    Result <| if game.Player.Action =~ status
                         then Success
                         else Failure)
     
@@ -71,7 +71,7 @@ let Walk: NodeCreator<Game> =
             
     While WalkingRequired <|
         Sequence [|
-            PlayerIs Idle
+            Condition Game.PlayerIsIdle
             RequestWalk
             PlayerIs Walking |> RetryTimeout 2000L
             PlayerIs Walking |> Not |> UntilSuccess 

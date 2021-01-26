@@ -14,7 +14,7 @@ let UnitSpawn (npc: Unit) (game: Game) =
 let UnitDisappear id reason (game: Game) =
     if id = game.PlayerId then
         if reason = DisappearReason.Died then
-            Tracer.Send <| game.UpdateUnit {game.Player with Status = Dead}
+            Tracer.Send <| game.UpdateUnit {game.Player with Action = Dead}
         else game
     else
         Tracer.Send <| {game with Units = game.Units.Remove(id)}

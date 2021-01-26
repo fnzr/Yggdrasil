@@ -12,20 +12,20 @@ let Logger = LogManager.GetLogger "Location"
 let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
 
 type Point = int16 * int16
-let rec TryTakeStep (actionId: Guid) (unitId: uint32)
+let rec TryTakeStep (action: Action) (unitId: uint32)
     callback delay (path: Point list) (game: Game) =
         match game.Units.TryFind unitId with
         | None -> game
         | Some unit ->            
-                if unit.ActionId = actionId then
+                if unit.Action = action then
                     let newUnit =
                         let u = {unit with Position = (fst path.Head, snd path.Head)}
                         match path.Tail with
-                        | [] -> {u with Status = Idle}
+                        | [] -> {u with Action = Idle}
                         | tail ->
                             Async.Start <| async {
                                 do! Async.Sleep (int u.Speed)
-                                callback <| TryTakeStep actionId unitId callback delay tail
+                                callback <| TryTakeStep action unitId callback delay tail
                             }; u
                     Tracer.Send Game.UpdateUnit newUnit game
                 else Tracer.Send (game, "Cancelled Walk")
@@ -34,12 +34,13 @@ let StartMove (unit: Unit) callback destination initialDelay (game: Game) =
     let map = Maps.GetMapData game.Map
     let path = Pathfinding.FindPath map unit.Position destination
     if path.Length > 0 then
-        let id = Guid.NewGuid()
-        let delay = if initialDelay < 0L then 0 else Convert.ToInt32 initialDelay
-        callback <| Game.UpdateUnit {unit with ActionId = id; Status = Walking}
+        let delay = if initialDelay < 0L then 0L else initialDelay
+        let startTime = Connection.Tick() + delay
+        let action = Walking (destination, startTime)
+        callback <| Game.UpdateUnit {unit with Action = action} 
         Async.Start <| async {
-            do! Async.Sleep delay
-            callback <| TryTakeStep id unit.Id callback (int unit.Speed) path
+            do! Async.Sleep (int delay)
+            callback <| TryTakeStep action unit.Id callback (int unit.Speed) path
         }
     else
         Logger.Error("Unit {name} ({aid}): Could not find walk path: {source} => {dest}",
@@ -73,10 +74,8 @@ let MapChange position map (game: Game) =
     game.Request DoneLoadingMap
     let player = {game.Player with
                     Position = position
-                    ActionId = Unit.Default.ActionId                    
-                    Status = Unit.Default.Status
-                    TargetOfSkills = Unit.Default.TargetOfSkills
-                    Casting = Unit.Default.Casting}
+                    Action = Unit.Default.Action
+                    TargetOfSkills = Unit.Default.TargetOfSkills}
     Maps.LoadMap map
     Tracer.Send
         {game with

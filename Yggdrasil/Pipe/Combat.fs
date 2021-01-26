@@ -50,13 +50,13 @@ let UpdateMonsterHP (info: MonsterHPInfo) (game: Game) =
     | None -> Logger.Warn ("Unhandled HP update for {aid}", info.aid); game
     
 //I assume the skill effect comes in another packet...
-let ClearSkill (actionId: Guid) (sourceId: uint32) (targetId: uint32) (skillCast: SkillCast) (game: Game) =
+let ClearSkill action (sourceId: uint32) (targetId: uint32) (skillCast: SkillCast) (game: Game) =
     let w1 =
         match game.Units.TryFind sourceId with
         | None -> game
         | Some source ->
-            if source.ActionId = actionId then
-                Tracer.Send Game.UpdateUnit {source with Status = Idle} game
+            if source.Action = action then
+                Tracer.Send Game.UpdateUnit {source with Action = Idle} game
             else game
     match game.Units.TryFind targetId with
     | None -> w1
@@ -70,21 +70,19 @@ let ClearSkill (actionId: Guid) (sourceId: uint32) (targetId: uint32) (skillCast
     
 let SkillCast castRaw callback (game: Game) =
     match (game.Units.TryFind castRaw.source, game.Units.TryFind castRaw.target) with
-    | (None, _) | (_, None) -> Logger.Warn "Missing skill cast units!"
+    | (None, _) | (_, None) ->
+        Logger.Warn "Missing skill cast units!"; game
     | (Some caster, Some target) ->
         let cast: SkillCast = {
             SkillId = castRaw.skillId
             Property = castRaw.property
         }
-        Async.Start <| async {
-            let id = Guid.NewGuid()
-            callback <| fun game ->
-                let w1 = Game.UpdateUnit {caster with ActionId = id; Status = Casting} game
-                Tracer.Send Game.UpdateUnit {target with TargetOfSkills = (cast, caster) :: target.TargetOfSkills} w1
+        let action = Casting (cast)
+        Async.Start <| async {            
             do! Async.Sleep (int castRaw.delay)
-            callback <| ClearSkill id caster.Id target.Id cast
+            callback <| ClearSkill action caster.Id target.Id cast
         }
-    game
+        Tracer.Send Game.UpdateUnit {caster with Action = action} game
 
 let AddSkills skills (game: Game) =
     Tracer.Send <|

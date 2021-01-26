@@ -46,6 +46,10 @@ let Stateless tick =
         Initialize = id
         Tick = tick
     }
+    
+let Condition fn =
+    Stateless <|
+    fun data _ -> if fn data then Result Success else Result Failure
 
 let _ParallelTick (children: _[]) data =
     let folder (completed, running) node =
