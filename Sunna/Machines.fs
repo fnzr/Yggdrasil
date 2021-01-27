@@ -33,26 +33,26 @@ module DefaultMachine =
     let Create () =
         let states = [
             configure Terminated
-                |> behavior (Trees.Disconnected NoOp)
+                |> behavior (Trees.Disconnected NoOpRoot)
             configure Disconnected
-                |> behavior (Trees.Login NoOp)
+                |> behavior (Trees.Login NoOpRoot)
                 |> on IsConnected Connected
             configure Connected
                 |> auto Idle
                 |> on IsDisconnected Terminated
             configure WalkingNorth
                 |> enter WalkNorth
-                |> behavior (Trees.Walk DefaultRoot)
+                |> behavior (Trees.Walk StatusRoot)
                 |> parent Connected
                 |> behaviorSuccess WalkingSouth
             configure WalkingSouth
                 |> enter WalkSouth
-                |> behavior (Trees.Walk DefaultRoot)
+                |> behavior (Trees.Walk StatusRoot)
                 |> parent Connected
                 |> behaviorSuccess Idle
             configure Idle
                 |> parent Connected
-                |> behavior (Trees.Wait 1000L DefaultRoot)
+                |> behavior (Trees.Wait 1000L StatusRoot)
                 //|> behaviorSuccess WalkingNorth
         ]
         CreateMachine states Disconnected

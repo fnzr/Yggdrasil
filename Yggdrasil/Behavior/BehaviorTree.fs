@@ -5,51 +5,23 @@ open NLog
 type Status = Success | Failure
 type ParallelFlag = OneSuccess | AllSuccess 
 
-type ActiveNode<'data> = 'data -> NodeResult<'data>
-and NodeResult<'data> =
+and Tick<'data> = 'data -> Result<'data>
+and Result<'data> =
     | End of Status
-    | Next of ActiveNode<'data>
+    | Next of Tick<'data>
 
-type ParentContinuation<'data> = 'data * Status -> NodeResult<'data>
-type NodeCreator<'data> = ParentContinuation<'data> -> ActiveNode<'data>
+type Continuation<'data> = Status -> 'data -> Result<'data>
+type Node<'data> = Continuation<'data> -> Tick<'data>
 
 let Logger = LogManager.GetLogger "BehaviorTree"
 
-type TickResult<'data, 'store> = Node of Node<'data, 'store> | Result of Status
-and Node<'data, 'store> =
-    {
-        State: 'store
-        Initialize: Node<'data, 'store> -> Node<'data, 'store>
-        Tick: 'data -> Node<'data, 'store> -> TickResult<'data, 'store>
-    }
-    static member Stateless tick = {
-        State = ()
-        Initialize = id
-        Tick = tick
-    }
+let StatusRoot status _ = End status
 
-let rec NoOp _ = Next NoOpNode
-and NoOpNode _ = Next NoOpNode  
-let DefaultRoot  (_, status) = End status
-let Action (node: Node<_, _>) =
-    fun parent ->
-        let rec tick (currentNode: Node<_, _>) data =
-            //Logger.Debug ("{node:A}", currentNode)
-            match node.Tick data currentNode with
-            | Result result -> parent (data, result)
-            | Node next -> Next <| tick next
-        fun data -> tick (node.Initialize node) <| data
-        
-let Stateless tick =
-    Action {
-        State = ()
-        Initialize = id
-        Tick = tick
-    }
-    
-let Condition fn =
-    Stateless <|
-    fun data _ -> if fn data then Result Success else Result Failure
+let rec NoOpNode _ = Next NoOpNode
+let NoOpRoot _ = Next NoOpNode  
+
+let Condition fn parent data =
+    if fn data then parent Success data else parent Failure data
 
 let _ParallelTick (children: _[]) data =
     let folder (completed, running) node =
@@ -65,21 +37,20 @@ let _CountParallelResult results =
             | Success -> (sc+1, fc)
             | Failure -> (sc, fc+1)
         ) (0, 0) results
-let Parallel (children: _[]) successCondition =
-    fun continuation ->
-        let rec tick nodes data =
-            let (completed, running) = _ParallelTick nodes data
-            let (successCount, failCount) = _CountParallelResult completed
-            if running.Length = 0 then
-                if successCondition = ParallelFlag.AllSuccess && failCount > 0
-                    then continuation (data, Failure)
-                else continuation (data, Success)
-            else if successCount > 0 && successCondition = ParallelFlag.OneSuccess
-                then continuation (data, Success)
-            else
-                Next (tick <| List.toArray running)
-        tick (Array.map (fun c -> c (fun (_, _, s) -> End s)) children)
-            
+let Parallel (children: _[]) successCondition parent data =
+    let rec tick nodes data =
+        let (completed, running) = _ParallelTick nodes data
+        let (successCount, failCount) = _CountParallelResult completed
+        if running.Length = 0 then
+            if successCondition = ParallelFlag.AllSuccess && failCount > 0
+                then parent Failure data
+            else parent Success data
+        else if successCount > 0 && successCondition = ParallelFlag.OneSuccess
+            then parent Success data
+        else
+            Next (tick <| List.toArray running)
+    tick (Array.map (fun c -> c StatusRoot data) children)
+     
 let _FoldChildren (children: _[]) onResult continuation =
     Array.foldBack
         (fun factory sibling -> factory (onResult sibling))
@@ -97,18 +68,18 @@ let Selector (children: _[]) =
         
 let Sequence (children: _[]) =    
     fun continuation ->
-        let onResult sibling (data, status) =
+        let onResult sibling status data =
             match status with
             | Success -> sibling data
-            | Failure -> continuation (data, Failure)        
+            | Failure -> continuation Failure data        
         let preparedChild = _FoldChildren children onResult continuation
         preparedChild
         
 let While condition child  =
     fun continuation ->        
-        let rec onResult (data, status) =
+        let rec onResult status data =
             if condition data then Next (child onResult)
-            else continuation (data, status)
+            else continuation status data
         child onResult
 
 let Forever child =
@@ -118,32 +89,27 @@ let Forever child =
         
 let UntilSuccess child =
     fun continuation ->
-        let rec onResult (data, status) =
+        let rec onResult status data =
             match status with
-            | Success -> continuation (data, status)
+            | Success -> continuation status data
             | Failure -> Next (child onResult)
         child onResult
-        
-let RetryTimeout currentTime timeout child =
-    Action
-        {
-            State = NoOpNode, 0L
-            Initialize = fun instance -> {instance with State = (child DefaultRoot), currentTime()}
-            Tick = fun data instance ->                
-                match fst instance.State data with
-                | Next node -> Node {instance with State=node, snd instance.State}
-                | End status ->
-                    if status = Success then Result Success
-                    else if currentTime() - snd instance.State > timeout then Result Failure
-                    else Node {instance with State = (child DefaultRoot), snd instance.State}
-        }
-    
+
+let RetryTimeout currentTime (timeout: int64) child parent =
+    let rec _retryTimeout initialTime tick data =
+        match tick data with
+        | Next next -> Next <| _retryTimeout initialTime next
+        | End status ->
+            if status = Success then parent Success data
+            else
+                if currentTime() - initialTime > timeout then parent Failure data
+                else Next <| _retryTimeout initialTime (child StatusRoot)
+    fun data -> _retryTimeout (currentTime()) (child StatusRoot) data
+  
 let Not child =
     fun continuation ->
-        let onResult (data, status) =
+        let onResult status data =
             match status with
-            | Success -> continuation (data, Failure)
-            | Failure -> continuation (data, Success)
+            | Success -> continuation Failure data
+            | Failure -> continuation Success data
         child onResult
-        
-            

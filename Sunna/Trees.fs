@@ -14,66 +14,53 @@ let Logger = LogManager.GetLogger "Trees"
 [<Literal>]
 let MAX_WALK_DISTANCE = 10
 
-let Wait milliseconds =
-    Action {
-        State = 0L, 0L
-        Initialize = fun node -> {node with State = Connection.Tick() + milliseconds, 0L}
-        Tick = fun game instance ->
-            let time = Connection.Tick()
-            let diff = fst instance.State - time
-            if diff > 0L then
-                if time > snd instance.State then
-                    Game.Ping game (int diff+1)
-                    Node {instance with State=fst instance.State, time+diff}
-                else Node instance
-            else Result Success
-                
-    }
+let Wait milliseconds parent data =
+    let rec _wait startTime nextPing game =
+        let time = Connection.Tick()
+        let diff = time - (startTime + milliseconds)
+        if diff >= 0L then parent Success game
+        else
+            if time >= nextPing then
+                Game.Ping game (int diff)
+                Next <| _wait startTime (nextPing+diff)
+            else Next <| _wait startTime nextPing
+    _wait (Connection.Tick()) 0L data    
+let PlayerIs status = Condition (fun (g: Game) -> g.Player.Action = status)
+//((Game * Status -> 'a) -> Game -> 'b -> 'a)
+let WantsToWalk: Node<Game> =
+    Condition <|
+        fun g ->
+        match g.Goals.Position with
+        | None -> false
+        | Some p -> p <> g.Player.Position
     
-let PlayerIs status =
-    Stateless (fun (game: Game) _ ->
-                    Result <| if game.Player.Action =~ status
-                        then Success
-                        else Failure)
-    
-let WantsToWalk =
-    Stateless (fun game _ ->
-                    Result <| (match game.Goals.Position with
-                                | None -> Failure
-                                | Some p -> if p <> game.Player.Position
-                                            then Success
-                                            else Failure))
-    
-let RetryTimeout timeout child =
-    RetryTimeout Connection.Tick timeout child
+let RetryTimeout = RetryTimeout Connection.Tick    
 
-let Walk: NodeCreator<Game> =
+let Walk =
     let WalkingRequired game =
         game.Goals.Position.IsSome &&
             game.Goals.Position.Value <> game.Player.Position
             
-    let RequestWalk =
-        Stateless <|
-        fun (game: Game) _ -> 
-            let player = game.Player
-            match game.Goals.Position with
-            | Some (x, y) ->
-                match Navigation.Pathfinding.FindPath
-                      (Navigation.Maps.GetMapData game.Map) player.Position (x, y) with
-                | [] -> Result Failure
-                | path ->
-                    let pos = path
-                            |> List.take (Math.Min (MAX_WALK_DISTANCE, path.Length))
-                            |> List.last
-                    game.Request(Types.Request.RequestMove pos)                
-                    Result Success
-            | None -> Result Success
-            
+    let RequestWalk parent (game: Game) =
+        let player = game.Player
+        match game.Goals.Position with
+        | Some (x, y) ->
+            match Navigation.Pathfinding.FindPath
+                  (Navigation.Maps.GetMapData game.Map) player.Position (x, y) with
+            | [] -> parent Failure game
+            | path ->
+                let pos = path
+                        |> List.take (Math.Min (MAX_WALK_DISTANCE, path.Length))
+                        |> List.last
+                game.Request(Types.Request.RequestMove pos)                
+                parent Success game
+        | None -> parent Success game
+
     While WalkingRequired <|
         Sequence [|
-            Condition Game.PlayerIsIdle
+            PlayerIs Idle
             RequestWalk
-            PlayerIs Walking |> RetryTimeout 2000L
+            PlayerIs Walking |> RetryTimeout 2000L  
             PlayerIs Walking |> Not |> UntilSuccess 
         |]
     (*
@@ -84,15 +71,10 @@ let Walk: NodeCreator<Game> =
             => StoppedWalking)
     *)
     
-let Disconnected =
-    Action {
-        State = ()
-        Initialize = id
-        Tick = fun (game: Game) _ ->
-            Logger.Warn ("Disconnected: {name}", game.Player.Name)
-            Result Success
-    }
+let Disconnected parent (game:Game) =
+    Logger.Warn ("Disconnected: {name}", game.Player.Name)
+    parent (game, Success)
     
-let Login =
-    Stateless <|
-        fun game _ -> game.Login game; Result Success
+let Login parent game =
+    game.Login game
+    parent (game, Success)

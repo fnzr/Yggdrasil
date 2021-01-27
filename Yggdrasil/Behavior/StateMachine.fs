@@ -9,7 +9,7 @@ type State<'data, 'stateId when 'stateId:comparison> = {
     Id: 'stateId
     Auto: 'stateId option
     Parent: 'stateId option    
-    Behavior: ActiveNode<'data>
+    Behavior: Tick<'data>
     Enter: 'data -> 'data
     BehaviorSuccess: 'stateId option
     Transitions: (('data -> bool) * 'stateId) list
@@ -18,7 +18,7 @@ type State<'data, 'stateId when 'stateId:comparison> = {
 type ActiveState<'data, 'stateId
     when 'stateId:comparison> = {
     Base: State<'data, 'stateId>
-    Behavior: ActiveNode<'data>
+    Behavior: Tick<'data>
     StateMap: Map<'stateId, State<'data, 'stateId>>
 }
 
@@ -98,7 +98,7 @@ module Machine =
         Auto = None
         Parent = None
         BehaviorSuccess = None
-        Behavior = NoOp
+        Behavior = NoOpNode
         Transitions = []
         Enter = id
     }

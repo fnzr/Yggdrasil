@@ -12,7 +12,7 @@ type UnitType =
   | Monster
   | Invalid  
   
-type Action = Idle | Dead | Casting of SkillCast | Walking of (int16 * int16) * int64
+type Action = Idle | Dead | Casting | Walking
 
 type Unit =
     {
