@@ -7,7 +7,7 @@ open FSharpPlus.Lens
 open Yggdrasil.Utils
 let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
 
-let WeightSoftCap value (game: Game) =
+let SetWeightSoftCap value (game: Game) =
     Tracer.Send <| setl Game._Inventory {game.Inventory with WeightSoftCap = value} game
     
 let RemoveDroppedItem id (game: Game) =

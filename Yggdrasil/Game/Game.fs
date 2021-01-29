@@ -6,6 +6,42 @@ open Yggdrasil
 open Yggdrasil.Game.Components
 open Yggdrasil.Types
 
+type LootUpdate =
+    | NewLoot of ItemDropRaw
+    | LootDisappear of int
+    
+type SettingsUpdate =
+    | WeightSoftCap of int
+    
+type GameStatus = {
+    WeightSoftCap: int
+    TickOffset: int64
+    PlayerId: uint32
+}
+
+type UnitUpdate =
+    | NewUnit of Unit
+    | DelUnit of uint32 * DisappearReason
+    
+type SkillUpdate =
+    | NewSkills of Skill list
+
+type GameUpdate =
+    | LootUpdate of LootUpdate
+    | SkillUpdate of SkillUpdate
+    | UnitUpdate of UnitUpdate
+    | PlayerMovement of UnitMove
+    | PlayerPosition of Position
+    | UnitPosition of uint32 * Position
+    | UnitMovement of uint32 * UnitMove
+    | IsConnected of bool
+    | TickOffset of int64
+    | WeightSoftCap of int
+    | MapChanged of string
+    | PlayerName of string
+    | PlayerId of uint32
+    | RequestHandler of (Request -> unit)
+
 module Connection =
     let stopwatch = Stopwatch()
     stopwatch.Start()

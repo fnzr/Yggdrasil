@@ -5,7 +5,8 @@ open Yggdrasil.Behavior
 open Yggdrasil.Game
 open Sunna.Machines
 open Yggdrasil.Game.Components
-
+open Yggdrasil.IO
+(*
 let timer = new System.Timers.Timer(500.0)
 timer.AutoReset <- true
 
@@ -30,25 +31,21 @@ let a =
 let IsAtMaxWeight (e: IObservable<Inventory>) =
     e
     |> Observable.map (fun i -> i.Weight = i.MaxWeight)
-    
-let OnlineLogin game =
-    let server = IPEndPoint (IPAddress.Parse "127.0.0.1", 6900)
-    let (user, pass) = game.Credentials
-    Yggdrasil.IO.Handshake.Login server user pass game.Inbox
+*)
+
 
 let StartAgent credentials initialMachineState =
-    let game = {Game.Default
-                 with
-                    Login = OnlineLogin
-                    Credentials = credentials}
-    let inbox = Agent.SetupAgent game initialMachineState
-    inbox.Post <|
-        fun w -> {w with Inbox = inbox.Post}
+    let inbox = EventHandler.SetupAgent () ()
+    let callback = Handshake.onReadyToConnect inbox.Post
+    let server = IPEndPoint (IPAddress.Parse "127.0.0.1", 6900)
+    Handshake.Login server credentials callback
+    //inbox.Post <|
+    //        fun w -> {w with Inbox = inbox.Post}
 
 [<EntryPoint>]
 let main _ =
     Async.Start <| async { Server.StartServer() }
     //Console.ReadKey() |> ignore
-    StartAgent ("roboco", "111111") (DefaultMachine.Create())
+    StartAgent ("roboco", "111111") ()
     Console.ReadKey() |> ignore
     0

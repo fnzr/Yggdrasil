@@ -148,13 +148,6 @@ type DisappearReason =
     | Teleport = 3uy
     | TrickDead = 4uy
 
-
-type UnitMove = {
-    aid: uint32
-    X: int16
-    Y: int16
-}
-
 type RawDamageInfo = {
     Source: uint32
     Target: uint32
@@ -233,6 +226,20 @@ type MonsterHPInfo = {
     HP: int
     MaxHP: int
 }
+
+type Position = int16 * int16
+
+type UnitMove = {
+    Destination: Position
+    TimeStart: int64 option
+}
+
+type UnitMove2 = {
+    Id: uint32
+    X: int16
+    Y: int16
+}
+
 type Request =
     | DoneLoadingMap
     | RequestServerTick

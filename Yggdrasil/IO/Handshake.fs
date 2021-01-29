@@ -67,43 +67,39 @@ let WantToConnect zoneInfo =
         [| zoneInfo.Gender |]
     |])
     
-let onAuthenticationResult callback
-    (result:  Result<ZoneCredentials, string>) =
-    match result with
-    | Ok info ->
-        Logger.Info "Connected to server"
-        let client = new TcpClient()
-        client.Connect(info.ZoneServer)
-        
-        let stream = client.GetStream()
-        let player = {
+let onReadyToConnect inbox info =
+    let player = {
             Unit.Default with
                 Id = info.AccountId
                 Name = info.CharacterName
                 Type = UnitType.Player
         }
-        callback <|
-            fun game ->
-                { game with
-                    PlayerId = player.Id
-                    Request = Outgoing.OnlineRequest stream
-                    Units = game.Units.Add(player.Id, player)
-                }
-        stream.Write (WantToConnect info)
-        Async.Start <|
-        async {
-            try
-                try                
-                    let packetReceiver = Incoming.PacketReceiver callback
-                    return! Array.empty |> GetReader stream packetReceiver
-                with
-                //| :? IOException ->
-                  //  Logger.Error("[{accountId}] MapServer connection closed (timed out?)", info.AccountId)                
-                | :? ObjectDisposedException -> ()
-                | e -> Logger.Error e
-            finally
-                callback <| fun w -> {w with IsConnected = false}
-        }
+    let client = new TcpClient()
+    client.Connect(info.ZoneServer)
+    let stream = client.GetStream()
+    
+    List.iter inbox [
+        PlayerName player.Name
+        PlayerId player.Id
+        UnitUpdate (NewUnit player)
+        RequestHandler (Outgoing.OnlineRequest stream)
+    ]
+    stream.Write (WantToConnect info)
+    Async.Start <| async {
+        try
+            let packetReceiver = Incoming.PacketReceiver inbox
+            return! GetReader stream packetReceiver [||]
+        with
+            | e -> Logger.Error e
+                   IsConnected false |> inbox
+    }
+    
+let onAuthenticationResult callback
+    (result:  Result<ZoneCredentials, string>) =
+    match result with
+    | Ok info ->
+        Logger.Info "Authentication accepted"
+        callback info
     | Error error -> Logger.Error error
     
 let EnterZone zoneInfo packetHandler =
@@ -212,7 +208,7 @@ and GetLoginPacketHandler stream credentials onReadyToEnterZone =
             stream.Close()
         | unknown -> Logger.Error("Unknown LoginServer packet {packetType:X}", unknown)
 
-let Login loginServer username password callback =
+let Login loginServer (username, password) callback =
     Async.Start (Connect  {
         LoginServer = loginServer
         Username = username

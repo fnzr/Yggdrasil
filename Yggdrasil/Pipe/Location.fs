@@ -36,7 +36,7 @@ let StartMove (unit: Unit) callback destination initialDelay (game: Game) =
     if path.Length > 0 then
         let delay = if initialDelay < 0L then 0L else initialDelay
         let startTime = Connection.Tick() + delay
-        let action = Walking (destination, startTime)
+        let action = Walking //TODO: fix (destination, startTime)
         callback <| Game.UpdateUnit {unit with Action = action} 
         Async.Start <| async {
             do! Async.Sleep (int delay)
@@ -64,9 +64,9 @@ let PlayerWalk origin dest startAt callback (game: Game) =
     StartMove game.Player callback dest delay w
     Tracer.Send game
     
-let MoveUnit (move: UnitMove) callback (game: Game) =
-    match game.Units.TryFind move.aid with
-    | None -> Logger.Warn ("Unhandled movement for {aid}", move.aid)
+let MoveUnit (move: UnitMove2) callback (game: Game) =
+    match game.Units.TryFind move.Id with
+    | None -> Logger.Warn ("Unhandled movement for {aid}", move.Id)
     | Some unit -> StartMove unit callback (move.X, move.Y) 0L game
     Tracer.Send game
     

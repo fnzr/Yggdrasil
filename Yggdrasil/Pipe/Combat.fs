@@ -77,7 +77,7 @@ let SkillCast castRaw callback (game: Game) =
             SkillId = castRaw.skillId
             Property = castRaw.property
         }
-        let action = Casting (cast)
+        let action = Casting
         Async.Start <| async {            
             do! Async.Sleep (int castRaw.delay)
             callback <| ClearSkill action caster.Id target.Id cast
