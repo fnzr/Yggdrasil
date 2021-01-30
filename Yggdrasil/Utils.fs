@@ -19,11 +19,6 @@ let ToBool data = BitConverter.ToBoolean(data, 0)
 let ToParameter data : Parameter = data |> ToUInt16 |> LanguagePrimitives.EnumOfValue
 let ToString (data: byte[]) = (data |> Encoding.UTF8.GetString).Trim [| '\x00'; ''; '�' |]
 
-let rec AggregatePacketMap (state: Map<uint16, int>) (list: List<uint16 * int>) =
-    match list with
-    | head :: tail -> AggregatePacketMap (state.Add(fst head, snd head)) tail
-    | [] -> state
-
 let FillBytes (data:string) size =
     Array.concat([|
         Encoding.UTF8.GetBytes(data);

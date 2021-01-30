@@ -6,37 +6,13 @@ open Yggdrasil.Game
 open Sunna.Machines
 open Yggdrasil.Game.Components
 open Yggdrasil.IO
-(*
-let timer = new System.Timers.Timer(500.0)
-timer.AutoReset <- true
 
-// events are automatically IObservable
-let timeStream = timer.Elapsed
-
-type InventoryCell =
-    {
-        InventoryChangedEvent: Event<Inventory>
-    }
-    [<CLIEvent>]
-    member this.InventoryChanged = this.InventoryChangedEvent.Publish
-
-let InventoryCellInstance =
-    {
-      InventoryChangedEvent = Event<Inventory>()
-    }
-let a =
-    InventoryCellInstance.InventoryChanged
-    |> Observable.map (fun i -> i.Weight = i.MaxWeight)
-// Inventory -> Boolean
-let IsAtMaxWeight (e: IObservable<Inventory>) =
-    e
-    |> Observable.map (fun i -> i.Weight = i.MaxWeight)
-*)
-
+let OnConnected game =
+    Propagators.SetupPropagators game |> ignore
 
 let StartAgent credentials initialMachineState =
-    let inbox = EventHandler.SetupAgent () ()
-    let callback = Handshake.onReadyToConnect inbox.Post
+    //let inbox = EventHandler.SetupAgent () ()
+    let callback = Handshake.onReadyToConnect OnConnected
     let server = IPEndPoint (IPAddress.Parse "127.0.0.1", 6900)
     Handshake.Login server credentials callback
     //inbox.Post <|
@@ -44,8 +20,9 @@ let StartAgent credentials initialMachineState =
 
 [<EntryPoint>]
 let main _ =
-    Async.Start <| async { Server.StartServer() }
-    //Console.ReadKey() |> ignore
+    AppDomain.CurrentDomain.FirstChanceException.Add <|
+    fun args -> printfn "First change exception: %s: %s" AppDomain.CurrentDomain.FriendlyName args.Exception.Message
+    //Async.Start <| async { Server.StartServer() }
     StartAgent ("roboco", "111111") ()
     Console.ReadKey() |> ignore
     0

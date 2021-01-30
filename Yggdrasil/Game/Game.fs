@@ -1,5 +1,6 @@
 namespace Yggdrasil.Game
 
+open System
 open System.Diagnostics
 open FSharpPlus.Lens
 open Yggdrasil
@@ -41,6 +42,13 @@ type GameUpdate =
     | PlayerName of string
     | PlayerId of uint32
     | RequestHandler of (Request -> unit)
+
+type GameO = {
+    GameUpdate: IObservable<GameUpdate>
+    Request: Request -> unit
+    PlayerId: Id
+    PlayerName: string
+}
 
 module Connection =
     let stopwatch = Stopwatch()

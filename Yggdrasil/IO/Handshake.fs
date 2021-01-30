@@ -67,7 +67,7 @@ let WantToConnect zoneInfo =
         [| zoneInfo.Gender |]
     |])
     
-let onReadyToConnect inbox info =
+let onReadyToConnect afterConnected info =
     let player = {
             Unit.Default with
                 Id = info.AccountId
@@ -78,22 +78,15 @@ let onReadyToConnect inbox info =
     client.Connect(info.ZoneServer)
     let stream = client.GetStream()
     
-    List.iter inbox [
-        PlayerName player.Name
-        PlayerId player.Id
-        UnitUpdate (NewUnit player)
-        RequestHandler (Outgoing.OnlineRequest stream)
-    ]
     stream.Write (WantToConnect info)
-    Async.Start <| async {
-        try
-            let packetReceiver = Incoming.PacketReceiver inbox
-            return! GetReader stream packetReceiver [||]
-        with
-            | e -> Logger.Error e
-                   IsConnected false |> inbox
-    }
     
+    afterConnected {
+        GameUpdate = Incoming.PacketParser player.Id (ReadPackets stream)
+        Request = Outgoing.OnlineRequest stream
+        PlayerId = player.Id
+        PlayerName = player.Name
+    }
+        
 let onAuthenticationResult callback
     (result:  Result<ZoneCredentials, string>) =
     match result with
@@ -173,7 +166,7 @@ let rec Connect loginCredentials onReadyToEnterZone = async {
     stream.ReadTimeout <- 10000
         
     stream.Write(OtpTokenLogin())
-        
+
     let packetHandler = GetLoginPacketHandler stream loginCredentials onReadyToEnterZone
     try
         return! Array.empty |> GetReader stream packetHandler

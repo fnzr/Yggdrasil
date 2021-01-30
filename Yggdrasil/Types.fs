@@ -1,5 +1,7 @@
 module Yggdrasil.Types
 
+type Id = uint32
+
 type Parameter =
     |Speed=0us|Karma=3us|Manner=4us|HP=5us|MaxHP=6us|SP=7us|MaxSP=8us
     |StatusPoints=9us|BaseLevel=11us|SkillPoints=12us
