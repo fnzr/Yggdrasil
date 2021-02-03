@@ -31,17 +31,13 @@ type GameUpdate =
     | LootUpdate of LootUpdate
     | SkillUpdate of SkillUpdate
     | UnitUpdate of UnitUpdate
-    | PlayerMovement of UnitMove
-    | PlayerPosition of Position
-    | UnitPosition of uint32 * Position
-    | UnitMovement of uint32 * UnitMove
+    | UnitSpeed of Id * int16
+    | UnitPosition of Id * Position
+    | UnitMovement of Id * UnitMove
     | IsConnected of bool
     | TickOffset of int64
     | WeightSoftCap of int
     | MapChanged of string
-    | PlayerName of string
-    | PlayerId of uint32
-    | RequestHandler of (Request -> unit)
 
 type GameO = {
     GameUpdate: IObservable<GameUpdate>

@@ -232,6 +232,7 @@ type MonsterHPInfo = {
 type Position = int16 * int16
 
 type UnitMove = {
+    Origin: Position
     Destination: Position
     TimeStart: int64 option
 }

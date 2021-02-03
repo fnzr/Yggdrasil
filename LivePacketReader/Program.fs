@@ -21,7 +21,7 @@ let initialWorld =
         Units = Map.empty.Add(Player.Id, Player)}
     
 let Mailbox = MailboxProcessor.Start(fun inbox ->
-    let rec loop currentWorld = async {
+    let rSpeedec loop currentWorld = async {
         let! pipe = inbox.Receive()
         let game = pipe currentWorld
         return! loop game

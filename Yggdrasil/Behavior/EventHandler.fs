@@ -9,12 +9,6 @@ let EventMailbox initialData initialMachineState (inbox: MailboxProcessor<GameUp
         let! update = inbox.Receive()
         //Logger.Info update
         
-        match update with
-        | PlayerId id ->
-            printfn "huh"
-            Propagators.PlayerId.OnNext id
-        | _ -> ()
-            
         //let (newData, newState) =
           //  (data, currentState)
             //|> State.MoveState
