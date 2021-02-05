@@ -7,7 +7,7 @@ open Yggdrasil.Types
 open Yggdrasil.Utils
 open Yggdrasil.Game
 let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
-
+(*
 let ProcessDamage (target: Unit) (source: Unit) (damageInfo: DamageInfo)  game =
     let unit = {target with HP = target.HP - damageInfo.Damage}
     Tracer.Send Game.UpdateUnit unit game
@@ -89,3 +89,4 @@ let AddSkills skills (game: Game) =
         {game with
             Skills = {game.Skills with
                         List = List.append game.Skills.List skills}}
+*)

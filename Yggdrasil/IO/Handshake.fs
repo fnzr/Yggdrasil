@@ -31,32 +31,6 @@ let WantToConnect playerInfo =
         [| playerInfo.Gender |]
     |])
     
-let StartGame info =
-    let player = {
-            Unit.Default with
-                Id = info.AccountId
-                Name = info.CharacterName
-                Type = UnitType.Player
-        }
-    let client = new TcpClient()
-    client.Connect(info.ZoneServer)
-    let stream = client.GetStream()
-    
-    stream.Write (WantToConnect info)
-    //TODO: this works, now fix it
-    Async.Start <| async {
-        let monitor = Yggdrasil.Reactive.Monitor.Monitor()
-        let buffer = Array.zeroCreate 1024
-        let packetReader () = ReadPacket stream buffer
-        let agentUpdate = Yggdrasil.Reactive.Monitor.agentHandler
-        let personaUpdate = monitor.Push
-        let id = player.Id
-        let time = Connection.Tick
-        let tickOffset = 0L
-        let map = info.MapName.Substring(0, info.MapName.Length - 4)
-        
-        return! Incoming.PacketParser packetReader agentUpdate personaUpdate id time tickOffset map
-    }
     
 type LoginServerResponse = {
     CharServer: IPEndPoint
@@ -161,7 +135,7 @@ let rec Authenticate loginServer (username, password) =
         | unknown -> invalidArg $"PacketType {unknown:X}" "Unknown LoginServer packet"
     stream.Write(OtpTokenLogin())
     handler()
+
 let Login loginServer credentials =
     Authenticate loginServer credentials
     |> SelectCharacter 0uy
-    |> StartGame

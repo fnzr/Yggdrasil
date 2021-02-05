@@ -242,6 +242,43 @@ type UnitMove2 = {
     X: int16
     Y: int16
 }
+type UnitType =
+  | Player
+  | NPC
+  | PC
+  | Monster
+  | Invalid  
+  
+type Action = Idle | Dead | Casting | Walking
+
+type Unit =
+    {
+        Id: uint32
+        Type: UnitType
+        Action: Action
+        //TargetOfSkills: (SkillCast * Unit) list
+        MaxHP: int
+        HP: int
+        SP: int32
+        MaxSP: int32
+        Name: string
+        Position: (int16 * int16)
+        Speed: int16
+    }
+    
+    static member Default = {
+        Id = 0u
+        Type = UnitType.Invalid
+        Action = Idle
+        //TargetOfSkills = list.Empty
+        MaxHP = 0
+        HP = 0
+        MaxSP = 0
+        SP = 0
+        Name = ""
+        Position = 0s, 0s
+        Speed = 150s
+    }
 
 type Request =
     | DoneLoadingMap
@@ -253,3 +290,31 @@ type Request =
     | ContinuousAttack of uint32
     | Unequip of int16
     | Equip of int16 * uint32
+
+type MovementData = {
+    Delay: float
+    Origin: Position
+    Destination: Position
+}
+
+type Entity =
+    {
+        Id: Id
+        Position: Position
+        Speed: float
+        Map: string
+        Name: string
+    }
+    static member Create id map = {Id=id;Position=0s,0s;Speed=0.0;Map=map;Name=""}
+    static member FromUnit (unit: Unit) map = {Id=unit.Id;Position=0s,0s;Speed=0.0;Map=map;Name=""}
+
+type MonitorMessage =
+    | NewPlayer of Entity
+    | NewUnit of Unit
+    | LostUnit of Id * DisappearReason
+    | ForcedPosition of Position
+    | Movement of MovementData
+    | Speed of float
+    | MapChanged of string * Position
+    | WeightSoftCap of int
+    | AllSkills of Skill list

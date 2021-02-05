@@ -7,7 +7,7 @@ open Yggdrasil.Game
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 open Yggdrasil.Utils
-
+(*
 let Logger = LogManager.GetLogger "Location"
 let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
 
@@ -88,3 +88,4 @@ let MapChange position map (game: Game) =
 let MapProperty property flag game =
     //dont know what this is yet, but use it as flag
     {game with IsMapReady = true}
+*)

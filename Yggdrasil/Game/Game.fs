@@ -7,41 +7,6 @@ open Yggdrasil
 open Yggdrasil.Game.Components
 open Yggdrasil.Types
 
-type LootUpdate =
-    | NewLoot of ItemDropRaw
-    | LootDisappear of int
-    
-type SettingsUpdate =
-    | WeightSoftCap of int
-    
-type GameStatus = {
-    WeightSoftCap: int
-    TickOffset: int64
-    PlayerId: uint32
-}
-
-type MovementData = {
-    Delay: float
-    Origin: Position
-    Destination: Position
-}
-
-type MonitorMessage =
-    | NewUnit of Unit
-    | LostUnit of Id * DisappearReason
-    | ForcedPosition of Position
-    | Movement of MovementData
-    | Speed of float
-    | MapChanged of string * Position
-    
-type AgentMessage =
-    | WeightSoftCap of int
-    | AllSkills of Skill list
-
-type SkillUpdate =
-    | NewSkills of Skill list
-
-
 module Connection =
     let stopwatch = Stopwatch()
     stopwatch.Start()

@@ -3,16 +3,6 @@ open System
 open FSharp.Control.Reactive
 open Yggdrasil.Game
 open Yggdrasil.Types
-
-type Persona =
-    {
-        Id: Id
-        Position: Position
-        Speed: float
-        Map: string
-        Name: string
-    }
-    static member Create id map = {Id=id;Position=0s,0s;Speed=0.0;Map=map;Name=""}
     
 let ReactiveMovement origin map post =
     let source = Observable.distinctUntilChanged origin
@@ -50,7 +40,7 @@ let ReactiveMovement origin map post =
      SpeedObserver.Subscribe(fun s -> post <| Speed s)
     ]
     
-type PersonaHandler (persona: Persona, onUpdate) as __ =
+type EntityHandler (persona: Entity, onUpdate) as __ =
     let reporter = Subject.broadcast
     let subscriptions = ReactiveMovement reporter persona.Map __.Update
     let _lock = obj()

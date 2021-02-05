@@ -5,43 +5,6 @@ open NLog
 open Yggdrasil.Types
 open FSharpPlus.Lens
 
-type UnitType =
-  | Player
-  | NPC
-  | PC
-  | Monster
-  | Invalid  
-  
-type Action = Idle | Dead | Casting | Walking
-
-type Unit =
-    {
-        Id: uint32
-        Type: UnitType
-        Action: Action
-        TargetOfSkills: (SkillCast * Unit) list
-        MaxHP: int
-        HP: int
-        SP: int32
-        MaxSP: int32
-        Name: string
-        Position: (int16 * int16)
-        Speed: int16
-    }
-    
-    static member Default = {
-        Id = 0u
-        Type = UnitType.Invalid
-        Action = Idle
-        TargetOfSkills = list.Empty
-        MaxHP = 0
-        HP = 0
-        MaxSP = 0
-        SP = 0
-        Name = ""
-        Position = 0s, 0s
-        Speed = 150s
-    }
     
 module Unit =
     let inline __position f p = f p.Position <&> fun x -> { p with Position = x }

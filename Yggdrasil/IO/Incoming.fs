@@ -4,6 +4,7 @@ open System
 open FSharp.Control.Reactive
 open NLog
 open Yggdrasil.Game.Components
+open Yggdrasil.Reactive.Monitor
 open Yggdrasil.Types
 open Yggdrasil.Utils
 open Yggdrasil.Game
@@ -57,54 +58,52 @@ let ParseEquipItem data =
     |> Array.map Equipment.FromRaw
     |> Array.toList
     
-type Update =
-    | PersonaUpdate of MonitorMessage
-    | AgentUpdate of AgentMessage
+let PostUpdate update map targetId message =
+    update {
+        Map = map
+        TargetId = targetId
+        Message = message
+    }
     
-let PostUpdate agentUpdate personaUpdate map targetId message =
-    match message with
-    | PersonaUpdate msg -> personaUpdate map targetId msg
-    | AgentUpdate msg -> agentUpdate targetId msg
-    
-let HandlePacket agentId tickOffset time (update: Id -> Update -> unit) packetType (data: _[]) =
+let HandlePacket agentId tickOffset time (update: Id -> MonitorMessage -> unit) packetType (data: _[]) =
     match packetType with
-    | 0xadeus -> ToInt32 data.[2..] |> WeightSoftCap |> AgentUpdate |> update agentId
+    | 0xadeus -> ToInt32 data.[2..] |> WeightSoftCap |> update agentId
     | 0x9ffus | 0x9feus | 0x9fdus ->
         //skip MoveStartTime (uint32) for moving units
         let (part1, leftover) = MakePartialRecord<UnitRawPart1> data.[4..] [||]    
         let (part2, _) = MakePartialRecord<UnitRawPart2> leftover [|24|]
         let (x, y, _) = UnpackPosition [|part2.PosPart1; part2.PosPart2; part2.PosPart3|]
         CreateNonPlayer part1 part2 (x, y)
-        |> NewUnit |> PersonaUpdate |> update agentId
+        |> NewUnit |> update agentId
     | 0x0080us ->
         (ToUInt32 data.[2..],
             Enum.Parse(typeof<DisappearReason>, string data.[6]) :?> DisappearReason)
-        |> LostUnit |> PersonaUpdate |> update agentId
+        |> LostUnit |> update agentId
     | 0x10fus ->                
         //TODO SkillRaw -> Skill
         data.[4..]
         |> Array.chunkBySize 37
         |> Array.map (fun s -> fst <| MakePartialRecord<Skill> s [|24|])
         |> Array.toList
-        |> AllSkills |> AgentUpdate |> update agentId
+        |> AllSkills |> update agentId
     | 0x0087us ->
         let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]
-        ForcedPosition (x0, y0) |> PersonaUpdate |> update agentId
+        ForcedPosition (x0, y0) |> update agentId
         let mutable delay = time() - (int64 <| ToUInt32 data.[2..]) + tickOffset |> float
         Movement {
             Origin = (x0, y0)
             Destination = (x1, y1)
             Delay = if delay < 0.0 then 0.0 else delay
-        } |> PersonaUpdate |> update agentId
+        } |> update agentId
     | 0x0086us ->
         let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]
-        ForcedPosition (x0, y0) |> PersonaUpdate |> update agentId
+        ForcedPosition (x0, y0) |> update agentId
         let mutable delay = time() - (int64 <| ToUInt32 data.[12..]) + tickOffset |> float
         Movement {
             Origin = (x0, y0)
             Destination = (x1, y1)
             Delay = if delay < 0.0 then 0.0 else delay
-        } |> PersonaUpdate |> update (ToUInt32 data.[2..])
+        } |> update (ToUInt32 data.[2..])
     //| 0x07fbus -> yield SkillCast (MakeRecord<RawSkillCast> data.[2..]) callback
     //| 0x0977us -> yield UpdateMonsterHP (MakeRecord<MonsterHPInfo> data.[2..])        
     //| 0x008aus -> yield DamageDealt (MakeRecord<RawDamageInfo> data.[2..]) callback
@@ -118,10 +117,10 @@ let HandlePacket agentId tickOffset time (update: Id -> Update -> unit) packetTy
     | 0x13aus -> () //yield ParameterChange Parameter.AttackRange data.[2..]
     | 0x0088us -> 
         let info = MakeRecord<UnitMove2> data.[2..]
-        ForcedPosition (info.X, info.Y) |> PersonaUpdate |> update info.Id
+        ForcedPosition (info.X, info.Y) |> update info.Id
     | 0x00b0us ->
         if (data.[2..] |> ToParameter) = Parameter.Speed then
-            Speed <| float (ToInt16 data.[4..]) |> PersonaUpdate |> update agentId
+            Speed <| float (ToInt16 data.[4..]) |> update agentId
         //yield ParameterChange (data.[2..] |> ToParameter) data.[4..]
     | 0x0141us -> () //yield ParameterChange (data.[2..] |> ToParameter) data.[4..]
     | 0xacbus -> () //yield ParameterChange (data.[2..] |> ToParameter) data.[4..]
@@ -150,14 +149,14 @@ let HandleMetaPacket map update agentId packetType (data: _[]) =
     match packetType with
      | 0x2ebus ->
         let (x, y, _) = UnpackPosition data.[6..]
-        ForcedPosition (x, y) |> PersonaUpdate |> update agentId
+        ForcedPosition (x, y) |> update agentId
         TickOffset (int64 (ToUInt32 data.[2..])) |> Some
      | 0x0091us ->
         let position = (data.[18..] |> ToInt16,
                         data.[20..] |> ToInt16)
         let map = (let gatFile = ToString data.[..17]
            gatFile.Substring(0, gatFile.Length - 4))
-        MapChanged (map, position) |> PersonaUpdate |> update agentId
+        MapChanged (map, position) |> update agentId
         Map map |> Some
      | 0x007fus -> TickOffset (int64 (ToUInt32 data.[2..])) |> Some        
      | 0x0081us -> Disconnected data.[2] |> Some
@@ -165,14 +164,14 @@ let HandleMetaPacket map update agentId packetType (data: _[]) =
 
 //let PostUpdate agentUpdate personaUpdate map targetId message =
  //let HandlePacket agentId tickOffset time (update: Id -> Update -> unit) packetType (data: _[]) =
-let rec PacketParser readPacket agentUpdate personaUpdate agentId time tickOffset map =
+let rec PacketParser readPacket update agentId time tickOffset map =
     let (pType, pData: ReadOnlyMemory<_>) = readPacket()
     let data = pData.ToArray()
     let mutable newMap = map
     let mutable newTickOffset = tickOffset
-    let update = PostUpdate agentUpdate personaUpdate map
+    let postUpdate = PostUpdate update map
     //let HandleMetaPacket map update agentId packetType (data: _[]) =
-    match HandleMetaPacket map update agentId pType data with
+    match HandleMetaPacket map postUpdate agentId pType data with
     | Some meta ->
         match meta with
         | Map m -> newMap <- m
@@ -180,5 +179,5 @@ let rec PacketParser readPacket agentUpdate personaUpdate agentId time tickOffse
         //TODO handle disconnection
         | Disconnected r -> Logger.Warn $"Disconnected: {agentId}"
     | None ->
-        HandlePacket agentId newTickOffset time update pType data
-    PacketParser readPacket agentUpdate personaUpdate agentId time newTickOffset newMap
+        HandlePacket agentId newTickOffset time postUpdate pType data
+    PacketParser readPacket update agentId time newTickOffset newMap
