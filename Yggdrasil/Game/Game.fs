@@ -20,31 +20,27 @@ type GameStatus = {
     PlayerId: uint32
 }
 
-type UnitUpdate =
+type MovementData = {
+    Delay: float
+    Origin: Position
+    Destination: Position
+}
+
+type MonitorMessage =
     | NewUnit of Unit
-    | DelUnit of uint32 * DisappearReason
+    | LostUnit of Id * DisappearReason
+    | ForcedPosition of Position
+    | Movement of MovementData
+    | Speed of float
+    | MapChanged of string * Position
     
+type AgentMessage =
+    | WeightSoftCap of int
+    | AllSkills of Skill list
+
 type SkillUpdate =
     | NewSkills of Skill list
 
-type GameUpdate =
-    | LootUpdate of LootUpdate
-    | SkillUpdate of SkillUpdate
-    | UnitUpdate of UnitUpdate
-    | UnitSpeed of Id * int16
-    | UnitPosition of Id * Position
-    | UnitMovement of Id * UnitMove
-    | IsConnected of bool
-    | TickOffset of int64
-    | WeightSoftCap of int
-    | MapChanged of string
-
-type GameO = {
-    GameUpdate: IObservable<GameUpdate>
-    Request: Request -> unit
-    PlayerId: Id
-    PlayerName: string
-}
 
 module Connection =
     let stopwatch = Stopwatch()

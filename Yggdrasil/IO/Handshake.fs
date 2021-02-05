@@ -43,11 +43,19 @@ let StartGame info =
     let stream = client.GetStream()
     
     stream.Write (WantToConnect info)
-    {
-        GameUpdate = Incoming.PacketParser player.Id (ObservePackets stream)
-        Request = Outgoing.OnlineRequest stream
-        PlayerId = player.Id
-        PlayerName = player.Name
+    //TODO: this works, now fix it
+    Async.Start <| async {
+        let monitor = Yggdrasil.Reactive.Monitor.Monitor()
+        let buffer = Array.zeroCreate 1024
+        let packetReader () = ReadPacket stream buffer
+        let agentUpdate = Yggdrasil.Reactive.Monitor.agentHandler
+        let personaUpdate = monitor.Push
+        let id = player.Id
+        let time = Connection.Tick
+        let tickOffset = 0L
+        let map = info.MapName.Substring(0, info.MapName.Length - 4)
+        
+        return! Incoming.PacketParser packetReader agentUpdate personaUpdate id time tickOffset map
     }
     
 type LoginServerResponse = {
