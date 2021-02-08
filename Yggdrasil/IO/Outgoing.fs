@@ -3,7 +3,6 @@ module Yggdrasil.IO.Outgoing
 open System
 open System.IO
 open NLog
-open Yggdrasil
 open Yggdrasil.Types
 let Logger = LogManager.GetLogger "Dispatcher"
 
@@ -14,13 +13,13 @@ let PackPosition (x: int16) y (dir: byte) =
         byte ((y <<< 4)) ||| (dir &&& 0xfuy)
     |]
     
-let OnlineRequest (stream: Stream) (request: Request) =
+let OnlineRequest (time: unit -> int64) (stream: Stream) (request: Request) =
     let bytes =
         match request with
         | DoneLoadingMap -> BitConverter.GetBytes 0x7dus
         | RequestServerTick -> Array.concat [|
                 BitConverter.GetBytes 0x0360us
-                BitConverter.GetBytes (Convert.ToUInt32(Game.Connection.Tick))
+                BitConverter.GetBytes (Convert.ToUInt32(time()))
             |]
         | RequestMove (x, y) -> Array.concat [|
                 BitConverter.GetBytes 0x035fus
@@ -54,5 +53,5 @@ let OnlineRequest (stream: Stream) (request: Request) =
                 BitConverter.GetBytes index
                 BitConverter.GetBytes location
             |]
-    Logger.Info ("{request}", request)
+    Logger.Info request
     stream.Write(bytes, 0, bytes.Length)

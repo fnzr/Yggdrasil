@@ -2,27 +2,51 @@ module Yggdrasil.IO.Stream
 
 open System
 open System.IO
+open FSharp.Control.Reactive
 open FSharpPlus.Control
 open NLog
-open Yggdrasil.Utils
-open FSharp.Control.Reactive.Builders
+open Yggdrasil.IO.Decoder
 
 type OnReceivePacket = uint16 * ReadOnlyMemory<byte> -> unit
 type PacketMap = Map<uint16, int>
 
 let Logger = LogManager.GetLogger "Stream"
-[<Literal>]
-let MAX_BUFFER_SIZE = 2056
 
 type PacketLength =
     | Fixed of int
     | Dynamic
 
+module Hex =    
+    let FromHexDigit c =
+                if c >= '0' && c <= '9' then int c - int '0'
+                elif c >= 'A' && c <= 'F' then (int c - int 'A') + 10
+                elif c >= 'a' && c <= 'f' then (int c - int 'a') + 10
+                else raise <| ArgumentException()
+    let Decode (s:string) =
+                match s with
+                | null -> nullArg "s"
+                | _ when s.Length = 0 -> Array.empty
+                | _ ->
+                    let mutable len = s.Length
+                    let mutable i = 0
+                    if len >= 2 && s.[0] = '0' && (s.[1] = 'x' || s.[1] = 'X') then do
+                        len <- len - 2
+                        i <- i + 2
+                    if len % 2 <> 0 then invalidArg "s" "Invalid hex format"
+                    else
+                        let buf = Array.zeroCreate (len / 2)
+                        let mutable n = 0
+                        while i < s.Length do
+                            buf.[n] <- byte (((FromHexDigit s.[i]) <<< 4) ||| (FromHexDigit s.[i + 1]))
+                            i <- i + 2
+                            n <- n + 1
+                        buf
+
 let PacketLengthMap =    
     File.ReadLines ("PacketMap.txt")
     |> Seq.map (fun i ->
         let parts = i.Split(' ')
-        ToUInt16 (Hex.decode (parts.[0]) |> Array.rev) , Convert.ToInt32(parts.[1]))
+        ToUInt16 (Hex.Decode (parts.[0]) |> Array.rev), int parts.[1])
     |> Seq.fold (fun (m: Map<_,_>) (_type, length) -> m.Add(_type, length)) Map.empty
     
 let ParsePacketHeader header =
@@ -30,26 +54,33 @@ let ParsePacketHeader header =
     match PacketLengthMap.TryFind pType  with
     | Some -1 -> pType, Dynamic
     | Some len -> pType, Fixed len
-    | None -> invalidArg ($"{pType:X}") "Unmapped packet"
+    | None -> invalidArg $"{pType:X}" "Unmapped packet"
     
 let ReadPacket (stream: Stream) buffer =
-    stream.Read(buffer, 0, 2) |> ignore
-    let (pType, pLength) = ParsePacketHeader buffer
-    let len, offset = match pLength with
-                      | Fixed l -> l - 2, 2
-                      | Dynamic ->
-                          stream.Read(buffer, 2, 2) |> ignore
-                          int (buffer.[2..] |> ToUInt16) - 4, 4
-    if len > buffer.Length then
-        Logger.Error ("Packet {type} bigger than buffer length", pType)
-    stream.Read(buffer, offset, len) |> ignore
-    pType, ReadOnlyMemory (buffer.[..len + offset - 1])
+    let read = stream.Read(buffer, 0, 2)
+    if read = 0 then None
+    else
+        let (pType, pLength) = ParsePacketHeader buffer
+        let len, offset = match pLength with
+                          | Fixed l -> l - 2, 2
+                          | Dynamic ->
+                              stream.Read(buffer, 2, 2) |> ignore
+                              int (buffer.[2..] |> ToUInt16) - 4, 4
+        if len > buffer.Length then
+            Logger.Error $"Packet {pType:X} bigger than buffer length"
+        stream.Read(buffer, offset, len) |> ignore
+        Some (pType, ReadOnlyMemory (buffer.[..len + offset - 1]))
 
 let ObservePackets (stream: Stream) =
     let buffer = Array.zeroCreate 1024
-    let rec loop () =
-        observe {
-            yield ReadPacket stream buffer
-            yield! loop ()
-        }
-    loop ()
+    let subject = Subject.replay
+    Async.Start <| async {
+        let rec loop() =
+            match ReadPacket stream buffer with
+            | None -> ()
+            | Some (p, d) ->
+                subject.OnNext <| (p, d)
+                loop ()
+        loop()
+    }
+    Observable.map id subject

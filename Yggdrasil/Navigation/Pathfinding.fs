@@ -71,6 +71,6 @@ let FindPath map (x0: int16, y0: int16) (x1: int16, y1: int16) =
     queue.Enqueue (Node(s, None), 0.0f)
     let result = AStarStep map queue (Dictionary()) g
     match result with
-    | Some node -> ReconstructPath map node []
+    | Some node -> (x0, y0) :: ReconstructPath map node []
     | None -> []
     

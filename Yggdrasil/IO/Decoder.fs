@@ -1,10 +1,28 @@
 module Yggdrasil.IO.Decoder
 
+open System
 open System.Collections.Generic
 open System.Reflection
 open System.Runtime.InteropServices
+open System.Text
 open Microsoft.FSharp.Reflection
-open Yggdrasil.Utils
+open Yggdrasil.Types
+
+let ToUInt16 data = BitConverter.ToUInt16(data, 0)
+let ToInt16 data = BitConverter.ToInt16(data, 0)
+let ToUInt32 data = BitConverter.ToUInt32(data, 0)
+let ToInt32 data = BitConverter.ToInt32(data, 0)
+let ToInt64 data = BitConverter.ToInt64(data, 0)
+let ToChar data = BitConverter.ToChar(data, 0)
+let ToBool data = BitConverter.ToBoolean(data, 0)
+let ToParameter data : Parameter = data |> ToUInt16 |> LanguagePrimitives.EnumOfValue
+let ToString (data: byte[]) = (data |> Encoding.UTF8.GetString).Trim [| '\x00'; ''; '�'; '\000'; '\127' |]
+
+let FillBytes (data:string) size =
+    Array.concat([|
+        Encoding.UTF8.GetBytes(data);
+        Array.zeroCreate (size - data.Length)
+   |])
 
 let MakePartialRecord<'T> (data: byte[]) (stringSizes: int[]) =
     let queue = Queue<obj>()

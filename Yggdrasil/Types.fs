@@ -1,5 +1,7 @@
 module Yggdrasil.Types
 
+open System
+
 type Id = uint32
 
 type Parameter =
@@ -27,47 +29,6 @@ type IdleUnitPartial = {
     Accessory1: uint16
 }
 
-type UnitRawPart1 = {
-    ObjectType: byte
-    AID: uint32
-    GUI: uint32
-    Speed: int16
-    BodyState: int16
-    HealthState: int16
-    EffectState : int
-    Job: int16
-    Head: uint16
-    Weapon: uint32
-    Accessory1: uint16
-}
-
-type UnitRawPart2 = {    
-    Accessory2: uint16
-    Accessory3: uint16
-    HeadPalette: int16
-    BodyPalette: int16
-    HeadDir: int16
-    Robe: uint16
-    GUID: uint32
-    GEmblemVer: int16
-    Honor: int16
-    Virtue : int
-    IsPKModeOn : byte
-    Gender : byte
-    PosPart1 : byte
-    PosPart2 : byte
-    PosPart3 : byte
-    xSize : byte
-    State : byte
-    CLevel: int16
-    Font: int16
-    MaxHP : int
-    HP : int
-    IsBoss : byte
-    Body: uint16
-    Name: string
-}
-
 type RawEquipItemBase = {
     Index: int16
     Id: uint16
@@ -83,6 +44,12 @@ type RawEquipItemBase = {
     BindOnEquipType: uint16
     SpriteNumber: uint16
     OptionCount: byte
+}
+
+type PartyHP = {
+    AccountId: uint32
+    HP: int
+    MaxHP: int
 }
 
 type EquipFlags = {
@@ -229,11 +196,11 @@ type MonsterHPInfo = {
     MaxHP: int
 }
 
-type Position = int16 * int16
+type Coordinates = int16 * int16
 
 type UnitMove = {
-    Origin: Position
-    Destination: Position
+    Origin: Coordinates
+    Destination: Coordinates
     TimeStart: int64 option
 }
 
@@ -242,44 +209,13 @@ type UnitMove2 = {
     X: int16
     Y: int16
 }
-type UnitType =
+type EntityType =
   | Player
   | NPC
   | PC
   | Monster
   | Invalid  
   
-type Action = Idle | Dead | Casting | Walking
-
-type Unit =
-    {
-        Id: uint32
-        Type: UnitType
-        Action: Action
-        //TargetOfSkills: (SkillCast * Unit) list
-        MaxHP: int
-        HP: int
-        SP: int32
-        MaxSP: int32
-        Name: string
-        Position: (int16 * int16)
-        Speed: int16
-    }
-    
-    static member Default = {
-        Id = 0u
-        Type = UnitType.Invalid
-        Action = Idle
-        //TargetOfSkills = list.Empty
-        MaxHP = 0
-        HP = 0
-        MaxSP = 0
-        SP = 0
-        Name = ""
-        Position = 0s, 0s
-        Speed = 150s
-    }
-
 type Request =
     | DoneLoadingMap
     | RequestServerTick
@@ -293,28 +229,6 @@ type Request =
 
 type MovementData = {
     Delay: float
-    Origin: Position
-    Destination: Position
+    Origin: Coordinates
+    Destination: Coordinates
 }
-
-type Entity =
-    {
-        Id: Id
-        Position: Position
-        Speed: float
-        Map: string
-        Name: string
-    }
-    static member Create id map = {Id=id;Position=0s,0s;Speed=0.0;Map=map;Name=""}
-    static member FromUnit (unit: Unit) map = {Id=unit.Id;Position=0s,0s;Speed=0.0;Map=map;Name=""}
-
-type MonitorMessage =
-    | NewPlayer of Entity
-    | NewUnit of Unit
-    | LostUnit of Id * DisappearReason
-    | ForcedPosition of Position
-    | Movement of MovementData
-    | Speed of float
-    | MapChanged of string * Position
-    | WeightSoftCap of int
-    | AllSkills of Skill list

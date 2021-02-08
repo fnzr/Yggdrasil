@@ -1,91 +1,152 @@
 module Yggdrasil.Pipe.Location
 
 open System
+open System.Collections.Generic
+open FSharp.Control.Reactive
 open NLog
-open FSharpPlus.Lens
-open Yggdrasil.Game
-open Yggdrasil.Navigation
 open Yggdrasil.Types
-open Yggdrasil.Utils
-(*
-let Logger = LogManager.GetLogger "Location"
-let Tracer = LogManager.GetLogger ("Tracer", typeof<JsonLogger>) :?> JsonLogger
 
-type Point = int16 * int16
-let rec TryTakeStep (action: Action) (unitId: uint32)
-    callback delay (path: Point list) (game: Game) =
-        match game.Units.TryFind unitId with
-        | None -> game
-        | Some unit ->            
-                if unit.Action = action then
-                    let newUnit =
-                        let u = {unit with Position = (fst path.Head, snd path.Head)}
-                        match path.Tail with
-                        | [] -> {u with Action = Idle}
-                        | tail ->
-                            Async.Start <| async {
-                                do! Async.Sleep (int u.Speed)
-                                callback <| TryTakeStep action unitId callback delay tail
-                            }; u
-                    Tracer.Send Game.UpdateUnit newUnit game
-                else Tracer.Send (game, "Cancelled Walk")
-     
-let StartMove (unit: Unit) callback destination initialDelay (game: Game) =
-    let map = Maps.GetMapData game.Map
-    let path = Pathfinding.FindPath map unit.Position destination
-    if path.Length > 0 then
-        let delay = if initialDelay < 0L then 0L else initialDelay
-        let startTime = Connection.Tick() + delay
-        let action = Walking //TODO: fix (destination, startTime)
-        callback <| Game.UpdateUnit {unit with Action = action} 
-        Async.Start <| async {
-            do! Async.Sleep (int delay)
-            callback <| TryTakeStep action unit.Id callback (int unit.Speed) path
+type EntityPosition = {
+    Id: Id
+    Type: EntityType
+    Map: string
+    Coordinates: Coordinates
+    Speed: uint16
+}
+
+type Movement = {
+    Delay: float
+    Origin: Coordinates
+    Destination: Coordinates
+}
+
+type Report =
+    | New of EntityPosition
+    | Disappear of DisappearReason
+    | Position of Coordinates
+    | Speed of uint16
+    | Movement of Movement
+    | MapMove of string * Coordinates
+    
+type PositionUpdate =
+    | Update of EntityPosition
+    | LostTrack of Id
+    
+type TrackedEntity = {
+    Id: Id
+    Tracker: IDisposable list
+    Broadcast: Report -> unit
+    RefCount: int
+}
+
+let EntityMailbox initialEntity onUpdate =
+    MailboxProcessor.Start
+    <| fun (inbox: MailboxProcessor<Report>) ->
+        let rec loop entity = async {
+            let! report = inbox.Receive()
+            let optEntity =
+                match report with
+                | Position p -> Some {entity with Coordinates = p}
+                | Speed s -> Some {entity with Speed = s}
+                | _ -> None            
+            return! loop <|
+                match optEntity with
+                | Some newEntity ->
+                    onUpdate <| Update newEntity
+                    newEntity
+                | None -> entity
         }
-    else
-        Logger.Error("Unit {name} ({aid}): Could not find walk path: {source} => {dest}",
-                     unit.Name, unit.Id, unit.Position, destination)
-    
+        loop initialEntity
 
-let UnitWalk id origin dest startAt callback (game: Game) =
-    let delay = startAt - Connection.Tick() - game.TickOffset
-    match game.Units.TryFind id with
-    | None -> Logger.Warn "Failed handling walk packet: unknown unit"; game
-    | Some unit ->         
-        let w = game.UpdateUnit {unit with Position = origin}
-        StartMove unit callback dest delay w
-        Tracer.Send w
-    
+let Tracker entity origin post =
+    let source = Observable.distinctUntilChanged origin
+    let SpeedObserver =
+        Observable.choose (fun e -> match e with | Speed s -> Some s | _ -> None) source
+        |> Observable.startWith [entity.Speed]
         
-let PlayerWalk origin dest startAt callback (game: Game) =
-    let delay = startAt - Connection.Tick() + game.TickOffset
+    let SpeedSpan =
+        SpeedObserver
+        |> Observable.map (fun s -> TimeSpan.FromMilliseconds <| float s)
+
+    let DelayedStep (path: IObservable<#seq<_>>) =        
+        Observable.flatmap
+        <| fun s -> Observable.map (Observable.collect (fun q -> Observable.delay s <| Observable.single q)) path
+        <| SpeedSpan
+        
+    let MapObserver =
+        Observable.choose (fun e -> match e with | MapMove (m, _) -> Some m | _ -> None) source
+        |> Observable.startWith [entity.Map]
+        |> Observable.map (Yggdrasil.Navigation.Maps.GetMapData)
+        
+    let MovementObserver =
+        Observable.choose (fun e -> match e with | Movement m -> Some m | _ -> None) source
+        |> Observable.combineLatest MapObserver
+        |> Observable.flatmap (fun (map, moveData) ->
+            let path = Yggdrasil.Navigation.Pathfinding.FindPath map moveData.Origin moveData.Destination
+            Observable.delay (TimeSpan.FromMilliseconds moveData.Delay) (Observable.single path)
+            )
+        |> DelayedStep
+        
+    let PositionObserver =
+        Observable.merge
+            <| Observable.choose (fun e -> match e with | Position (x, y) -> Some [(x,y)] | _ -> None) source
+            <| Observable.choose (fun e -> match e with | MapMove (_, p) -> Some [p] | _ -> None) source
+        |> DelayedStep
+
+    let StepObservable =
+        Observable.merge PositionObserver MovementObserver
+        |> Observable.switch
+        
+    [
+     StepObservable.Subscribe(fun p -> post <| Position p)
+     SpeedObserver.Subscribe(fun s -> post <| Speed s)
+    ]
     
-    let w = game.UpdateUnit {game.Player with Position = origin}
-    StartMove game.Player callback dest delay w
-    Tracer.Send game
+//TODO: find out when should we remove the Tracker from a unit
+//    if the unit goes OutOfSight, the server doesnt send a new
+//    spawn packet when it comes back, so we cant remove for that reason,
+//    for example.
+let RemoveTracker tracker onUpdate onLostTrack =
+    List.iter (fun (d: IDisposable) -> d.Dispose()) tracker.Tracker
+    onUpdate <| LostTrack tracker.Id
+    onLostTrack tracker.Id
     
-let MoveUnit (move: UnitMove2) callback (game: Game) =
-    match game.Units.TryFind move.Id with
-    | None -> Logger.Warn ("Unhandled movement for {aid}", move.Id)
-    | Some unit -> StartMove unit callback (move.X, move.Y) 0L game
-    Tracer.Send game
-    
-let MapChange position map (game: Game) =
-    game.Request DoneLoadingMap
-    let player = {game.Player with
-                    Position = position
-                    Action = Unit.Default.Action
-                    TargetOfSkills = Unit.Default.TargetOfSkills}
-    Maps.LoadMap map
-    Tracer.Send
-        {game with
-            IsMapReady = false
-            Map = map
-            Units = Map.empty.Add(game.Player.Id, player)
-        }
-    
-    
-let MapProperty property flag game =
-    //dont know what this is yet, but use it as flag
-    {game with IsMapReady = true}
-*)
+let CreateTracker entity onUpdate =
+    let subject = Subject.broadcast
+    let mailbox = EntityMailbox entity onUpdate
+    {
+        Id = entity.Id
+        Broadcast = subject.OnNext
+        Tracker = Tracker entity subject mailbox.Post
+        RefCount = 1
+    }
+
+let PositionMailbox onEntityPositionUpdate onLostTrack =
+    let Logger = LogManager.GetLogger "PositionMailbox"
+    let mailbox = 
+        MailboxProcessor.Start
+        <| fun (inbox: MailboxProcessor<Id * Report>) ->
+            let trackers = Dictionary<_,_>()            
+            let rec loop() = async {
+                let! (id, report) = inbox.Receive()
+                match report with
+                | New entity ->
+                    let tracker = 
+                        match trackers.TryGetValue entity.Id with
+                        | (false, _) -> CreateTracker entity onEntityPositionUpdate
+                        | (true, tracker) -> {tracker with RefCount = tracker.RefCount + 1}
+                    trackers.[entity.Id] <- tracker
+                | Disappear _ ->
+                    let tracker = trackers.[id]
+                    if tracker.RefCount = 1 then RemoveTracker tracker onEntityPositionUpdate onLostTrack
+                    else trackers.[id] <- {tracker with RefCount = tracker.RefCount - 1}
+                | MapMove (m, p) ->
+                    onEntityPositionUpdate <| LostTrack id
+                    trackers.[id].Broadcast <| MapMove (m, p)
+                | msg -> trackers.[id].Broadcast msg
+                    
+                return! loop()
+            }
+            loop()
+    mailbox.Error.Add (fun e -> Logger.Error e.Message)
+    mailbox

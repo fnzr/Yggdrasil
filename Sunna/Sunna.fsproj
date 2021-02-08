@@ -2,13 +2,11 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>netcoreapp5.0</TargetFramework>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
         <Compile Include="WebsocketLoggerTarget.fs" />
-        <Compile Include="Trees.fs" />
-        <Compile Include="Machines.fs" />
         <Compile Include="Server.fs" />
         <Compile Include="Program.fs" />         
     </ItemGroup>

@@ -1,36 +1,27 @@
 module Yggdrasil.IO.Incoming
 
-open System
-open FSharp.Control.Reactive
 open NLog
-open Yggdrasil.Game.Components
-open Yggdrasil.Reactive.Monitor
-open Yggdrasil.Types
-open Yggdrasil.Utils
-open Yggdrasil.Game
-open Yggdrasil.IO.Decoder
-open FSharp.Control.Reactive.Builders
-open Yggdrasil.Pipe.Attributes
-open Yggdrasil.Pipe.Location
-open Yggdrasil.Pipe.Spawn
-open Yggdrasil.Pipe.Combat
-open Yggdrasil.Pipe.Item
 let Logger = LogManager.GetLogger "Incoming"
-
-let ConnectionAccepted position serverTick (game: Game) =
-    let player = {game.Player with Position = position}
-    {game with
-        TickOffset =  (Connection.Tick()) - serverTick
-        Units = game.Units.Add(player.Id, player)
-        IsConnected = true
-    }
-    
-let Disconnected (code: byte) game =
-    Logger.Warn ("Forced disconnect. Code {code}", code);
-    {game with IsConnected = false}
-    
-//let UpdateTickOffset serverTick game =
-//    {game with TickOffset = serverTick - Connection.Tick()}
+(*
+let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) position map (post: Id -> SentryReport -> unit) =        
+        let oType = match raw1.ObjectType with
+                    | 0x1uy | 0x6uy -> EntityType.NPC
+                    | 0x0uy -> EntityType.PC
+                    | 0x5uy -> EntityType.Monster
+                    | t -> Logger.Warn ("Unhandled ObjectType: {type}", t);
+                            EntityType.Invalid
+        post raw1.AID <| EntityPosition {
+            Id = raw1.AID
+            Name = raw2.Name.Split("#").[0]
+            Map = map
+            Coordinates = position
+        }
+        if oType <> EntityType.NPC then
+            post raw1.AID <| EntityHealth {
+                MaxHP = raw2.MaxHP
+                HP = raw2.HP
+            }
+            post raw1.AID <| Speed (float raw1.Speed) 
     
 let ParseEquipItem data =
     let parse bytes =
@@ -55,17 +46,10 @@ let ParseEquipItem data =
     data 
     |> Array.chunkBySize 57
     |> Array.map parse
-    |> Array.map Equipment.FromRaw
-    |> Array.toList
-    
-let PostUpdate update map targetId message =
-    update {
-        Map = map
-        TargetId = targetId
-        Message = message
-    }
-    
-let HandlePacket agentId tickOffset time (update: Id -> MonitorMessage -> unit) packetType (data: _[]) =
+    //|> Array.map Equipment.FromRaw
+    //|> Array.toList
+ *) (* 
+let HandlePacket agentId tickOffset time (update: Id -> SentryReport -> unit) packetType (data: _[]) =
     match packetType with
     | 0xadeus -> ToInt32 data.[2..] |> WeightSoftCap |> update agentId
     | 0x9ffus | 0x9feus | 0x9fdus ->
@@ -73,12 +57,12 @@ let HandlePacket agentId tickOffset time (update: Id -> MonitorMessage -> unit) 
         let (part1, leftover) = MakePartialRecord<UnitRawPart1> data.[4..] [||]    
         let (part2, _) = MakePartialRecord<UnitRawPart2> leftover [|24|]
         let (x, y, _) = UnpackPosition [|part2.PosPart1; part2.PosPart2; part2.PosPart3|]
-        CreateNonPlayer part1 part2 (x, y)
-        |> NewUnit |> update agentId
+        let unit = CreateNonPlayer part1 part2 (x, y)
+        update unit.Id (EntityPosition unit)
     | 0x0080us ->
-        (ToUInt32 data.[2..],
-            Enum.Parse(typeof<DisappearReason>, string data.[6]) :?> DisappearReason)
-        |> LostUnit |> update agentId
+        let id = ToUInt32 data.[2..]
+        let reason = Enum.Parse(typeof<DisappearReason>, string data.[6]) :?> DisappearReason
+        update id (LostUnit reason)
     | 0x10fus ->                
         //TODO SkillRaw -> Skill
         data.[4..]
@@ -96,14 +80,15 @@ let HandlePacket agentId tickOffset time (update: Id -> MonitorMessage -> unit) 
             Delay = if delay < 0.0 then 0.0 else delay
         } |> update agentId
     | 0x0086us ->
+        let id = ToUInt32 data.[2..]
         let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]
-        ForcedPosition (x0, y0) |> update agentId
+        ForcedPosition (x0, y0) |> update id
         let mutable delay = time() - (int64 <| ToUInt32 data.[12..]) + tickOffset |> float
         Movement {
             Origin = (x0, y0)
             Destination = (x1, y1)
             Delay = if delay < 0.0 then 0.0 else delay
-        } |> update (ToUInt32 data.[2..])
+        } |> update id
     //| 0x07fbus -> yield SkillCast (MakeRecord<RawSkillCast> data.[2..]) callback
     //| 0x0977us -> yield UpdateMonsterHP (MakeRecord<MonsterHPInfo> data.[2..])        
     //| 0x008aus -> yield DamageDealt (MakeRecord<RawDamageInfo> data.[2..]) callback
@@ -140,7 +125,8 @@ let HandlePacket agentId tickOffset time (update: Id -> MonitorMessage -> unit) 
     | 0x099aus (* ZC_ACK_TAKEOFF_EQUIP_V5 *) -> ()
     | 0x0999us (* ZC_ACK_WEAR_EQUIP_V5 *) -> ()
     | unknown -> Logger.Warn("Unhandled packet {packetType:X}", unknown, data.Length); ()
-    
+  *)
+  (*
 type MetaResponse =
     | TickOffset of int64
     | Map of string
@@ -161,10 +147,10 @@ let HandleMetaPacket map update agentId packetType (data: _[]) =
      | 0x007fus -> TickOffset (int64 (ToUInt32 data.[2..])) |> Some        
      | 0x0081us -> Disconnected data.[2] |> Some
      | _ -> None
-
-//let PostUpdate agentUpdate personaUpdate map targetId message =
- //let HandlePacket agentId tickOffset time (update: Id -> Update -> unit) packetType (data: _[]) =
+*)
 let rec PacketParser readPacket update agentId time tickOffset map =
+    ()
+    (*
     let (pType, pData: ReadOnlyMemory<_>) = readPacket()
     let data = pData.ToArray()
     let mutable newMap = map
@@ -181,3 +167,4 @@ let rec PacketParser readPacket update agentId time tickOffset map =
     | None ->
         HandlePacket agentId newTickOffset time postUpdate pType data
     PacketParser readPacket update agentId time newTickOffset newMap
+    *)

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>netcoreapp5.0</TargetFramework>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -16,24 +16,9 @@
         <Compile Include="Types.fs" />
         <Compile Include="Utils.fs" />
         <Compile Include="Navigation\Maps.fs" />
-        <Compile Include="Navigation\Pathfinding.fs" />        
-        <Compile Include="Game\Attributes.fs" />
-        <Compile Include="Game\Components.fs" />
-        <Compile Include="Game\Skill.fs" />
-        <Compile Include="Game\Unit.fs" />
-        <Compile Include="Game\Player.fs" />
-        <Compile Include="Game\Game.fs" />        
+        <Compile Include="Navigation\Pathfinding.fs" />
         <Compile Include="Pipe\Location.fs" />
-        <Compile Include="Pipe\Attributes.fs" />
-        <Compile Include="Pipe\Spawn.fs" />
-        <Compile Include="Pipe\Combat.fs" />
-        <Compile Include="Pipe\Item.fs" />
-        <Compile Include="Behavior\Propagators.fs" />
-        <Compile Include="Behavior\BehaviorTree.fs" />
-        <Compile Include="Behavior\StateMachine.fs" />
-        <Compile Include="Behavior\EventHandler.fs" />
-        <Compile Include="Reactive\Persona.fs" />
-        <Compile Include="Reactive\Monitor.fs" />
+        <Compile Include="Pipe\Health.fs" />
         <Compile Include="IO\Decoder.fs" />
         <Compile Include="IO\Stream.fs" />
         <Compile Include="IO\Incoming.fs" />
@@ -59,6 +44,13 @@
       <EmbeddedResource Remove="IO\**" />
       <EmbeddedResource Remove="Mailbox\**" />
       <EmbeddedResource Remove="BehaviorTree\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Include="PacketStream\Location.fs" />
+      <Compile Include="PacketStream\Unit.fs" />
+      <Compile Include="PacketStream\Null.fs" />
+      <Compile Include="PacketStream\Health.fs" />
     </ItemGroup>
     
 </Project>

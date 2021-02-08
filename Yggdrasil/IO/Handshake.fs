@@ -5,8 +5,7 @@ open System.IO
 open System.Net
 open System.Net.Sockets
 open NLog
-open Yggdrasil.Game
-open Yggdrasil.Utils
+open Yggdrasil.IO.Decoder
 open Yggdrasil.IO.Stream
 
 type PlayerInfo = {
@@ -31,7 +30,6 @@ let WantToConnect playerInfo =
         [| playerInfo.Gender |]
     |])
     
-    
 type LoginServerResponse = {
     CharServer: IPEndPoint
     AccountId: uint32
@@ -46,8 +44,16 @@ type CharServerResponse = {
     MapName: string
     CharId: uint32
 }
-let OtpTokenLogin () = ReadOnlySpan<byte> (Array.concat([|BitConverter.GetBytes(0xacfus); (Array.zeroCreate 66)|]))
-let CharSelect slot = ReadOnlySpan<byte> (Array.concat[| BitConverter.GetBytes(0x0066us); [| slot |]|])
+let OtpTokenLogin () =
+    ReadOnlySpan<byte> (Array.concat[|
+        BitConverter.GetBytes(0xacfus)
+        Array.zeroCreate 66
+    |])
+let CharSelect slot =
+    ReadOnlySpan<byte> (Array.concat[|
+        BitConverter.GetBytes(0x0066us)
+        [| slot |]
+    |])
 
 let RequestToConnect (credentials: LoginServerResponse) =
     ReadOnlySpan<byte> (Array.concat([|
@@ -80,7 +86,7 @@ let SelectCharacter slot loginServerResponse =
 
     let buffer = Array.zeroCreate 1024
     let rec handler name =
-        let (packetType, packetData) = ReadPacket stream buffer
+        let (packetType: uint16, packetData) = (ReadPacket stream buffer).Value
         let data = packetData.ToArray()
         match packetType with
         | 0x82dus | 0x9a0us | 0x20dus | 0x8b9us -> handler name
@@ -100,7 +106,7 @@ let SelectCharacter slot loginServerResponse =
                                 data.[26..] |> ToUInt16 |> int)
             }
         | 0x840us -> invalidOp "Map server unavailable"
-        | unknown -> invalidArg $"PacketType {unknown:X}" "Unknown LoginServer packet"
+        | unknown -> invalidArg $"PacketType {unknown:X}" "Unknown CharServer packet"
     handler ""    
         
 let rec Authenticate loginServer (username, password) =
@@ -109,7 +115,7 @@ let rec Authenticate loginServer (username, password) =
     let stream = client.GetStream()    
     let buffer = Array.zeroCreate 512
     let rec handler () =
-        let (packetType, packetData) = ReadPacket stream buffer
+        let (packetType, packetData) = (ReadPacket stream buffer).Value
         let data = packetData.ToArray()
         match packetType with
         | 0x81us ->

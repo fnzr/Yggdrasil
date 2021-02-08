@@ -23,8 +23,8 @@ type MapData = {
 
 let ReadMap (bytes: byte[]) =
     {
-        Width = ToUInt16 <| bytes
-        Height = ToUInt16 <| bytes.[2..]
+        Width = BitConverter.ToUInt16 (bytes, 0)
+        Height = BitConverter.ToUInt16 (bytes.[2..], 0)
         Cells = Array.map (fun c -> Enum.Parse(typeof<CellType>, c.ToString()) :?> CellType) bytes.[4..]
     }
     
