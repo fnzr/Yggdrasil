@@ -17,6 +17,7 @@
         <Compile Include="Utils.fs" />
         <Compile Include="Navigation\Maps.fs" />
         <Compile Include="Navigation\Pathfinding.fs" />
+        <Compile Include="Pipe\Message.fs" />
         <Compile Include="Pipe\Location.fs" />
         <Compile Include="Pipe\Health.fs" />
         <Compile Include="IO\Decoder.fs" />
