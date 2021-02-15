@@ -2,10 +2,13 @@ module Yggdrasil.IO.Stream
 
 open System
 open System.IO
+open System.Net.Sockets
+open System.Reactive.Concurrency
 open FSharp.Control.Reactive
 open FSharpPlus.Control
 open NLog
 open Yggdrasil.IO.Decoder
+open FSharp.Control.Reactive.Builders
 
 type OnReceivePacket = uint16 * ReadOnlyMemory<byte> -> unit
 type PacketMap = Map<uint16, int>
@@ -71,16 +74,23 @@ let ReadPacket (stream: Stream) buffer =
         stream.Read(buffer, offset, len) |> ignore
         Some (pType, ReadOnlyMemory (buffer.[..len + offset - 1]))
 
-let ObservePackets (stream: Stream) =
-    let buffer = Array.zeroCreate 1024
-    let subject = Subject.replay
-    Async.Start <| async {
-        let rec loop() =
-            match ReadPacket stream buffer with
-            | None -> ()
-            | Some (p, d) ->
-                subject.OnNext <| (p, d)
-                loop ()
-        loop()
-    }
-    Observable.map id subject
+let ObservePackets (client: TcpClient) wantToConnect =
+    Observable.using
+    <| client.GetStream
+    <| fun stream ->
+        stream.Write(wantToConnect, 0, wantToConnect.Length)
+        stream.ReadTimeout <- 15000
+        let buffer = Array.zeroCreate 1024
+        Observable.repeatWhile
+        <| fun () -> stream.CanRead
+        <| observe {
+            yield! match ReadPacket stream buffer with
+                    | Some p -> Observable.single p
+                    | None -> Observable.empty
+        }
+        |> Observable.onErrorConcat (observe {
+                                        yield! Observable.empty   
+                                     })
+    //|> Observable.subscribeOn NewThreadScheduler.Default
+    |> Observable.publish
+     

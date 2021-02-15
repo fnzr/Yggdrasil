@@ -21,7 +21,7 @@ type PlayerInfo = {
 let Logger = LogManager.GetLogger("IO::Handshake")
     
 let WantToConnect playerInfo =
-    ReadOnlySpan<byte> (Array.concat [|
+    (Array.concat [|
         BitConverter.GetBytes(0x0436us)
         BitConverter.GetBytes(playerInfo.AccountId)
         BitConverter.GetBytes(playerInfo.CharId)

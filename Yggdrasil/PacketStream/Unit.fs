@@ -3,8 +3,9 @@ module Yggdrasil.PacketStream.Unit
 open System
 open NLog
 open Yggdrasil.Types
-open Yggdrasil.Utils
 open Yggdrasil.IO.Decoder
+open Yggdrasil.Pipe.Message
+open Yggdrasil.PacketStream.Observer
 let Logger = LogManager.GetLogger "UnitStream"
 
 type UnitWalking = {
@@ -126,21 +127,31 @@ type UnitRawPart2 = {
     Name: string
 }
 
-let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) map postLocation postHealth =
+let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) map =
         let (x, y, _) = UnpackPosition [|raw2.PosPart1; raw2.PosPart2; raw2.PosPart3|]
         let oType = match raw1.ObjectType with
                     | 0x1uy | 0x6uy -> EntityType.NPC
                     | 0x0uy -> EntityType.PC
                     | 0x5uy -> EntityType.Monster
                     | t -> Logger.Warn ("Unhandled ObjectType: {type}", t);
-                            EntityType.Invalid        
-        (0u, Yggdrasil.Pipe.Location.Report.New {
+                            EntityType.Invalid
+        [
+         {
+            Id = raw1.AID
+            Value = raw1.Speed
+         } |> Speed;
+         {
+            Id = raw1.AID
+            Map = Yggdrasil.Navigation.Maps.GetMap map
+            Position = Known (x, y)
+        } |> Location;
+        {
             Id = raw1.AID
             Type = oType
-            Map = map
-            Coordinates = (x, y)
-            Speed = raw1.Speed
-        }) |> postLocation
+            Name = raw2.Name.Split("#").[0]
+        } |> New;
+        ] |> Messages
+        (*
         match oType with
         | EntityType.PC | EntityType.Monster ->
             ({
@@ -151,27 +162,28 @@ let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) map postLocation p
             |> Yggdrasil.Pipe.Health.HealthUpdate.Update
             |> postHealth
         | _ -> ()
+        *)
 
-let UnitStream startMap locationMailbox postHealth =
+let UnitStream startMap =
     let mutable map = startMap
     Observable.map(fun (pType, (pData: ReadOnlyMemory<_>)) ->
-        let mutable skipped = None
         let data = pData.ToArray()
         match pType with
         | 0x0091us ->
             map <- (let gatFile = ToString data.[..17]
                gatFile.Substring(0, gatFile.Length - 4))
+            Skip
         | 0x9feus | 0x9ffus ->
             let (part1, leftover) = MakePartialRecord<UnitRawPart1> data.[4..] [||]    
             let (part2, _) = MakePartialRecord<UnitRawPart2> leftover [|24|]
-            CreateNonPlayer part1 part2 map locationMailbox postHealth
+            CreateNonPlayer part1 part2 map
         | 0x9fdus ->
             //WalkingUnit appear. Skip MoveStartTime in the packet
             let (part1, leftover) = MakePartialRecord<UnitRawPart1> data.[4..] [||]    
             let (part2, _) = MakePartialRecord<UnitRawPart2> leftover.[4..] [|24|]
-            CreateNonPlayer part1 part2 map locationMailbox postHealth
-            ()
+            CreateNonPlayer part1 part2 map
         | 0x80eus ->
+            (*
             let info = MakeRecord<PartyHP> data.[2..]
             ({
                 Id = info.AccountId
@@ -180,7 +192,8 @@ let UnitStream startMap locationMailbox postHealth =
             }: Yggdrasil.Pipe.Health.Health)
             |> Yggdrasil.Pipe.Health.HealthUpdate.Update
             |> postHealth
-        | _ -> skipped <- Some pType
-        skipped
+            *)
+            Skip
+        | _ -> Unhandled pType
     )
 

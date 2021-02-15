@@ -18,8 +18,6 @@
         <Compile Include="Navigation\Maps.fs" />
         <Compile Include="Navigation\Pathfinding.fs" />
         <Compile Include="Pipe\Message.fs" />
-        <Compile Include="Pipe\Location.fs" />
-        <Compile Include="Pipe\Health.fs" />
         <Compile Include="IO\Decoder.fs" />
         <Compile Include="IO\Stream.fs" />
         <Compile Include="IO\Incoming.fs" />
@@ -48,6 +46,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Compile Include="PacketStream\Observer.fs" />
       <Compile Include="PacketStream\Location.fs" />
       <Compile Include="PacketStream\Unit.fs" />
       <Compile Include="PacketStream\Null.fs" />

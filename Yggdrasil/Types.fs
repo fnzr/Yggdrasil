@@ -196,11 +196,9 @@ type MonsterHPInfo = {
     MaxHP: int
 }
 
-type Coordinates = int16 * int16
-
 type UnitMove = {
-    Origin: Coordinates
-    Destination: Coordinates
+    Origin: int16 * int16
+    Destination: int16 * int16
     TimeStart: int64 option
 }
 
@@ -226,9 +224,3 @@ type Request =
     | ContinuousAttack of uint32
     | Unequip of int16
     | Equip of int16 * uint32
-
-type MovementData = {
-    Delay: float
-    Origin: Coordinates
-    Destination: Coordinates
-}

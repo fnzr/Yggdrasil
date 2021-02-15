@@ -5,12 +5,11 @@ open System.Diagnostics
 open System.IO
 open System.Net
 open System.Net.Sockets
+open System.Reactive
 open FSharp.Control.Reactive
 open FSharp.Control.Reactive.Builders
 open NLog
 open Yggdrasil.IO
-open Yggdrasil.Pipe.Location
-open Yggdrasil.Pipe.Health
 open Yggdrasil.Types
 
 let Logger = LogManager.GetLogger "Sunna"
@@ -18,78 +17,79 @@ let Logger = LogManager.GetLogger "Sunna"
 type Game =
     {
         Clock: Stopwatch
-        PositionMailbox: MailboxProcessor<Id * Report>
-        Positions: IObservable<PositionUpdate>
-        HealthMailbox: HealthUpdate -> unit
-        Health: IObservable<Map<Id, Health>> 
         Connections: Dictionary<string, Stream>
     }
     member __.Tick () = __.Clock.ElapsedMilliseconds
-
-let CreatePlayer id map  =
-    let location = {
-        Id = id
-        Type = EntityType.Player
-        Map = map
-        Coordinates = 0s, 0s
-        Speed = 150us
-    }
-    location
-
     
-let PlayerLogin game credentials =
+type PlayerConnection =
+    {
+        Id: Id
+        Name: string        
+        Stream: Stream
+        Disconnect: unit -> unit
+    }
+
+let PlayerLogin (game: Game) credentials broadcast =
     let loginServer = IPEndPoint (IPAddress.Parse "127.0.0.1", 6900)
     let info = Handshake.Login loginServer credentials
     let map = info.MapName.[0..info.MapName.Length - 5]
-    let player = CreatePlayer info.AccountId map
     
     let client = new TcpClient()
     client.Connect(info.ZoneServer)
     let stream = client.GetStream()
-    (0u, Report.New player) |> game.PositionMailbox.Post
-    stream.Write (Handshake.WantToConnect info)
     
-    let mutable unknownPackets: IDisposable option = None 
-    let incoming =
-        Stream.ObservePackets stream
-        |> Observable.onErrorConcat
-            <| observe {
-                if unknownPackets.IsSome then unknownPackets.Value.Dispose()
-                yield! Observable.empty
-               }
-        
-    let loc = Yggdrasil.PacketStream.Location.LocationStream player.Id stream game.Tick game.PositionMailbox.Post incoming
-    let unit = Yggdrasil.PacketStream.Unit.UnitStream player.Map game.PositionMailbox.Post game.HealthMailbox incoming
-    let none = Yggdrasil.PacketStream.Null.NullStream incoming
-    unknownPackets <- Some <| 
-        (Observable.zipSeq [loc; unit; none]
+    ({
+        Id = info.AccountId
+        Type = EntityType.Player
+        Name = info.CharacterName
+    }: Yggdrasil.Pipe.Message.Entity)
+    |> Yggdrasil.Pipe.Message.New
+    |> Yggdrasil.PacketStream.Observer.Message
+    |> broadcast
+
+    let incoming = Stream.ObservePackets client (Handshake.WantToConnect info)
+    
+    let loc = Yggdrasil.PacketStream.Location.LocationStream
+                  info.AccountId map game.Tick incoming
+    let unit = Yggdrasil.PacketStream.Unit.UnitStream
+                   map incoming
+    let none = Yggdrasil.PacketStream.Null.NullStream
+                   game.Tick stream incoming
+    let observers = seq [loc; unit; none]
+    
+    let unknownPackets = 
+        Observable.zipSeq observers 
         |> Observable.subscribe
             (fun ps ->
-                if Seq.forall (Option.isSome) ps 
-                then Logger.Warn  ("Unhandled packet: {type:X}", ps.[0].Value)))
-    game.Connections.[info.CharacterName] <- stream
+                if Seq.forall
+                       <| fun m -> match m with | Yggdrasil.PacketStream.Observer.Unhandled _ -> true | _ -> false
+                       <| ps 
+                then
+                    match ps.[0] with
+                    | Yggdrasil.PacketStream.Observer.Unhandled t ->
+                        Logger.Warn  ("Unhandled packet: {type:X}", t)
+                    | _ -> ())
+    
+     
+    let subscription =
+        Observable.mergeSeq
+        <| observers
+        |> Observable.subscribe broadcast
+    let connection = incoming.Connect()
+    {
+        Id = info.AccountId
+        Name = info.CharacterName
+        Stream = stream
+        Disconnect = fun () ->
+            Logger.Info $"Disconnecting: {info.CharacterName}"
+            unknownPackets.Dispose()
+            subscription.Dispose()
+            connection.Dispose()
+    }
       
 let CreateGame () =
-    let pos = Subject.broadcast
-
-    let health = Subject.broadcast
-    let healthObs =
-        Observable.scanInit
-        <| Map.empty
-        <| fun m (h: HealthUpdate) ->
-            match h with            
-            | Update info -> m.Add (info.Id, info)
-            | _ -> m
-        <| Observable.distinctUntilChanged health
-        
-    let onLostTrack id =
-        health.OnNext <| HealthUpdate.LostTrack id
     {
         Clock = Stopwatch()
-        Positions = Observable.distinctUntilChanged pos
-        PositionMailbox = PositionMailbox pos.OnNext onLostTrack
-        Health = healthObs
-        HealthMailbox = health.OnNext
         Connections = Dictionary()
     }
     
@@ -107,7 +107,24 @@ let main _ =
      
     let mutable game = CreateGame ()
     let credentials = ("roboco", "111111")
-    PlayerLogin game credentials
+    //EntryPoint.Subscribe(printfn "%A") |> ignore
+    let broadcast, observables = Yggdrasil.PacketStream.Observer.PacketObserver ()
+    //observables.Entities.Subscribe(printfn "+++%A")
+    observables.Locations.Subscribe(printfn "---%A")
+    let conn = PlayerLogin game credentials broadcast
+    
+    //PathObservable.Subscribe(fun s -> s.Subscribe (printfn "path %A") |>ignore)
+    //EntityObservable.Subscribe(fun s -> s.Subscribe (printfn "entity %A") |>ignore)
+    //EntityPath.Subscribe(printfn "Message1: %A")
+    //EntityMovement.Subscribe(fun s -> s.Subscribe (printfn "movement %A") |>ignore)
+    //let map = Yggdrasil.Navigation.Maps.WalkableMap 100us
+    //EntryPoint.OnNext(Speed {Id=0u; Value=1000us})
+    //EntryPoint.OnNext(Speed {Id=1u; Value=500.0})
+    //EntryPoint.OnNext(Location {Id=0u; Coordinates=(150s, 150s)})
+    //EntryPoint.OnNext(Movement {Id=0u; Map=map; Origin=(10s,10s); Target=(20s,20s); Delay=0.0})
+    //EntryPoint.OnNext(Movement {Id=1u; Map=map; Origin=(50s,50s); Target=(70s,70s); Delay=0.0})
+    //Threading.Thread.Sleep 5000
+    //EntryPoint.OnNext(Location {Id=0u; Map=map; Position=(80s,80s)})
     Console.ReadKey() |> ignore
     0
 

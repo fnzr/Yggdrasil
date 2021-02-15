@@ -4,7 +4,6 @@ open System
 open System.Collections.Generic
 open System.IO
 open NLog
-open Yggdrasil.Utils
 let Logger = LogManager.GetLogger("Navigation")
 
 [<Flags>]
@@ -21,29 +20,49 @@ type MapData = {
     Cells: CellType[]
 }
 
-let ReadMap (bytes: byte[]) =
+[<StructuredFormatDisplay("\"{Name}\"")>]
+type Map =
+    {
+        Name: string
+        Data: MapData
+    }
+
+let _ReadMap (bytes: byte[]) =
     {
         Width = BitConverter.ToUInt16 (bytes, 0)
-        Height = BitConverter.ToUInt16 (bytes.[2..], 0)
+        Height = BitConverter.ToUInt16 (bytes, 2)
         Cells = Array.map (fun c -> Enum.Parse(typeof<CellType>, c.ToString()) :?> CellType) bytes.[4..]
     }
     
-let Maps = Dictionary<string, MapData>()
+let _Maps = Dictionary<string, Map>()
 
-let LoadMap name =    
+let _LoadMap name =    
     let filename = sprintf "maps/%s.fld2" name
-    Maps.[name] <-
-        if File.Exists filename then
-            Logger.Debug ("Loading map {mapName}", name)
-            let data = File.ReadAllBytes (filename)
-            ReadMap data
-        else
-            Logger.Error ("Map file not found: {filename}", filename)
-            {Width=0us; Height = 0us; Cells=[||]}
+    _Maps.[name] <-
+        { Name = name
+          Data =
+            if File.Exists filename then
+                Logger.Debug ("Loading map {mapName}", name)
+                let data = File.ReadAllBytes (filename)
+                _ReadMap data
+            else
+                Logger.Error ("Map file not found: {filename}", filename)
+                {Width=0us; Height = 0us; Cells=[||]}
+        }
+        
+let WalkableMap size =
+    {
+        Name = "walkable"
+        Data = {
+            Width = size
+            Height = size
+            Cells = Array.create (int (size * size)) CellType.WALK
+        }
+    }
     
-
-let GetMapData name =
-    if not <| Maps.ContainsKey name then LoadMap name
-    Maps.[name]
+    
+let GetMap name =
+    if not <| _Maps.ContainsKey name then _LoadMap name
+    _Maps.[name]
     
     
