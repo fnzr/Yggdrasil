@@ -47,7 +47,6 @@
 
     <ItemGroup>
       <Compile Include="PacketStream\Observer.fs" />
-      <Compile Include="PacketStream\Location.fs" />
       <Compile Include="PacketStream\Unit.fs" />
       <Compile Include="PacketStream\Null.fs" />
       <Compile Include="PacketStream\Health.fs" />

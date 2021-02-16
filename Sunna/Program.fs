@@ -49,13 +49,13 @@ let PlayerLogin (game: Game) credentials broadcast =
 
     let incoming = Stream.ObservePackets client (Handshake.WantToConnect info)
     
-    let loc = Yggdrasil.PacketStream.Location.LocationStream
-                  info.AccountId map game.Tick incoming
+    //let loc = Yggdrasil.PacketStream.Location.LocationStream
+      //            info.AccountId map game.Tick incoming
     let unit = Yggdrasil.PacketStream.Unit.UnitStream
-                   map incoming
+                   info.AccountId map game.Tick incoming
     let none = Yggdrasil.PacketStream.Null.NullStream
                    game.Tick stream incoming
-    let observers = seq [loc; unit; none]
+    let observers = seq [unit; none]
     
     let unknownPackets = 
         Observable.zipSeq observers 
