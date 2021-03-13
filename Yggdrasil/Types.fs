@@ -212,7 +212,16 @@ type EntityType =
   | NPC
   | PC
   | Monster
-  | Invalid  
+  | Invalid
+  
+type Position =
+    | Known of int16 * int16
+    | Unknown
+module Position =
+    let Value pos =
+        match pos with
+        | Known (a, b) -> (a, b)
+        | Unknown -> invalidArg "pos" "Unknown position"
   
 type Request =
     | DoneLoadingMap

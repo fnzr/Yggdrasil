@@ -1,8 +1,9 @@
+(*
 module Yggdrasil.IO.Incoming
 
 open NLog
 let Logger = LogManager.GetLogger "Incoming"
-(*
+
 let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) position map (post: Id -> SentryReport -> unit) =        
         let oType = match raw1.ObjectType with
                     | 0x1uy | 0x6uy -> EntityType.NPC

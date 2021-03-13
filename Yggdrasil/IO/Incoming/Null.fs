@@ -1,13 +1,12 @@
-module Yggdrasil.PacketStream.Null
+module Yggdrasil.IO.Incoming.Null
 
-open Yggdrasil.IO
 open Yggdrasil.Types
-open Yggdrasil.PacketStream.Observer
+open Yggdrasil.World.Message
 
-let NullStream tick stream =
+let NullStream request =
     Observable.map(fun (pType, _) ->
         match pType with
-        | 0x0091us -> Outgoing.OnlineRequest tick stream DoneLoadingMap; Skip
+        | 0x0091us -> request DoneLoadingMap; Skip
         | 0x283us (* WantToConnect ack *)
         | 0x0adfus (* ZC_REQNAME_TITLE *)
         | 0x121us (* cart info *)

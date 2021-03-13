@@ -91,6 +91,6 @@ let ObservePackets (client: TcpClient) wantToConnect =
         |> Observable.onErrorConcat (observe {
                                         yield! Observable.empty   
                                      })
-    //|> Observable.subscribeOn NewThreadScheduler.Default
+    |> Observable.subscribeOn NewThreadScheduler.Default
     |> Observable.publish
      

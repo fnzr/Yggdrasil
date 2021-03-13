@@ -17,12 +17,15 @@
         <Compile Include="Utils.fs" />
         <Compile Include="Navigation\Maps.fs" />
         <Compile Include="Navigation\Pathfinding.fs" />
-        <Compile Include="Pipe\Message.fs" />
+        <Compile Include="World\Sensor.fs" />
+        <Compile Include="World\Message.fs" />
         <Compile Include="IO\Decoder.fs" />
         <Compile Include="IO\Stream.fs" />
-        <Compile Include="IO\Incoming.fs" />
         <Compile Include="IO\Outgoing.fs" />
-        <Compile Include="IO\Handshake.fs" />        
+        <Compile Include="IO\Handshake.fs" />
+        <Compile Include="IO\Incoming\Unit.fs" />
+        <Compile Include="IO\Incoming\Null.fs" />
+        <Compile Include="IO\Incoming\Observer.fs" />        
     </ItemGroup>
 
     <ItemGroup>
@@ -43,13 +46,6 @@
       <EmbeddedResource Remove="IO\**" />
       <EmbeddedResource Remove="Mailbox\**" />
       <EmbeddedResource Remove="BehaviorTree\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Compile Include="PacketStream\Observer.fs" />
-      <Compile Include="PacketStream\Unit.fs" />
-      <Compile Include="PacketStream\Null.fs" />
-      <Compile Include="PacketStream\Health.fs" />
     </ItemGroup>
     
 </Project>

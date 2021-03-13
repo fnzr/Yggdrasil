@@ -1,12 +1,12 @@
-module Yggdrasil.PacketStream.Unit
+module Yggdrasil.IO.Incoming.Unit
 
 open System
 open System.Collections.Concurrent
 open NLog
 open Yggdrasil.Types
 open Yggdrasil.IO.Decoder
-open Yggdrasil.Pipe.Message
-open Yggdrasil.PacketStream.Observer
+open Yggdrasil.World.Message
+open Yggdrasil.World.Sensor
 let Logger = LogManager.GetLogger "UnitStream"
 
 type UnitWalking = {
@@ -137,30 +137,28 @@ let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) (speeds: Concurren
                     | t -> Logger.Warn ("Unhandled ObjectType: {type}", t);
                             EntityType.Invalid
         speeds.[raw1.AID] <- float raw1.Speed
-        [
-        {
-            Id = raw1.AID
-            Map = map
-            Position = Known (x, y)
-        } |> Location;
-        {
-            Id = raw1.AID
-            Type = oType
-            Name = raw2.Name.Split("#").[0]
-        } |> New;
-        ] |> Messages
-        (*
-        match oType with
-        | EntityType.PC | EntityType.Monster ->
-            ({
-                Id = raw1.AID
-                MaxHP = raw2.MaxHP
-                HP = raw2.HP
-            }: Yggdrasil.Pipe.Health.Health)
-            |> Yggdrasil.Pipe.Health.HealthUpdate.Update
-            |> postHealth
-        | _ -> ()
-        *)
+        let messages = 
+            [
+                {
+                    Id = raw1.AID
+                    Map = map
+                    Position = Known (x, y)
+                } |> Location;
+                {
+                    Id = raw1.AID
+                    Type = oType
+                    Name = raw2.Name.Split("#").[0]
+                } |> New
+            ]
+        Messages <|
+            match oType with
+            | EntityType.PC | EntityType.Monster ->
+                ({
+                    Id = raw1.AID
+                    MaxHP = raw2.MaxHP
+                    HP = raw2.HP
+                } |> Health) :: messages
+            | _ -> messages
 
 let UnitStream playerId startMap tick =
     let mutable map = Yggdrasil.Navigation.Maps.GetMap startMap
@@ -214,10 +212,16 @@ let UnitStream playerId startMap tick =
         | 0x0087us ->
             let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]
             let mutable delay = tick() - (int64 <| ToUInt32 data.[2..]) + tickOffset |> float
+            let speed =
+                match speeds.TryGetValue playerId with
+                | (false, _) ->
+                    Logger.Warn $"Movement of player ({playerId}). Defaulting to speed 150"
+                    150.0
+                | (true, speed) -> speed
             {
                 Id = playerId
                 Map = map
-                Speed = speeds.[playerId]
+                Speed = speed
                 Origin = Known (x0, y0)
                 Target = Known (x1, y1)
                 Delay = if delay < 0.0 then 0.0 else delay
@@ -226,10 +230,16 @@ let UnitStream playerId startMap tick =
             let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]
             let mutable delay = tick() - (int64 <| ToUInt32 data.[12..]) + tickOffset |> float
             let id = ToUInt32 data.[2..]
+            let speed =
+                match speeds.TryGetValue id with
+                | (false, _) ->
+                    Logger.Warn $"Movement of unknown unit ({id}). Defaulting to speed 150"
+                    150.0
+                | (true, speed) -> speed
             {
                 Id = id
                 Map = map
-                Speed = speeds.[id]
+                Speed = speed
                 Origin = Known (x0, y0)
                 Target = Known (x1, y1)
                 Delay = if delay < 0.0 then 0.0 else delay
