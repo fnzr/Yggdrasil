@@ -1,6 +1,8 @@
 module Yggdrasil.World.Message
 open System
+open System.Reactive.Linq
 open FSharp.Control.Reactive
+open Yggdrasil.Navigation
 open Yggdrasil.Navigation.Maps
 open Yggdrasil.Types
 open Yggdrasil.World.Sensor
@@ -10,7 +12,7 @@ type PacketMessage =
     | Messages of Message list
     | Skip
     | Unhandled of uint16
-    
+
 let MovementObservable entryPoint =
     let MovementMessage =
         Observable.groupBy
@@ -22,7 +24,7 @@ let MovementObservable entryPoint =
                 | _ -> None
             <| entryPoint
             |> Observable.distinctUntilChanged)
-        
+
     Observable.map
     <| fun groupedMove ->
         Observable.map
@@ -43,18 +45,16 @@ let MovementObservable entryPoint =
         |> Observable.groupBy (fun m -> m.Id)
     <| MovementMessage
 
-let CreateObservableGraph entryPoint =
+let CreateObservableGraph selfId entryPoint =
     let NewEntity =
         Observable.choose
             <| fun m -> match m with New e -> Some e | _ -> None
             <| entryPoint
-        |> Observable.distinctUntilChanged
-        
+
     let EntityHealth =
         Observable.choose
             <| fun m -> match m with Health e -> Some e | _ -> None
             <| entryPoint
-        |> Observable.distinctUntilChanged
 
     let PositionMessage =
         Observable.groupBy
@@ -64,23 +64,67 @@ let CreateObservableGraph entryPoint =
                 match m with
                 | Location l -> Some l
                 | _ -> None
-            <| entryPoint
-            |> Observable.distinctUntilChanged)
+            <| entryPoint)
         |> Observable.single
-        
+
     let EntityMovement = MovementObservable entryPoint
-        
-    let EntityLocation =
+
+    let LocationUpdate =
+        //Observable.map
+        //<| fun p ->
+          //  Observable.map (fun l -> (l :> IObservable<_>)) p
+            //|> Observable.switch
+        Observable.merge PositionMessage EntityMovement
+        |> Observable.switch
+
+    let SelfLocation =
+        Observable.filter
+        <| fun (l: IGroupedObservable<_,_>) -> l.Key = selfId
+        <| LocationUpdate
+
+    let LocationsAndSelf =
         Observable.map
-        <| fun p ->
-            Observable.map (fun l -> (l :> IObservable<_>)) p
-            |> Observable.switch
-        <| Observable.merge PositionMessage EntityMovement
-        |> Observable.flatmap id
-         
+        <| fun l -> Observable.combineLatest (Observable.single l) SelfLocation
+        <| LocationUpdate
+        |> Observable.switch
+
+
+    LocationUpdate.Subscribe(printfn "%A") |> ignore
+    //SelfLocation.Subscribe(printfn "%A")
+    LocationsAndSelf.Subscribe(printfn "%A") |> ignore
+
+    let LocationUpdate =
+        Observable.map
+        <| fun (location, self) ->
+            let visible =
+                match location.Position with
+                   | Known (x, y) ->
+                       let dist = Pathfinding.DistanceTo
+                                      (x, y)
+                                      (Position.Value self.Position)
+                       dist <= 30s
+                   | Unknown -> false
+            if visible
+                then (fun (m: Map<_,_>) -> m.Add(location.Id, location))
+                else (fun (m: Map<_,_>) -> m.Remove location.Id)
+        <| LocationsAndSelf
+
+    let LocationsMap =
+        Observable.scanInit
+        <| Map.empty
+        <| fun map op -> op map
+        <| LocationUpdate
+
+    let KnownEntities =
+        Observable.scanInit
+        <| Map.empty
+        <| fun (map: Map<_, Entity>) (entity: Entity) -> map.Add(entity.Id, entity)
+        <| NewEntity
     {
         Messages = entryPoint
         Entities = NewEntity
-        Locations = EntityLocation
+        //Locations = LocationUpdate
         Health = EntityHealth
+        KnownLocations = LocationsMap
+        KnownEntities = KnownEntities
     }
