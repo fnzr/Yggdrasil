@@ -42,14 +42,11 @@ let PacketObserver entryPoint buffer =
     |> Observable.publish
     
 let ServerToClientObserver time subject =
-    Yggdrasil.IO.Incoming.Observer.CreatePlayer
-    <| {Id = 2000001u
-        Name = "LiveReader"
-        Map = "prontera"
-        Request = fun _ -> ()
-        PacketSource = PacketObserver subject (Array.zeroCreate 1024)
-        }
-    <| time
+    Yggdrasil.IO.Incoming.Observer.CreateSensor
+        <| 2000001u
+        <| "prontera"
+        <| time
+        <| PacketObserver subject (Array.zeroCreate 1024)
     
 let ClientToServerObserver subject =
     let obs =  PacketObserver subject (Array.zeroCreate 1024)

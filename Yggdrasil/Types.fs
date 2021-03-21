@@ -184,7 +184,7 @@ type ActionType =
     | PickUpItem = 1uy
     | ContinuousAttack = 7uy
     | TouchSkill = 12uy //??
-    
+
 type CommandAction = {
     target: uint32
     action: ActionType
@@ -213,17 +213,9 @@ type EntityType =
   | PC
   | Monster
   | Invalid
-  
-type Position =
-    | Known of int16 * int16
-    | Unknown
-module Position =
-    let Value pos =
-        match pos with
-        | Known (a, b) -> (a, b)
-        | Unknown -> invalidArg "pos" "Unknown position"
-  
+
 type Request =
+    | Ping
     | DoneLoadingMap
     | RequestServerTick
     | RequestMove of int16 * int16

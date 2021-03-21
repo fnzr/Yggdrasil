@@ -19,7 +19,7 @@ type PacketLength =
     | Fixed of int
     | Dynamic
 
-module Hex =    
+module Hex =
     let FromHexDigit c =
                 if c >= '0' && c <= '9' then int c - int '0'
                 elif c >= 'A' && c <= 'F' then (int c - int 'A') + 10
@@ -45,20 +45,20 @@ module Hex =
                             n <- n + 1
                         buf
 
-let PacketLengthMap =    
+let PacketLengthMap =
     File.ReadLines ("PacketMap.txt")
     |> Seq.map (fun i ->
         let parts = i.Split(' ')
         ToUInt16 (Hex.Decode (parts.[0]) |> Array.rev), int parts.[1])
     |> Seq.fold (fun (m: Map<_,_>) (_type, length) -> m.Add(_type, length)) Map.empty
-    
+
 let ParsePacketHeader header =
     let pType = ToUInt16 header
     match PacketLengthMap.TryFind pType  with
     | Some -1 -> pType, Dynamic
     | Some len -> pType, Fixed len
     | None -> invalidArg $"{pType:X}" "Unmapped packet"
-    
+
 let ReadPacket (stream: Stream) buffer =
     let read = stream.Read(buffer, 0, 2)
     if read = 0 then None
@@ -74,12 +74,11 @@ let ReadPacket (stream: Stream) buffer =
         stream.Read(buffer, offset, len) |> ignore
         Some (pType, ReadOnlyMemory (buffer.[..len + offset - 1]))
 
-let ObservePackets (client: TcpClient) wantToConnect =
+let Observer (client: TcpClient) wantToConnect =
     Observable.using
     <| client.GetStream
     <| fun stream ->
         stream.Write(wantToConnect, 0, wantToConnect.Length)
-        stream.ReadTimeout <- 15000
         let buffer = Array.zeroCreate 1024
         Observable.repeatWhile
         <| fun () -> stream.CanRead
@@ -89,8 +88,7 @@ let ObservePackets (client: TcpClient) wantToConnect =
                     | None -> Observable.empty
         }
         |> Observable.onErrorConcat (observe {
-                                        yield! Observable.empty   
+                                        yield! Observable.empty
                                      })
     |> Observable.subscribeOn NewThreadScheduler.Default
     |> Observable.publish
-     

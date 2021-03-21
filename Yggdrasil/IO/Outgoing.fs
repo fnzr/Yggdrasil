@@ -12,15 +12,20 @@ let PackPosition (x: int16) y (dir: byte) =
         byte ((x <<< 6) ||| ((y >>> 4) &&& 0x3fs))
         byte ((y <<< 4)) ||| (dir &&& 0xfuy)
     |]
-    
-let OnlineRequest (time: unit -> int64) (stream: Stream) (request: Request) =
+
+let OnlineRequest (stream: Stream) (request: Request) =
     let bytes =
         match request with
         | DoneLoadingMap -> BitConverter.GetBytes 0x7dus
-        | RequestServerTick -> Array.concat [|
-                BitConverter.GetBytes 0x0360us
-                BitConverter.GetBytes (Convert.ToUInt32(time()))
+        | Ping -> Array.concat [|
+                BitConverter.GetBytes 0x187us
+                BitConverter.GetBytes 0
             |]
+        | RequestServerTick -> [||]
+        //| RequestServerTick -> Array.concat [|
+        //        BitConverter.GetBytes 0x0360us
+        //        BitConverter.GetBytes (Convert.ToUInt32(time()))
+        //    |]
         | RequestMove (x, y) -> Array.concat [|
                 BitConverter.GetBytes 0x035fus
                 PackPosition x y 1uy
@@ -53,5 +58,5 @@ let OnlineRequest (time: unit -> int64) (stream: Stream) (request: Request) =
                 BitConverter.GetBytes index
                 BitConverter.GetBytes location
             |]
-    Logger.Info request
+    //Logger.Info request
     stream.Write(bytes, 0, bytes.Length)

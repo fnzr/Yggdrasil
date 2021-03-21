@@ -1,6 +1,6 @@
 module Yggdrasil.World.Message
 open System
-open System.Reactive.Linq
+open System.Collections.Concurrent
 open FSharp.Control.Reactive
 open Yggdrasil.Navigation
 open Yggdrasil.Navigation.Maps
@@ -13,118 +13,109 @@ type PacketMessage =
     | Skip
     | Unhandled of uint16
 
-let MovementObservable entryPoint =
-    let MovementMessage =
-        Observable.groupBy
-        <| fun (m: Movement) -> m.Id
-        <| (Observable.choose
-            <| fun m ->
-                match m with
-                | Movement k -> Some k
-                | _ -> None
-            <| entryPoint
-            |> Observable.distinctUntilChanged)
+module Observable =
+    let combineLatest3 a b c =
+        Observable.combineLatest a b
+        |> Observable.combineLatest c
+        |> Observable.map (fun (c, (a, b)) -> a, b, c)
 
-    Observable.map
-    <| fun groupedMove ->
-        Observable.map
-        <| fun move ->
-            let path = Yggdrasil.Navigation.Pathfinding.FindPath
-                       <| move.Map.Data
-                       <| Position.Value move.Origin
-                       <| Position.Value move.Target
-            let delay = TimeSpan.FromMilliseconds move.Speed
-            Observable.delay
-            <| TimeSpan.FromMilliseconds move.Delay
-            <| (Observable.collect
-                <| fun pos -> Observable.delay delay
-                            <| Observable.single {Id=move.Id; Map=move.Map;Position=Known pos}
-                <| path)
-        <| groupedMove
-        |> Observable.switch
-        |> Observable.groupBy (fun m -> m.Id)
-    <| MovementMessage
+    let tap fn = Observable.map (fun o -> fn o; o)
 
-let CreateObservableGraph selfId entryPoint =
-    let NewEntity =
-        Observable.choose
-            <| fun m -> match m with New e -> Some e | _ -> None
-            <| entryPoint
-
-    let EntityHealth =
-        Observable.choose
-            <| fun m -> match m with Health e -> Some e | _ -> None
-            <| entryPoint
-
+let PositionStream time messageStream =
+    let latestPositionTime = ConcurrentDictionary<_,_>()
+    let mutable currentMap = WalkableMap 0us
+    let speedMap = ConcurrentDictionary<Id, float>()
     let PositionMessage =
-        Observable.groupBy
-        <| fun (l: Location) -> l.Id
-        <| (Observable.choose
+        Observable.choose
             <| fun m ->
                 match m with
-                | Location l -> Some l
+                | Speed (id, speed) -> speedMap.[id] <- speed; None
+                | Position p ->
+                    let t = time()
+                    latestPositionTime.[p.Id] <- t
+                    Some (t, p.Id, p)
                 | _ -> None
-            <| entryPoint)
-        |> Observable.single
+            <| messageStream
 
-    let EntityMovement = MovementObservable entryPoint
+    let MovementMessage =
+        Observable.choose
+        <| fun m ->
+            match m with
+            | MapChanged map -> currentMap <- GetMap map; None
+            | Movement mv ->
+                let t = time()
+                latestPositionTime.[mv.Id] <- t
+                Some (t, mv.Id, List.map
+                          <| fun pos -> {Id=mv.Id; Coordinates=pos}
+                          <| (Pathfinding.FindPath
+                               <| currentMap.Data
+                               <| mv.Origin
+                               <| mv.Target)
+                )
+            | _ -> None
+        <| messageStream
+        |> (Observable.flatmap
+            <| fun (t, id, locations) ->
+                let delay =
+                    TimeSpan.FromMilliseconds <|
+                        match speedMap.TryGetValue id with
+                          | (false, _) -> 0.0
+                          | (true, speed) -> speed
+                Observable.collect
+                <| fun loc -> Observable.delay delay (Observable.single (t, id, loc))
+                <| locations)
 
-    let LocationUpdate =
-        //Observable.map
-        //<| fun p ->
-          //  Observable.map (fun l -> (l :> IObservable<_>)) p
-            //|> Observable.switch
-        Observable.merge PositionMessage EntityMovement
-        |> Observable.switch
+    Observable.merge PositionMessage MovementMessage
+    |> (Observable.choose
+        <| fun (t, id, loc) ->
+            if t = latestPositionTime.[id]
+             then Some loc
+             else None)
 
-    let SelfLocation =
-        Observable.filter
-        <| fun (l: IGroupedObservable<_,_>) -> l.Key = selfId
-        <| LocationUpdate
+let EntityMapStream messageStream =
+    let entityStream =
+        Observable.choose
+        <| fun m -> match m with | New e -> Some e | _ -> None
+        <| messageStream
+    Observable.scanInit
+    <| Map.empty
+    <| fun m (e: Entity) -> m.Add(e.Id, e)
+    <| entityStream
 
-    let LocationsAndSelf =
-        Observable.map
-        <| fun l -> Observable.combineLatest (Observable.single l) SelfLocation
-        <| LocationUpdate
-        |> Observable.switch
+let SelfPositionStream selfId positionStream =
+    Observable.filter
+    <| fun (pos: Position) -> pos.Id = selfId
+    <| positionStream
 
+let EntityPositionMapStream selfId positionStream (entityMapStream: IObservable<Map<_,Entity>>) =
+    let mutable selfPosition = 0s, 0s
+    let TrackedEntitiesStream =
+        Observable.tap
+       <| fun (p: Position) ->
+           if p.Id = selfId then selfPosition <- p.Coordinates
+       <| positionStream
+       |> (Observable.choose
+            <| fun (pos: Position) ->
+                let (x, y) = pos.Coordinates
+                if Pathfinding.DistanceTo selfPosition (x, y) > 30s
+                     then None
+                     else Some pos)
 
-    LocationUpdate.Subscribe(printfn "%A") |> ignore
-    //SelfLocation.Subscribe(printfn "%A")
-    LocationsAndSelf.Subscribe(printfn "%A") |> ignore
-
-    let LocationUpdate =
-        Observable.map
-        <| fun (location, self) ->
-            let visible =
-                match location.Position with
-                   | Known (x, y) ->
-                       let dist = Pathfinding.DistanceTo
-                                      (x, y)
-                                      (Position.Value self.Position)
-                       dist <= 30s
-                   | Unknown -> false
-            if visible
-                then (fun (m: Map<_,_>) -> m.Add(location.Id, location))
-                else (fun (m: Map<_,_>) -> m.Remove location.Id)
-        <| LocationsAndSelf
-
-    let LocationsMap =
-        Observable.scanInit
-        <| Map.empty
-        <| fun map op -> op map
-        <| LocationUpdate
-
-    let KnownEntities =
-        Observable.scanInit
-        <| Map.empty
-        <| fun (map: Map<_, Entity>) (entity: Entity) -> map.Add(entity.Id, entity)
-        <| NewEntity
-    {
-        Messages = entryPoint
-        Entities = NewEntity
-        //Locations = LocationUpdate
-        Health = EntityHealth
-        KnownLocations = LocationsMap
-        KnownEntities = KnownEntities
-    }
+       |> Observable.combineLatest entityMapStream
+       |> (Observable.scanInit
+           <| (Set.empty, List.empty)
+           <| fun (currentSet, queue: Position list) (entities, newPos) ->
+               List.fold
+               <| fun (set, list) (pos: Position) ->
+                   match entities.TryFind pos.Id with
+                   | None -> set, pos :: list
+                   | Some e ->
+                       let newSet = set.Remove {Id=pos.Id;Name="";Type=EntityType.Invalid;Coordinates=0s,0s}
+                       if pos.Coordinates = InvalidCoordinates
+                        then newSet
+                        else newSet.Add {Id=pos.Id;Name=e.Name;Type=e.Type;Coordinates=pos.Coordinates}
+                       , list
+               <| (currentSet, List.empty)
+               <| newPos :: queue)
+       |> Observable.map (fst)
+    TrackedEntitiesStream

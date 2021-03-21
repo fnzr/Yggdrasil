@@ -1,7 +1,6 @@
-module Yggdrasil.IO.Incoming.Unit
+module Yggdrasil.IO.Incoming.Packets
 
 open System
-open System.Collections.Concurrent
 open NLog
 open Yggdrasil.Types
 open Yggdrasil.IO.Decoder
@@ -100,7 +99,7 @@ type UnitRawPart1 = {
     Accessory: uint16
 }
 
-type UnitRawPart2 = {    
+type UnitRawPart2 = {
     Accessory2: uint16
     Accessory3: uint16
     HeadPalette: int16
@@ -128,7 +127,7 @@ type UnitRawPart2 = {
     Name: string
 }
 
-let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) (speeds: ConcurrentDictionary<Id, float>) map =
+let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) =
         let (x, y, _) = UnpackPosition [|raw2.PosPart1; raw2.PosPart2; raw2.PosPart3|]
         let oType = match raw1.ObjectType with
                     | 0x1uy | 0x6uy -> EntityType.NPC
@@ -136,19 +135,19 @@ let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) (speeds: Concurren
                     | 0x5uy -> EntityType.Monster
                     | t -> Logger.Warn ("Unhandled ObjectType: {type}", t);
                             EntityType.Invalid
-        speeds.[raw1.AID] <- float raw1.Speed
-        let messages = 
+        let messages =
             [
-                {
-                    Id = raw1.AID
-                    Map = map
-                    Position = Known (x, y)
-                } |> Location;
                 {
                     Id = raw1.AID
                     Type = oType
                     Name = raw2.Name.Split("#").[0]
                 } |> New
+                Speed (raw1.AID, float raw1.Speed)
+                {
+                    Id = raw1.AID
+                    Coordinates = (x, y)
+                } |> Position
+
             ]
         Messages <|
             match oType with
@@ -160,94 +159,77 @@ let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) (speeds: Concurren
                 } |> Health) :: messages
             | _ -> messages
 
-let UnitStream playerId startMap tick =
-    let mutable map = Yggdrasil.Navigation.Maps.GetMap startMap
+let Observer playerId tick =
     let mutable tickOffset = 0L
-    let speeds = ConcurrentDictionary()
     Observable.map(fun (pType, (pData: ReadOnlyMemory<_>)) ->
         let data = pData.ToArray()
         match pType with
         | 0x0091us ->
-            map <- Yggdrasil.Navigation.Maps.GetMap
+            //request DoneLoadingMap; Skip
+            let map = Yggdrasil.Navigation.Maps.GetMap
                        (let gatFile = ToString data.[..17]
                     gatFile.Substring(0, gatFile.Length - 4))
-            {
-                Id = playerId
-                Map = map
-                Position = Known (data.[18..] |> ToInt16, data.[20..] |> ToInt16)
-            } |> Location |> Message
+            [
+                MapChanged map.Name
+                {
+                    Id = playerId
+                    Coordinates = (data.[18..] |> ToInt16, data.[20..] |> ToInt16)
+                } |> Position
+            ] |> Messages
         | 0x9feus | 0x9ffus ->
-            let (part1, leftover) = MakePartialRecord<UnitRawPart1> data.[4..] [||]    
+            let (part1, leftover) = MakePartialRecord<UnitRawPart1> data.[4..] [||]
             let (part2, _) = MakePartialRecord<UnitRawPart2> leftover [|24|]
-            CreateNonPlayer part1 part2 speeds map
+            CreateNonPlayer part1 part2
         | 0x9fdus ->
             //WalkingUnit appear. Skip MoveStartTime in the packet
-            let (part1, leftover) = MakePartialRecord<UnitRawPart1> data.[4..] [||]    
+            let (part1, leftover) = MakePartialRecord<UnitRawPart1> data.[4..] [||]
             let (part2, _) = MakePartialRecord<UnitRawPart2> leftover.[4..] [|24|]
-            CreateNonPlayer part1 part2 speeds map
+            CreateNonPlayer part1 part2
         | 0x2ebus ->
-            let (x, y, _) = UnpackPosition data.[6..]            
+            let (x, y, _) = UnpackPosition data.[6..]
             tickOffset <- int64 (ToUInt32 data.[2..])
             {
                 Id = playerId
-                Map = map
-                Position = Known (x, y)
-            } |> Location |> Message
-        | 0x0088us -> 
+                Coordinates = (x, y)
+            } |> Position |> Message
+        | 0x0088us ->
             let info = MakeRecord<UnitMove2> data.[2..]
             {
                 Id = info.Id
-                Map = map
-                Position = Known (info.X, info.Y)
-            } |> Location |> Message
+                Coordinates = (info.X, info.Y)
+            } |> Position |> Message
         | 0x0080us ->
             //TODO handle disappear reason
             let reason = Enum.Parse(typeof<DisappearReason>, string data.[6]) :?> DisappearReason
             {
                 Id = ToUInt32 data.[2..]
-                Map = map
-                Position = Unknown
-            } |> Location |> Message
+                Coordinates = InvalidCoordinates
+            } |> Position |> Message
             //(ToUInt32 data.[2..], Disappear reason) |> mailbox
         | 0x0087us ->
             let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]
             let mutable delay = tick() - (int64 <| ToUInt32 data.[2..]) + tickOffset |> float
-            let speed =
-                match speeds.TryGetValue playerId with
-                | (false, _) ->
-                    Logger.Warn $"Movement of player ({playerId}). Defaulting to speed 150"
-                    150.0
-                | (true, speed) -> speed
             {
                 Id = playerId
-                Map = map
-                Speed = speed
-                Origin = Known (x0, y0)
-                Target = Known (x1, y1)
+                Origin = x0, y0
+                Target = x1, y1
                 Delay = if delay < 0.0 then 0.0 else delay
             } |> Movement |> Message
         | 0x0086us ->
             let (x0, y0, x1, y1, _, _) = UnpackPosition2 data.[6..]
             let mutable delay = tick() - (int64 <| ToUInt32 data.[12..]) + tickOffset |> float
             let id = ToUInt32 data.[2..]
-            let speed =
-                match speeds.TryGetValue id with
-                | (false, _) ->
-                    Logger.Warn $"Movement of unknown unit ({id}). Defaulting to speed 150"
-                    150.0
-                | (true, speed) -> speed
             {
                 Id = id
-                Map = map
-                Speed = speed
-                Origin = Known (x0, y0)
-                Target = Known (x1, y1)
+                Origin = x0, y0
+                Target = x1, y1
                 Delay = if delay < 0.0 then 0.0 else delay
             } |> Movement |> Message
-        | 0x00b0us ->            
+        | 0x283us (* WantToConnect ack *) -> Connected true |> Message
+        | 0x00b0us ->
             if (data.[2..] |> ToParameter) = Parameter.Speed then
-                speeds.[playerId] <- data.[4..] |> ToUInt16 |> float
-            Skip
+                (playerId, data.[4..] |> ToUInt16 |> float) |> Speed |> Message
+            else Skip
         | 0x80eus ->
             (*
             let info = MakeRecord<PartyHP> data.[2..]
@@ -260,6 +242,28 @@ let UnitStream playerId startMap tick =
             |> postHealth
             *)
             Skip
+        | 0x0adfus (* ZC_REQNAME_TITLE *)
+        | 0x121us (* cart info *)
+        | 0x0a9bus (* list of items in the equip switch window *)
+        | 0x00b4us (* ZC_SAY_DIALOG *)
+        | 0x00b5us (* ZC_WAIT_DIALOG *)
+        | 0x00b7us (* ZC_MENU_LIST *)
+        | 0x0a30us (* ZC_ACK_REQNAMEALL2 *)
+        | 0x9e7us (* ZC_NOTIFY_UNREADMAIL *)
+        | 0x1d7us (* ZC_SPRITE_CHANGE2 *)
+        | 0x008eus (* ZC_NOTIFY_PLAYERCHAT *)
+        | 0xa24us (* ZC_ACH_UPDATE *)
+        | 0xa23us (* ZC_ALL_ACH_LIST *)
+        | 0xa00us (* ZC_SHORTCUT_KEY_LIST_V3 *)
+        | 0x2c9us (* ZC_PARTY_CONFIG *)
+        | 0x02daus (* ZC_CONFIG_NOTIFY *)
+        | 0x02d9us (* ZC_CONFIG *)
+        | 0x00b6us (* ZC_CLOSE_DIALOG *)
+        | 0x01b3us (* ZC_SHOW_IMAGE2 *)
+        | 0x00c0us (* ZC_EMOTION *)
+        | 0x01c3us (* ZC_BROADCAST2 *)
+        | 0x099aus (* ZC_ACK_TAKEOFF_EQUIP_V5 *)
+        | 0x0999us (* ZC_ACK_WEAR_EQUIP_V5 *)
+        | 0x099bus (* ZC_MAPPROPERTY_R2 *) -> Skip
         | _ -> Unhandled pType
     )
-
