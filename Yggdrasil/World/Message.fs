@@ -21,6 +21,14 @@ module Observable =
 
     let tap fn = Observable.map (fun o -> fn o; o)
 
+let PrimaryAttributesStream messageStream =
+    Observable.choose
+    <| fun m -> match m with | Attribute (i, v) -> Some (i, v) | _ -> None
+    <| messageStream
+    |> (Observable.scanInit
+        <| [|0; 0; 0; 0; 0; 0|]
+        <| fun attributes (index, value) -> attributes.[index] <- value; attributes)
+
 let PositionStream time messageStream =
     let latestPositionTime = ConcurrentDictionary<_,_>()
     let mutable currentMap = WalkableMap 0us

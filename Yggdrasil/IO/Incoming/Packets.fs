@@ -127,6 +127,11 @@ type UnitRawPart2 = {
     Name: string
 }
 
+let ToPrimaryAttribute value =
+    match value with
+    | 13 -> STR | 14 -> AGI | 15 -> VIT | 16 -> INT | 17 -> DEX | 18 -> LUK
+    | _ -> invalidArg "Primary Attribute Code" (string value)
+
 let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) =
         let (x, y, _) = UnpackPosition [|raw2.PosPart1; raw2.PosPart2; raw2.PosPart3|]
         let oType = match raw1.ObjectType with
@@ -225,6 +230,11 @@ let Observer playerId tick =
                 Target = x1, y1
                 Delay = if delay < 0.0 then 0.0 else delay
             } |> Movement |> Message
+        | 0x141us ->
+            let param = data.[2..] |> ToInt32 |> ToPrimaryAttribute
+            let value = data.[6..] |> ToInt32
+            let bonus = data.[10..] |> ToInt32
+            Attribute (param, value + bonus) |> Message
         | 0x283us (* WantToConnect ack *) -> Connected true |> Message
         | 0x00b0us ->
             if (data.[2..] |> ToParameter) = Parameter.Speed then

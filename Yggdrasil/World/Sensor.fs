@@ -2,6 +2,20 @@ module Yggdrasil.World.Sensor
 
 open System
 open Yggdrasil.Types
+[<Literal>]
+let STR = 0
+[<Literal>]
+let AGI = 1
+
+[<Literal>]
+let VIT = 2
+[<Literal>]
+let INT = 3
+[<Literal>]
+let DEX = 4
+[<Literal>]
+let LUK = 5
+
 
 type Entity = {
     Id: Id
@@ -55,6 +69,7 @@ type Message =
     | Position of Position
     | Movement of Movement
     | Health of Health
+    | Attribute of int * int
 
 type Player = {
     Id: Id

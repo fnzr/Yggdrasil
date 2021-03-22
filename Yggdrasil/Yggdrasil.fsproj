@@ -17,10 +17,11 @@
         <Compile Include="Utils.fs" />
         <Compile Include="Navigation\Maps.fs" />
         <Compile Include="Navigation\Pathfinding.fs" />
-        <Compile Include="World\Sensor.fs" />
-        <Compile Include="World\Message.fs" />
+        <Compile Include="World\Attributes.fs" />
+        <Compile Include="World\Types.fs" />
+        <Compile Include="World\Stream.fs" />
         <Compile Include="IO\Decoder.fs" />
-        <Compile Include="IO\Stream.fs" />
+        <Compile Include="IO\Reader.fs" />
         <Compile Include="IO\Outgoing.fs" />
         <Compile Include="IO\Handshake.fs" />
         <Compile Include="IO\Incoming\Packets.fs" />
@@ -52,6 +53,7 @@
       <Compile Include="UI\WindowType.fs" />
       <Compile Include="UI\StatusWindow.fs" />
       <Compile Include="UI\EntityListWindow.fs" />
+      <Compile Include="UI\AttributeWindow.fs" />
       <Compile Include="UI\UI.fs" />
     </ItemGroup>
     

@@ -7,6 +7,7 @@ open System.Reactive.Linq
 open System.Threading
 open FSharp.Control.Reactive
 open FSharp.Control.Reactive.Builders
+open Mindmagma.Curses
 open NLog
 open Yggdrasil.IO.Incoming.Observer
 open Yggdrasil.Navigation
@@ -147,6 +148,16 @@ let AutoPackets player =
         |> ignore
     timer
 
+let BlankSubject = Subject.broadcast
+let BlankPlayer = {
+    Id = 3000u
+    Name = "PName"
+    InitialMap = Maps.WalkableMap 1us
+    Request = fun _ -> ()
+    PacketStream = Observable.empty.Publish()
+    MessageStream = BlankSubject
+}
+
 let testUI time =
     let subject = Subject.broadcast
     let player = {
@@ -169,6 +180,7 @@ let testUI time =
 [<EntryPoint>]
 let main _ =
     CaptureFirstChanceExceptions ()
+    //Async.Start <| async { Server.StartServer()}
     let clock = Stopwatch()
     clock.Start()
     let time () = clock.ElapsedMilliseconds
@@ -184,5 +196,6 @@ let main _ =
         timer.Start()
     }
     UI.InitUI time player
+    //UI.InitUI time BlankPlayer
     BlockHandle.WaitOne() |> ignore
     0

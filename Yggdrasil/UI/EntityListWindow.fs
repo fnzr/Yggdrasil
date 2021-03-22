@@ -26,13 +26,13 @@ let FillEntityLines maxRows maxCols window entities filter =
                 <| entities
     Seq.iter
     <| fun i ->
-        let row = i + 2
+        let row = i + 1
         match Seq.tryItem i seq with
         | Some (tracked: TrackedEntity) ->
-            NCurses.MoveWindowAddString(window, row, 3, (string tracked.Type).PadRight(6)) |> ignore
+            NCurses.MoveWindowAddString(window, row, 3, (string tracked.Type).PadRight(7)) |> ignore
             NCurses.MoveWindowAddString(window, row, 15, tracked.Name.PadRight(25)) |> ignore
         | None ->
-            NCurses.MoveWindowAddString(window, row, 1, " ".PadLeft(maxCols - 1)) |> ignore
+            NCurses.MoveWindowAddString(window, row, 1, " ".PadLeft(maxCols - 2)) |> ignore
     <| [0 .. maxRows]
 
 let FilterStream inputStream =
@@ -50,28 +50,20 @@ let FilterStream inputStream =
 
 let Init window =
     NCurses.WindowBorder(window, '|', '|', ' ', '-', ' ', ' ', '+', '+')
-    NCurses.MoveWindowAddString(window, 1, 5, "Type") |> ignore
-    NCurses.MoveWindowAddString(window, 1, 20, "Name") |> ignore
-    NCurses.WindowRefresh(window) |> ignore
 
-let Window windowStream playerId
+let Window windowId windowStream maxRows playerId
     messageStream positionStream inputStream =
     let entityMapStream = EntityMapStream messageStream
     let entityPositionMapStream = EntityPositionMapStream playerId positionStream entityMapStream
     let filterStream = FilterStream inputStream
     let streams = Observable.combineLatest entityPositionMapStream filterStream
     Observable.map
-    <| fun windowType ->
-        match windowType with
-        | EntityListWindow win -> Some win
-        | _ -> None
+    <| fun (window: Window) -> window.Type = EntityListWindow
     <| windowStream
     |> Observable.combineLatest streams
     |> (Observable.subscribe
-        <| fun ((entities, filter), optWindow) ->
-            match optWindow with
-            | None -> ()
-            | Some win ->
-                FillEntityLines 2 80 win entities filter
-                NCurses.MoveWindowAddString(win, 0, 5, $"Entity List ({filter})") |> ignore
-                NCurses.WindowRefresh(win) |> ignore)
+        <| fun ((entities, filter), isEntityWindow) ->
+            if isEntityWindow then
+                FillEntityLines (maxRows - 2) 80 windowId entities filter
+                NCurses.MoveWindowAddString(windowId, 0, 5, $"Entity List ({filter})") |> ignore
+                NCurses.WindowRefresh windowId |> ignore)

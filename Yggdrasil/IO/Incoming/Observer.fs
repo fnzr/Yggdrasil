@@ -10,13 +10,16 @@ open Yggdrasil.World.Message
 open Yggdrasil.IO
 
 let Logger = LogManager.GetLogger "PacketObserver"
+let Tracer = LogManager.GetLogger "Tracer"
 let MessageStream id time packetSource =
     Observable.choose
     <| fun message ->
         match message with
         | Message m -> Some [m]
         | Messages ms -> Some ms
-        //| Unhandled pType -> Logger.Warn $"Unhandled packet: {pType:X}"; None
+        | Unhandled pType ->
+            //Logger.Warn $"Unhandled packet: {pType:X}"; None
+            Tracer.Warn $"Unhandled packet: {pType:X}"; None
         | _ -> None
     <| Packets.Observer id time packetSource
     |> Observable.flatmap (Observable.collect Observable.single)
