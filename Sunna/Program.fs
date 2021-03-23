@@ -148,16 +148,7 @@ let AutoPackets player =
         |> ignore
     timer
 
-let BlankSubject = Subject.broadcast
-let BlankPlayer = {
-    Id = 3000u
-    Name = "PName"
-    InitialMap = Maps.WalkableMap 1us
-    Request = fun _ -> ()
-    PacketStream = Observable.empty.Publish()
-    MessageStream = BlankSubject
-}
-
+(*
 let testUI time =
     let subject = Subject.broadcast
     let player = {
@@ -176,7 +167,7 @@ let testUI time =
         subject.OnNext (Connected true)
     }
     UI.InitUI time player
-
+*)
 [<EntryPoint>]
 let main _ =
     CaptureFirstChanceExceptions ()
@@ -190,12 +181,10 @@ let main _ =
 
     let player = PlayerLogin credentials time
     let timer = AutoPackets player
-    Async.Start <| async {
-        do! Async.Sleep 1000
-        player.PacketStream.Connect() |> ignore
-        timer.Start()
-    }
     UI.InitUI time player
-    //UI.InitUI time BlankPlayer
+
+    timer.Start()
+    player.PacketStream.Connect() |> ignore
+    player.MessageStream.Connect() |> ignore
     BlockHandle.WaitOne() |> ignore
     0

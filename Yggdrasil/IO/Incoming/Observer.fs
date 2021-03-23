@@ -23,6 +23,7 @@ let MessageStream id time packetSource =
         | _ -> None
     <| Packets.Observer id time packetSource
     |> Observable.flatmap (Observable.collect Observable.single)
+    |> Observable.publish
 
 let PlayerLogin credentials time =
     let loginServer = IPEndPoint (IPAddress.Parse "127.0.0.1", 6900)

@@ -134,6 +134,32 @@ let ToPrimaryAttribute value =
     | 16 -> Primary. INT | 17 -> Primary.DEX | 18 -> Primary.LUK
     | _ -> invalidArg "Primary Attribute Code" (string value)
 
+let CreateEquipment data =
+    let parse bytes =
+        let (equip, leftover) = MakePartialRecord<RawEquipItemBase> bytes [||]
+        let options =
+            //not actually sure if this option count is worth something
+            //maybe it's always 0 but server always(?) sends 5
+            //maybe it's a real value that just defaults to 5
+            [0 .. int equip.OptionCount]
+            |> List.map (fun i -> leftover.[i*5..])
+            |> List.fold (fun t e -> MakeRecord<RawEquipItemOption> e :: t) []
+        {
+            Base = equip
+            Options = options
+            Flags = {
+                IsIdentified = bytes.[56] &&& 1uy = 1uy
+                IsDamaged = bytes.[56] &&& 2uy = 2uy
+                //didnt check this one, not like I'm gonna use it
+                PlaceEtcTab = bytes.[56] &&& 4uy = 4uy
+            }
+        }
+    data
+    |> Array.chunkBySize 57
+    |> Array.map parse
+    |> Array.map Equipment.FromRaw
+    |> Array.toList
+
 let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) =
         let (x, y, _) = UnpackPosition [|raw2.PosPart1; raw2.PosPart2; raw2.PosPart3|]
         let oType = match raw1.ObjectType with
@@ -237,6 +263,13 @@ let Observer playerId tick =
             let value = data.[6..] |> ToInt32
             let bonus = data.[10..] |> ToInt32
             Attribute [param, value + bonus] |> Message
+        | 0x10fus ->
+            //TODO SkillRaw -> Skill
+            data.[4..]
+            |> Array.chunkBySize 37
+            |> Array.map (fun s -> fst <| MakePartialRecord<Skill> s [|24|])
+            |> Array.toList
+            |> NewSkill |> Message
         | 0x00bdus ->
             //TODO: Battle parameters
             let info = MakeRecord<CharacterStatusRaw> data.[2..]
@@ -259,6 +292,16 @@ let Observer playerId tick =
                     (Primary.VIT, int info.UVIT)
                 ]
             ] |> Messages
+        | 0x0acbus ->
+            let value = ToInt64 data.[4..]
+            let p = ToParameter data.[2..]
+            match p with
+            | Parameter.BaseExp -> BaseExp value |> Message
+            | Parameter.NextBaseExp -> ExpNextBaseLevel value |> Message
+            | Parameter.JobExp -> JobExp value |> Message
+            | Parameter.NextJobExp -> ExpNextJobLevel value |> Message
+            | _ -> Skip
+        | 0xadeus -> data.[2..] |> ToInt32 |> WeightSoftCap |> Message
         | 0x283us (* WantToConnect ack *) -> Connected true |> Message
         | 0x00b0us ->
             //TODO: Battle parameters

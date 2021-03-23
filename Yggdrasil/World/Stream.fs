@@ -137,3 +137,23 @@ let EntityPositionMapStream selfId positionStream (entityMapStream: IObservable<
                <| newPos :: queue)
        |> Observable.map (fst)
     TrackedEntitiesStream
+
+let NextJobLevelExpStream messageStream =
+    Observable.choose
+    <| fun m -> match m with | ExpNextJobLevel exp -> Some exp | _ -> None
+    <| messageStream
+
+let NextBaseLevelExpStream messageStream =
+    Observable.choose
+    <| fun m -> match m with | ExpNextBaseLevel exp -> Some exp | _ -> None
+    <| messageStream
+
+let JobLevelExpStream messageStream =
+    Observable.choose
+    <| fun m -> match m with | JobExp exp -> Some exp | _ -> None
+    <| messageStream
+
+let BaseLevelExpStream messageStream =
+    Observable.choose
+    <| fun m -> match m with | BaseExp exp -> Some exp | _ -> None
+    <| messageStream
