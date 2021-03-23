@@ -7,7 +7,6 @@
 
     <ItemGroup>
         <Compile Include="WebsocketLoggerTarget.fs" />
-        <Compile Include="Server.fs" />
         <Compile Include="Program.fs" />
         <None Include="..\assets\NLog.config">
           <Link>NLog.config</Link>
@@ -17,7 +16,6 @@
     <ItemGroup>
       <PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.6" />
       <PackageReference Include="NLog" Version="4.7.5" />
-      <PackageReference Include="Suave" Version="2.6.0" />
     </ItemGroup>
 
     <ItemGroup>

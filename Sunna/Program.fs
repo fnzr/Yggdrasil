@@ -1,16 +1,10 @@
 ﻿module Sunna.Main
 open System
-open System.Collections.Concurrent
-open System.Collections.Generic
 open System.Diagnostics
-open System.Reactive.Linq
 open System.Threading
 open FSharp.Control.Reactive
-open FSharp.Control.Reactive.Builders
-open Mindmagma.Curses
 open NLog
 open Yggdrasil.IO.Incoming.Observer
-open Yggdrasil.Navigation
 open Yggdrasil.Types
 open Yggdrasil.UI
 open Yggdrasil.World.Stream
@@ -171,7 +165,6 @@ let testUI time =
 [<EntryPoint>]
 let main _ =
     CaptureFirstChanceExceptions ()
-    Async.Start <| async { Server.StartServer()}
     let clock = Stopwatch()
     clock.Start()
     let time () = clock.ElapsedMilliseconds
