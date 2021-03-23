@@ -8,9 +8,17 @@ open NLog
 open Yggdrasil.IO.Decoder
 open Yggdrasil.IO.Reader
 
+type BasicCharacterInfo = {
+    Name: string
+    BaseLevel: int
+    JobLevel: int
+    WalkSpeed: float
+    ClassId: int16
+}
+
 type PlayerInfo = {
     ZoneServer: IPEndPoint
-    CharacterName: string
+    CharacterInfo: BasicCharacterInfo
     MapName: string
     AccountId: uint32
     LoginId1: uint32
@@ -19,7 +27,7 @@ type PlayerInfo = {
 }
 
 let Logger = LogManager.GetLogger("IO::Handshake")
-    
+
 let WantToConnect playerInfo =
     (Array.concat [|
         BitConverter.GetBytes(0x0436us)
@@ -29,7 +37,7 @@ let WantToConnect playerInfo =
         BitConverter.GetBytes(1)
         [| playerInfo.Gender |]
     |])
-    
+
 type LoginServerResponse = {
     CharServer: IPEndPoint
     AccountId: uint32
@@ -73,7 +81,7 @@ let LoginPacket username password =
         FillBytes password 24;
         BitConverter.GetBytes('0');
     |]))
-    
+
 let SelectCharacter slot loginServerResponse =
     use client = new TcpClient()
     client.Connect loginServerResponse.CharServer
@@ -85,17 +93,28 @@ let SelectCharacter slot loginServerResponse =
         raise <| IOException "Invalid byte count read"
 
     let buffer = Array.zeroCreate 1024
-    let rec handler name =
+    let mutable info: BasicCharacterInfo option = None
+    //WARN: This only works for login the character at slot 0
+    // and even then those bytes down there are suspicious.
+    // TODO: properly parse Character packets (0x6b, 0x6d)
+    let rec handler () =
         let (packetType: uint16, packetData) = (ReadPacket stream buffer).Value
         let data = packetData.ToArray()
         match packetType with
-        | 0x82dus | 0x9a0us | 0x20dus | 0x8b9us -> handler name
+        | 0x82dus | 0x9a0us | 0x20dus | 0x8b9us -> handler ()
         | 0x6bus ->
             stream.Write(CharSelect slot)
-            handler <| ToString data.[115..139]
+            info <- {
+                Name = data.[115..139] |> ToString
+                BaseLevel = data.[99..] |> ToInt16 |> int
+                JobLevel = data.[51..] |> ToInt32
+                WalkSpeed = data.[89..] |> ToInt16 |> float
+                ClassId = data.[93..] |> ToInt16
+            } |> Some
+            handler ()
         | 0xac5us ->
             {
-                CharacterName = name
+                CharacterInfo = info.Value
                 MapName = ToString <| data.[6..22]
                 AccountId = loginServerResponse.AccountId
                 LoginId1 = loginServerResponse.LoginId1
@@ -107,12 +126,12 @@ let SelectCharacter slot loginServerResponse =
             }
         | 0x840us -> invalidOp "Map server unavailable"
         | unknown -> invalidArg $"PacketType {unknown:X}" "Unknown CharServer packet"
-    handler ""    
-        
+    handler ()
+
 let rec Authenticate loginServer (username, password) =
     use client = new TcpClient()
     client.Connect loginServer
-    let stream = client.GetStream()    
+    let stream = client.GetStream()
     let buffer = Array.zeroCreate 512
     let rec handler () =
         let (packetType, packetData) = (ReadPacket stream buffer).Value
@@ -120,14 +139,14 @@ let rec Authenticate loginServer (username, password) =
         match packetType with
         | 0x81us ->
             match data.[2] with
-            | 8uy -> Logger.Info("Already logged in. Retrying.")                     
+            | 8uy -> Logger.Info("Already logged in. Retrying.")
                      Authenticate loginServer (username, password)
-            | _ -> invalidArg (string data.[2]) "Login refused" 
+            | _ -> invalidArg (string data.[2]) "Login refused"
         | 0xae3us ->
             stream.Write (LoginPacket username password)
             handler()
         | 0xac4us ->
-            let span = ReadOnlySpan<byte>(data)                
+            let span = ReadOnlySpan<byte>(data)
             {
                 AccountId = BitConverter.ToUInt32(span.Slice(8, 4))
                 LoginId1 = BitConverter.ToUInt32(span.Slice(4, 4))
@@ -135,7 +154,7 @@ let rec Authenticate loginServer (username, password) =
                 Gender = span.Slice(46, 1).[0]
                 CharServer = IPEndPoint(
                                    Convert.ToInt64(BitConverter.ToInt32(span.Slice(64, 4))),
-                                   Convert.ToInt32(BitConverter.ToUInt16(span.Slice(68, 2)))                                       
+                                   Convert.ToInt32(BitConverter.ToUInt16(span.Slice(68, 2)))
                                )
             }
         | unknown -> invalidArg $"PacketType {unknown:X}" "Unknown LoginServer packet"

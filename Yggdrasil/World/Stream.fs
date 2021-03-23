@@ -21,23 +21,54 @@ module Observable =
 
     let tap fn = Observable.map (fun o -> fn o; o)
 
-let PrimaryAttributesStream messageStream =
+let ParameterStream messageStream =
     Observable.choose
-    <| fun m -> match m with | Attribute attribs -> Some attribs | _ -> None
+    <| fun m -> match m with | Parameter p -> Some p | _ -> None
     <| messageStream
     |> (Observable.scanInit
-        <| [|0; 0; 0; 0; 0; 0; 0|]
-        <| fun attributes attr ->
-            List.iter (fun (i, v) -> attributes.[int i] <- v) attr; attributes)
+        //eh...
+        <| Array.zeroCreate (Attribute.GetNames(typeof<Attribute>).Length)
+        <| fun parameters list ->
+            List.iter (fun (i, v) -> parameters.[int i] <- v) list; parameters)
 
-let AttributeCostStream messageStream =
+let BaseLevelStream parameterStream =
+    Observable.map
+    <| fun (ps: array<_>) -> ps.[int Attribute.BaseLevel]
+    <| parameterStream
+    |> Observable.distinctUntilChanged
+
+let JobLevelStream parameterStream =
+    Observable.map
+    <| fun (ps: array<_>) -> ps.[int Attribute.JobLevel]
+    <| parameterStream
+    |> Observable.distinctUntilChanged
+
+let PrimaryParameterStream parameterStream =
+    Observable.map
+    <| fun (param: array<_>) -> param.[int Attribute.StatusPoints .. int Attribute.LUK]
+    <| parameterStream
+    |> Observable.distinctUntilChanged
+
+let PrimaryParameterCostStream parameterStream =
+    Observable.map
+    <| fun (param: array<_>) -> param.[int Attribute.USTR .. int Attribute.ULUK]
+    <| parameterStream
+    |> Observable.distinctUntilChanged
+
+let HPStream messageStream =
     Observable.choose
-    <| fun m -> match m with | AttributeCost attribs -> Some attribs | _ -> None
+    <| fun m -> match m with | HP (id, v) -> Some (id, v) | _ -> None
     <| messageStream
-    |> (Observable.scanInit
-        <| [|0; 0; 0; 0; 0; 0|]
-        <| fun attributes attr ->
-            List.iter (fun (i, v) -> attributes.[int i] <- v) attr; attributes)
+
+let MaxHPStream messageStream =
+    Observable.choose
+    <| fun m -> match m with | MaxHP (id, v) -> Some (id, v) | _ -> None
+    <| messageStream
+
+let SPStream parameterStream =
+    Observable.map
+    <| fun (param: array<_>) -> param.[int Attribute.SP], param.[int Attribute.MaxSP]
+    <| parameterStream
 
 let PositionStream time messageStream =
     let latestPositionTime = ConcurrentDictionary<_,_>()

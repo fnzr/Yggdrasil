@@ -22,7 +22,7 @@ let FilterMap =
 let FillEntityLines maxRows maxCols window entities filter =
     let types = FilterMap.[filter]
     let seq = Seq.filter
-                <| fun tracked -> if types.Length = 0 then true else List.contains tracked.Type types
+                <| fun (tracked: TrackedEntity) -> if types.Length = 0 then true else List.contains tracked.Type types
                 <| entities
     Seq.iter
     <| fun i ->

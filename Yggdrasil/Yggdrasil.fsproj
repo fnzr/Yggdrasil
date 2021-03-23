@@ -16,7 +16,6 @@
         <Compile Include="Types.fs" />
         <Compile Include="Navigation\Maps.fs" />
         <Compile Include="Navigation\Pathfinding.fs" />
-        <Compile Include="World\Attributes.fs" />
         <Compile Include="World\Types.fs" />
         <Compile Include="World\Stream.fs" />
         <Compile Include="IO\Decoder.fs" />

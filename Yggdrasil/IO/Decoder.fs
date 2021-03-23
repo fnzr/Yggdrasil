@@ -15,7 +15,7 @@ let ToInt32 data = BitConverter.ToInt32(data, 0)
 let ToInt64 data = BitConverter.ToInt64(data, 0)
 let ToChar data = BitConverter.ToChar(data, 0)
 let ToBool data = BitConverter.ToBoolean(data, 0)
-let ToParameter data : Parameter = data |> ToUInt16 |> LanguagePrimitives.EnumOfValue
+let ToRawAttribute data : RawAttribute = data |> ToUInt16 |> LanguagePrimitives.EnumOfValue
 //let ToString (data: _[]) = Encoding.UTF8.GetString(data).Split('\x00').[0]
 let ToString (data: byte[]) = (data |> Encoding.UTF8.GetString).Trim [| '\x00'; ''; '�'; '\000'; '\127' |]
 

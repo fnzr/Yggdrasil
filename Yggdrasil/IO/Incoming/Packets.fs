@@ -6,7 +6,6 @@ open Yggdrasil.Types
 open Yggdrasil.IO.Decoder
 open Yggdrasil.World.Stream
 open Yggdrasil.World.Types
-open Yggdrasil.World.Attributes
 let Logger = LogManager.GetLogger "UnitStream"
 
 type UnitWalking = {
@@ -128,11 +127,9 @@ type UnitRawPart2 = {
     Name: string
 }
 
-let ToPrimaryAttribute value =
-    match value with
-    | 13 -> Primary.STR | 14 -> Primary.AGI | 15 -> Primary.VIT
-    | 16 -> Primary. INT | 17 -> Primary.DEX | 18 -> Primary.LUK
-    | _ -> invalidArg "Primary Attribute Code" (string value)
+let ToAttribute (param: RawAttribute) =
+    let name = Enum.GetName(typeof<RawAttribute>, param)
+    Enum.Parse(typeof<Attribute>, name) :?> Attribute
 
 let CreateEquipment data =
     let parse bytes =
@@ -259,10 +256,12 @@ let Observer playerId tick =
                 Delay = if delay < 0.0 then 0.0 else delay
             } |> Movement |> Message
         | 0x141us ->
-            let param = data.[2..] |> ToInt32 |> ToPrimaryAttribute
+            let param = data.[2..] |> ToRawAttribute |> ToAttribute
             let value = data.[6..] |> ToInt32
             let bonus = data.[10..] |> ToInt32
-            Attribute [param, value + bonus] |> Message
+            Parameter [param, value + bonus] |> Message
+        | 0x13aus ->
+            Parameter [Attribute.AttackSpeed, data.[2..] |> ToInt16 |> int] |> Message
         | 0x10fus ->
             //TODO SkillRaw -> Skill
             data.[4..]
@@ -274,40 +273,42 @@ let Observer playerId tick =
             //TODO: Battle parameters
             let info = MakeRecord<CharacterStatusRaw> data.[2..]
             [
-                Attribute [
-                    (Primary.STR, int info.STR)
-                    (Primary.AGI, int info.AGI)
-                    (Primary.DEX, int info.DEX)
-                    (Primary.INT, int info.INT)
-                    (Primary.LUK, int info.LUK)
-                    (Primary.VIT, int info.VIT)
-                    (Primary.Points, int info.Points)
-                ]
-                AttributeCost [
-                    (Primary.STR, int info.UAGI)
-                    (Primary.AGI, int info.UAGI)
-                    (Primary.DEX, int info.UDEX)
-                    (Primary.INT, int info.UINT)
-                    (Primary.LUK, int info.ULUK)
-                    (Primary.VIT, int info.UVIT)
+                Parameter [
+                    (Attribute.StatusPoints, int info.Points)
+                    (Attribute.STR, int info.STR)
+                    (Attribute.AGI, int info.AGI)
+                    (Attribute.DEX, int info.DEX)
+                    (Attribute.INT, int info.INT)
+                    (Attribute.LUK, int info.LUK)
+                    (Attribute.VIT, int info.VIT)
+                    (Attribute.USTR, int info.USTR)
+                    (Attribute.UAGI, int info.UAGI)
+                    (Attribute.UDEX, int info.UDEX)
+                    (Attribute.UINT, int info.UINT)
+                    (Attribute.ULUK, int info.ULUK)
+                    (Attribute.UVIT, int info.UVIT)
                 ]
             ] |> Messages
         | 0x0acbus ->
             let value = ToInt64 data.[4..]
-            let p = ToParameter data.[2..]
+            let p = ToRawAttribute data.[2..]
             match p with
-            | Parameter.BaseExp -> BaseExp value |> Message
-            | Parameter.NextBaseExp -> ExpNextBaseLevel value |> Message
-            | Parameter.JobExp -> JobExp value |> Message
-            | Parameter.NextJobExp -> ExpNextJobLevel value |> Message
+            | RawAttribute.BaseExp -> BaseExp value |> Message
+            | RawAttribute.NextBaseExp -> ExpNextBaseLevel value |> Message
+            | RawAttribute.JobExp -> JobExp value |> Message
+            | RawAttribute.NextJobExp -> ExpNextJobLevel value |> Message
             | _ -> Skip
         | 0xadeus -> data.[2..] |> ToInt32 |> WeightSoftCap |> Message
+        | 0xa0dus -> data.[4..] |> CreateEquipment |> Equipment |> Message
         | 0x283us (* WantToConnect ack *) -> Connected true |> Message
         | 0x00b0us ->
             //TODO: Battle parameters
-            if (data.[2..] |> ToParameter) = Parameter.Speed then
-                (playerId, data.[4..] |> ToUInt16 |> float) |> Speed |> Message
-            else Skip
+            let value = ToInt32 data.[4..]
+            match ToRawAttribute data.[2..] with
+            | RawAttribute.Speed -> (playerId , float value) |> Speed |> Message
+            | RawAttribute.HP -> (playerId, value) |> HP |> Message
+            | RawAttribute.MaxHP -> (playerId, value) |> MaxHP |> Message
+            | param -> [(ToAttribute param, value)] |> Parameter |> Message
         | 0x80eus ->
             (*
             let info = MakeRecord<PartyHP> data.[2..]

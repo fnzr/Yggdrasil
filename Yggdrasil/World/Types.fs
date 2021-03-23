@@ -47,6 +47,27 @@ type Movement = {
     Delay: float
 }
 
+type Equipment =
+    {
+        Id: uint16
+        Index: int16
+        Type: byte
+        Location: uint32
+        WearState: uint32
+        IsIdentified: bool
+        IsDamaged: bool
+    }
+    static member FromRaw (raw: RawEquipItem) =
+        {
+            Id = raw.Base.Id
+            Index = raw.Base.Index
+            Type = raw.Base.Type
+            Location = raw.Base.Location
+            WearState = raw.Base.WearState
+            IsIdentified = raw.Flags.IsIdentified
+            IsDamaged = raw.Flags.IsDamaged
+        }
+
 type Message =
     | Connected of bool
     | New of Entity
@@ -55,15 +76,17 @@ type Message =
     | Position of Position
     | Movement of Movement
     | Health of Health
-    | Attribute of (Attributes.Primary * int) list
-    | AttributeCost of (Attributes.Primary * int) list
+    | Parameter of (Attribute * int) list
     | ExpNextJobLevel of int64
     | ExpNextBaseLevel of int64
     | JobExp of int64
     | BaseExp of int64
+    | HP of Id * int
+    | MaxHP of Id * int
     //TODO: Packet OK, no stream
     | WeightSoftCap of int
     | NewSkill of Skill list
+    | Equipment of Equipment list
     //TODO: No packet, no stream
     | Zeny of int64
 

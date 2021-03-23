@@ -4,7 +4,7 @@ open System
 
 type Id = uint32
 
-type Parameter =
+type RawAttribute =
     |Speed=0us|Karma=3us|Manner=4us|HP=5us|MaxHP=6us|SP=7us|MaxSP=8us
     |StatusPoints=9us|BaseLevel=11us|SkillPoints=12us
     |STR=13us|AGI=14us|VIT=15us|INT=16us|DEX=17us|LUK=18us
@@ -14,6 +14,17 @@ type Parameter =
     |Flee2=51us|Critical=52us|AttackSpeed=53us|JobLevel=55us
     |AttackRange=1000us|BaseExp=1us|JobExp=2us|NextBaseExp=22us
     |NextJobExp=23us|USTR=32us|UAGI=33us|UVIT=34us|UINT=35us|UDEX=36us|ULUK=37us
+
+type Attribute =
+   |AttackRange=0|Weight=1|MaxWeight=2|BaseLevel=3
+   |JobLevel=4|Karma=5|Manner=6|SkillPoints=7|Hit=8
+   |Flee1=9|Flee2=10|MaxSP=11|SP=12
+   |AttackSpeed=13|Attack1=14|Defense1=15|MagicDefense1=16
+   |Attack2=17|Defense2=18|MagicDefense2=19|Critical=20
+   |MagicAttack1=21|MagicAttack2=22
+   |StatusPoints=23|STR=24|AGI=25|VIT=26|INT=27
+   |DEX=28|LUK=29|USTR=30|UAGI=31|UVIT=32|UINT=33
+   |UDEX=34|ULUK=35
 
 type IdleUnitPartial = {
     ObjectType: byte
