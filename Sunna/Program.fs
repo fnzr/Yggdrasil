@@ -13,8 +13,8 @@ open Yggdrasil.IO.Incoming.Observer
 open Yggdrasil.Navigation
 open Yggdrasil.Types
 open Yggdrasil.UI
-open Yggdrasil.World.Message
-open Yggdrasil.World.Sensor
+open Yggdrasil.World.Stream
+open Yggdrasil.World.Types
 let Logger = LogManager.GetLogger "Sunna"
 
 let BlockHandle = new ManualResetEvent(false)
@@ -180,7 +180,7 @@ let testUI time =
 [<EntryPoint>]
 let main _ =
     CaptureFirstChanceExceptions ()
-    //Async.Start <| async { Server.StartServer()}
+    Async.Start <| async { Server.StartServer()}
     let clock = Stopwatch()
     clock.Start()
     let time () = clock.ElapsedMilliseconds

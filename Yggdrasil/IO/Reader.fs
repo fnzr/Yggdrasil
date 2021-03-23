@@ -1,4 +1,4 @@
-module Yggdrasil.IO.Stream
+module Yggdrasil.IO.Reader
 
 open System
 open System.IO

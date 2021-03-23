@@ -4,8 +4,8 @@ open System
 open FSharp.Control.Reactive
 open Mindmagma.Curses
 open Yggdrasil.UI.WindowType
-open Yggdrasil.World.Sensor
-open Yggdrasil.World.Message
+open Yggdrasil.World.Types
+open Yggdrasil.World.Stream
 type CustomLibraryNames() =
     inherit CursesLibraryNames()
     override this.ReplaceLinuxDefaults = true
@@ -53,7 +53,7 @@ let InitUI time player =
                 match optWindow with
                 | Some win -> win.Reset mainWindow; win
                 | None -> window)
-        <| inputStream
+        <| Observable.startWith ["1"] inputStream
     let statusWindow = NCurses.NewWindow(3, 80, 0, 0)
     let statusSubscription = StatusWindow.Window statusWindow cols player.MessageStream positionStream player.Name player.Id
     let entityListSubscription = EntityListWindow.Window mainWindow windowStream rows player.Id

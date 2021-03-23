@@ -4,8 +4,9 @@ open System
 open NLog
 open Yggdrasil.Types
 open Yggdrasil.IO.Decoder
-open Yggdrasil.World.Message
-open Yggdrasil.World.Sensor
+open Yggdrasil.World.Stream
+open Yggdrasil.World.Types
+open Yggdrasil.World.Attributes
 let Logger = LogManager.GetLogger "UnitStream"
 
 type UnitWalking = {
@@ -129,7 +130,8 @@ type UnitRawPart2 = {
 
 let ToPrimaryAttribute value =
     match value with
-    | 13 -> STR | 14 -> AGI | 15 -> VIT | 16 -> INT | 17 -> DEX | 18 -> LUK
+    | 13 -> Primary.STR | 14 -> Primary.AGI | 15 -> Primary.VIT
+    | 16 -> Primary. INT | 17 -> Primary.DEX | 18 -> Primary.LUK
     | _ -> invalidArg "Primary Attribute Code" (string value)
 
 let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) =
@@ -234,9 +236,32 @@ let Observer playerId tick =
             let param = data.[2..] |> ToInt32 |> ToPrimaryAttribute
             let value = data.[6..] |> ToInt32
             let bonus = data.[10..] |> ToInt32
-            Attribute (param, value + bonus) |> Message
+            Attribute [param, value + bonus] |> Message
+        | 0x00bdus ->
+            //TODO: Battle parameters
+            let info = MakeRecord<CharacterStatusRaw> data.[2..]
+            [
+                Attribute [
+                    (Primary.STR, int info.STR)
+                    (Primary.AGI, int info.AGI)
+                    (Primary.DEX, int info.DEX)
+                    (Primary.INT, int info.INT)
+                    (Primary.LUK, int info.LUK)
+                    (Primary.VIT, int info.VIT)
+                    (Primary.Points, int info.Points)
+                ]
+                AttributeCost [
+                    (Primary.STR, int info.UAGI)
+                    (Primary.AGI, int info.UAGI)
+                    (Primary.DEX, int info.UDEX)
+                    (Primary.INT, int info.UINT)
+                    (Primary.LUK, int info.ULUK)
+                    (Primary.VIT, int info.UVIT)
+                ]
+            ] |> Messages
         | 0x283us (* WantToConnect ack *) -> Connected true |> Message
         | 0x00b0us ->
+            //TODO: Battle parameters
             if (data.[2..] |> ToParameter) = Parameter.Speed then
                 (playerId, data.[4..] |> ToUInt16 |> float) |> Speed |> Message
             else Skip

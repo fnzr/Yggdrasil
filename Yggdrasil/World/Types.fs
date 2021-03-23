@@ -1,21 +1,7 @@
-module Yggdrasil.World.Sensor
+module Yggdrasil.World.Types
 
 open System
 open Yggdrasil.Types
-[<Literal>]
-let STR = 0
-[<Literal>]
-let AGI = 1
-
-[<Literal>]
-let VIT = 2
-[<Literal>]
-let INT = 3
-[<Literal>]
-let DEX = 4
-[<Literal>]
-let LUK = 5
-
 
 type Entity = {
     Id: Id
@@ -69,7 +55,17 @@ type Message =
     | Position of Position
     | Movement of Movement
     | Health of Health
-    | Attribute of int * int
+    | Attribute of (Attributes.Primary * int) list
+    | AttributeCost of (Attributes.Primary * int) list
+    | ExpNextJobLevel of int64
+    | ExpNextBaseLevel of int64
+    | JobExp of int64
+    | BaseExp of int64
+    //TODO: Packet OK, no stream
+    | WeightSoftCap of int
+    | NewSkill of Skill list
+    //TODO: No packet, no stream
+    | Zeny of int64
 
 type Player = {
     Id: Id
@@ -77,5 +73,5 @@ type Player = {
     InitialMap: Yggdrasil.Navigation.Maps.Map
     Request: Request -> unit
     PacketStream: System.Reactive.Subjects.IConnectableObservable<uint16 * ReadOnlyMemory<byte>>
-    MessageStream: IObservable<Message>
+    MessageStream: System.Reactive.Subjects.IConnectableObservable<Message>
 }

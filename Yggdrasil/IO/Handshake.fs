@@ -6,7 +6,7 @@ open System.Net
 open System.Net.Sockets
 open NLog
 open Yggdrasil.IO.Decoder
-open Yggdrasil.IO.Stream
+open Yggdrasil.IO.Reader
 
 type PlayerInfo = {
     ZoneServer: IPEndPoint

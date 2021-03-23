@@ -5,8 +5,8 @@ open System.Net.Sockets
 open FSharp.Control.Reactive
 open NLog
 open Yggdrasil.Navigation.Maps
-open Yggdrasil.World.Sensor
-open Yggdrasil.World.Message
+open Yggdrasil.World.Types
+open Yggdrasil.World.Stream
 open Yggdrasil.IO
 
 let Logger = LogManager.GetLogger "PacketObserver"
@@ -31,7 +31,7 @@ let PlayerLogin credentials time =
     let client = new TcpClient()
     client.Connect(info.ZoneServer)
     let stream = client.GetStream()
-    let source = Stream.Observer client (Handshake.WantToConnect info)
+    let source = Reader.Observer client (Handshake.WantToConnect info)
     ({
         Id = info.AccountId
         Name = info.CharacterName

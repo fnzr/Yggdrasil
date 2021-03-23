@@ -1,11 +1,11 @@
-module Yggdrasil.World.Message
+module Yggdrasil.World.Stream
 open System
 open System.Collections.Concurrent
 open FSharp.Control.Reactive
 open Yggdrasil.Navigation
 open Yggdrasil.Navigation.Maps
 open Yggdrasil.Types
-open Yggdrasil.World.Sensor
+open Yggdrasil.World.Types
 
 type PacketMessage =
     | Message of Message
@@ -23,11 +23,21 @@ module Observable =
 
 let PrimaryAttributesStream messageStream =
     Observable.choose
-    <| fun m -> match m with | Attribute (i, v) -> Some (i, v) | _ -> None
+    <| fun m -> match m with | Attribute attribs -> Some attribs | _ -> None
+    <| messageStream
+    |> (Observable.scanInit
+        <| [|0; 0; 0; 0; 0; 0; 0|]
+        <| fun attributes attr ->
+            List.iter (fun (i, v) -> attributes.[int i] <- v) attr; attributes)
+
+let AttributeCostStream messageStream =
+    Observable.choose
+    <| fun m -> match m with | AttributeCost attribs -> Some attribs | _ -> None
     <| messageStream
     |> (Observable.scanInit
         <| [|0; 0; 0; 0; 0; 0|]
-        <| fun attributes (index, value) -> attributes.[index] <- value; attributes)
+        <| fun attributes attr ->
+            List.iter (fun (i, v) -> attributes.[int i] <- v) attr; attributes)
 
 let PositionStream time messageStream =
     let latestPositionTime = ConcurrentDictionary<_,_>()
