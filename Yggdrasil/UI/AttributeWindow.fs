@@ -1,7 +1,7 @@
 module Yggdrasil.UI.AttributeWindow
 
 open Mindmagma.Curses
-open Yggdrasil.World.Stream
+open Yggdrasil.Observables
 open Yggdrasil.UI.WindowType
 open FSharp.Control.Reactive
 

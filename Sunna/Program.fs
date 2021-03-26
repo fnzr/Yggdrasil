@@ -4,11 +4,12 @@ open System.Diagnostics
 open System.Threading
 open FSharp.Control.Reactive
 open NLog
-open Yggdrasil.IO.Incoming.Observer
+open Yggdrasil.Game
+open Yggdrasil.IO.Entrypoint
 open Yggdrasil.Types
 open Yggdrasil.UI
-open Yggdrasil.World.Stream
-open Yggdrasil.World.Types
+open Yggdrasil.Observables
+open Yggdrasil.Database
 let Logger = LogManager.GetLogger "Sunna"
 
 let BlockHandle = new ManualResetEvent(false)
@@ -164,6 +165,11 @@ let testUI time =
 *)
 [<EntryPoint>]
 let main _ =
+    Async.Start <| async {
+      let! result = ImportJobs "/home/master/projects/rathena/db/re/job_db1.txt" "http://root:root@172.21.0.2:8529/ragnarok"
+      printfn "%A" result
+    }
+    Console.ReadKey()
     CaptureFirstChanceExceptions ()
     let clock = Stopwatch()
     clock.Start()

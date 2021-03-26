@@ -4,8 +4,9 @@ open System
 open FSharp.Control.Reactive
 open Mindmagma.Curses
 open Yggdrasil.UI.WindowType
-open Yggdrasil.World.Types
-open Yggdrasil.World.Stream
+open Yggdrasil.Observables
+open Yggdrasil.Game
+
 type CustomLibraryNames() =
     inherit CursesLibraryNames()
     override this.ReplaceLinuxDefaults = true

@@ -1,17 +1,11 @@
-module Yggdrasil.World.Stream
+module Yggdrasil.Observables
 open System
 open System.Collections.Concurrent
 open FSharp.Control.Reactive
 open Yggdrasil.Navigation
 open Yggdrasil.Navigation.Maps
 open Yggdrasil.Types
-open Yggdrasil.World.Types
-
-type PacketMessage =
-    | Message of Message
-    | Messages of Message list
-    | Skip
-    | Unhandled of uint16
+open Yggdrasil.Game
 
 module Observable =
     let combineLatest3 a b c =
@@ -160,7 +154,7 @@ let EntityPositionMapStream selfId positionStream (entityMapStream: IObservable<
                    | None -> set, pos :: list
                    | Some e ->
                        let newSet = set.Remove {Id=pos.Id;Name="";Type=EntityType.Invalid;Coordinates=0s,0s}
-                       if pos.Coordinates = InvalidCoordinates
+                       if pos.Coordinates = (-1s, -1s)
                         then newSet
                         else newSet.Add {Id=pos.Id;Name=e.Name;Type=e.Type;Coordinates=pos.Coordinates}
                        , list

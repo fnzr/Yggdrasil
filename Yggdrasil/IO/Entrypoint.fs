@@ -1,15 +1,13 @@
-module Yggdrasil.IO.Incoming.Observer
+module Yggdrasil.IO.Entrypoint
 
 open System.Net
 open System.Net.Sockets
 open FSharp.Control.Reactive
 open NLog
 open Yggdrasil.IO.Handshake
-open Yggdrasil.Navigation.Maps
 open Yggdrasil.Types
-open Yggdrasil.World.Types
-open Yggdrasil.World.Stream
 open Yggdrasil.IO
+open Yggdrasil.Game
 
 let Logger = LogManager.GetLogger "PacketObserver"
 let Tracer = LogManager.GetLogger "Tracer"
@@ -48,7 +46,6 @@ let PlayerLogin credentials time =
     ({
         Id = info.AccountId
         Name = info.CharacterInfo.Name
-        InitialMap = GetMap info.MapName.[0..info.MapName.Length - 5]
         Request = Outgoing.OnlineRequest stream
         PacketStream = source
         MessageStream = MessageStream info.AccountId time messages source

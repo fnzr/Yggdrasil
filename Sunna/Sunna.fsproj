@@ -9,7 +9,10 @@
         <Compile Include="Program.fs" />
         <None Include="..\assets\NLog.config">
           <Link>NLog.config</Link>
-        </None>         
+        </None>
+        <Content Include="..\assets\PacketMap.txt">
+          <Link>PacketMap.txt</Link>
+        </Content>         
     </ItemGroup>
 
     <ItemGroup>

@@ -5,8 +5,8 @@ open FSharp.Control.Reactive
 open Mindmagma.Curses
 open Yggdrasil.Types
 open Yggdrasil.UI.WindowType
-open Yggdrasil.World.Stream
-open Yggdrasil.World.Types
+open Yggdrasil.Observables
+open Yggdrasil.Game
 
 type Filter =
     | All

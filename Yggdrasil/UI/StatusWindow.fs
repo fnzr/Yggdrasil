@@ -3,8 +3,8 @@ module Yggdrasil.UI.StatusWindow
 open System
 open FSharp.Control.Reactive
 open Mindmagma.Curses
-open Yggdrasil.World.Types
-open Yggdrasil.World.Stream
+open Yggdrasil.Game
+open Yggdrasil.Observables
 
 type StatusInfo =
     | Connection of string

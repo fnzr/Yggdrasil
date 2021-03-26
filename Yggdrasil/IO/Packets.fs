@@ -1,137 +1,28 @@
-module Yggdrasil.IO.Incoming.Packets
+module Yggdrasil.IO.Packets
 
 open System
 open NLog
 open Yggdrasil.Types
+open Yggdrasil.IO.RawTypes
 open Yggdrasil.IO.Decoder
-open Yggdrasil.World.Stream
-open Yggdrasil.World.Types
+open Yggdrasil.Game
 let Logger = LogManager.GetLogger "UnitStream"
-
-type UnitWalking = {
-    ObjectType: byte
-    AID: uint32
-    GID: uint32
-    Speed: int16
-    BodyState: int16
-    HealthState: int16
-    EffectState: int
-    Job: int16
-    Head: uint16
-    Weapon: uint32
-    Accessory: uint16
-    MoveStartTime: uint32
-    Accessory2: uint16
-    Accessory3: uint16
-    HeadPalette: int16
-    BodyPalette: int16
-    HeadDir: int16
-    Robe: uint16
-    GUID: uint32
-    GEmblemVer: int16
-    Honor: int16
-    Virtue: int
-    isPKModeOn: byte
-    Sex: byte
-    PosDir1: byte
-    PosDir2: byte
-    PosDir3: byte
-    xSize: byte
-    ySize: byte
-    CLevel: int16
-    Font: int16
-    MaxHP: int
-    HP: int
-    isBoss: byte
-    Body: int16
-    Name: string
-}
-
-type UnitIdle = {
-    ObjectType: byte
-    AID: uint32
-    GID: uint32
-    Speed: int16
-    BodyState: int16
-    HealthState: int16
-    EffectState: int
-    Job: int16
-    Head: uint16
-    Weapon: uint32
-    Accessory: uint16
-    Accessory2: uint16
-    Accessory3: uint16
-    HeadPalette: int16
-    BodyPalette: int16
-    HeadDir: int16
-    Robe: uint16
-    GUID: uint32
-    GEmblemVer: int16
-    Honor: int16
-    Virtue: int
-    isPKModeOn: byte
-    Sex: byte
-    PosDir1: byte
-    PosDir2: byte
-    PosDir3: byte
-    xSize: byte
-    ySize: byte
-    CLevel: int16
-    Font: int16
-    MaxHP: int
-    HP: int
-    isBoss: byte
-    Body: int16
-    Name: string
-}
-
-type UnitRawPart1 = {
-    ObjectType: byte
-    AID: uint32
-    GID: uint32
-    Speed: uint16
-    BodyState: int16
-    HealthState: int16
-    EffectState: int
-    Job: int16
-    Head: uint16
-    Weapon: uint32
-    Accessory: uint16
-}
-
-type UnitRawPart2 = {
-    Accessory2: uint16
-    Accessory3: uint16
-    HeadPalette: int16
-    BodyPalette: int16
-    HeadDir: int16
-    Robe: uint16
-    GUID: uint32
-    GEmblemVer: int16
-    Honor: int16
-    Virtue: int
-    isPKModeOn: byte
-    Sex: byte
-    PosPart1: byte
-    PosPart2: byte
-    PosPart3: byte
-    xSize: byte
-    ySize: byte
-    State: byte
-    CLevel: int16
-    Font: int16
-    MaxHP: int
-    HP: int
-    isBoss: byte
-    Body: int16
-    Name: string
-}
 
 let ToAttribute (param: RawAttribute) =
     let name = Enum.GetName(typeof<RawAttribute>, param)
     Enum.Parse(typeof<Attribute>, name) :?> Attribute
 
+let EquipmentFromRaw (raw: RawEquipItem) = {
+    Id = raw.Base.Id
+    Index = raw.Base.Index
+    Type = raw.Base.Type
+    Location = raw.Base.Location
+    WearState = raw.Base.WearState
+    IsIdentified = raw.Flags.IsIdentified
+    IsDamaged = raw.Flags.IsDamaged
+}
 let CreateEquipment data =
+
     let parse bytes =
         let (equip, leftover) = MakePartialRecord<RawEquipItemBase> bytes [||]
         let options =
@@ -154,7 +45,7 @@ let CreateEquipment data =
     data
     |> Array.chunkBySize 57
     |> Array.map parse
-    |> Array.map Equipment.FromRaw
+    |> Array.map EquipmentFromRaw
     |> Array.toList
 
 let CreateNonPlayer (raw1: UnitRawPart1) (raw2: UnitRawPart2) =
@@ -233,7 +124,7 @@ let Observer playerId tick =
             let reason = Enum.Parse(typeof<DisappearReason>, string data.[6]) :?> DisappearReason
             {
                 Id = ToUInt32 data.[2..]
-                Coordinates = InvalidCoordinates
+                Coordinates = (-1s, -1s)
             } |> Position |> Message
             //(ToUInt32 data.[2..], Disappear reason) |> mailbox
         | 0x0087us ->
@@ -261,7 +152,7 @@ let Observer playerId tick =
             let bonus = data.[10..] |> ToInt32
             Parameter [param, value + bonus] |> Message
         | 0x13aus ->
-            Parameter [Attribute.AttackSpeed, data.[2..] |> ToInt16 |> int] |> Message
+            Parameter [Attribute.AttackSpeed1, data.[2..] |> ToInt16 |> int] |> Message
         | 0x10fus ->
             //TODO SkillRaw -> Skill
             data.[4..]
@@ -274,25 +165,38 @@ let Observer playerId tick =
             let info = MakeRecord<CharacterStatusRaw> data.[2..]
             [
                 Parameter [
-                    (Attribute.StatusPoints, int info.Points)
-                    (Attribute.STR, int info.STR)
-                    (Attribute.AGI, int info.AGI)
-                    (Attribute.DEX, int info.DEX)
-                    (Attribute.INT, int info.INT)
-                    (Attribute.LUK, int info.LUK)
-                    (Attribute.VIT, int info.VIT)
-                    (Attribute.USTR, int info.USTR)
-                    (Attribute.UAGI, int info.UAGI)
-                    (Attribute.UDEX, int info.UDEX)
-                    (Attribute.UINT, int info.UINT)
-                    (Attribute.ULUK, int info.ULUK)
-                    (Attribute.UVIT, int info.UVIT)
+                    Attribute.StatusPoints, int info.Points
+                    Attribute.STR, int info.STR
+                    Attribute.AGI, int info.AGI
+                    Attribute.DEX, int info.DEX
+                    Attribute.INT, int info.INT
+                    Attribute.LUK, int info.LUK
+                    Attribute.VIT, int info.VIT
+                    Attribute.USTR, int info.USTR
+                    Attribute.UAGI, int info.UAGI
+                    Attribute.UDEX, int info.UDEX
+                    Attribute.UINT, int info.UINT
+                    Attribute.ULUK, int info.ULUK
+                    Attribute.UVIT, int info.UVIT
+                    Attribute.Attack1, int info.ATK
+                    Attribute.Attack2, int info.ATK2
+                    Attribute.MagicAttack1, int info.MATK_MIN
+                    Attribute.MagicAttack2, int info.MATK_MAX
+                    Attribute.Defense1, int info.DEF
+                    Attribute.Defense2, int info.DEF2
+                    Attribute.MagicDefense1, int info.MDEF
+                    Attribute.MagicDefense2, int info.MDEF2
+                    Attribute.Hit, int info.HIT
+                    Attribute.Flee1, int info.FLEE
+                    Attribute.Flee2, int info.FLEE2
+                    Attribute.Critical, int info.CRIT
+                    Attribute.AttackSpeed1, int info.ASPD
+                    Attribute.AttackSpeed2, int info.ASPD2
                 ]
             ] |> Messages
         | 0x0acbus ->
             let value = ToInt64 data.[4..]
-            let p = ToRawAttribute data.[2..]
-            match p with
+            match ToRawAttribute data.[2..] with
             | RawAttribute.BaseExp -> BaseExp value |> Message
             | RawAttribute.NextBaseExp -> ExpNextBaseLevel value |> Message
             | RawAttribute.JobExp -> JobExp value |> Message
@@ -302,7 +206,6 @@ let Observer playerId tick =
         | 0xa0dus -> data.[4..] |> CreateEquipment |> Equipment |> Message
         | 0x283us (* WantToConnect ack *) -> Connected true |> Message
         | 0x00b0us ->
-            //TODO: Battle parameters
             let value = ToInt32 data.[4..]
             match ToRawAttribute data.[2..] with
             | RawAttribute.Speed -> (playerId , float value) |> Speed |> Message

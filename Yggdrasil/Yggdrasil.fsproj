@@ -13,17 +13,24 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="Database.fs" />
         <Compile Include="Types.fs" />
+        <Compile Include="Game.fs" />
         <Compile Include="Navigation\Maps.fs" />
         <Compile Include="Navigation\Pathfinding.fs" />
-        <Compile Include="World\Types.fs" />
-        <Compile Include="World\Stream.fs" />
+        <Compile Include="IO\RawTypes.fs" />
         <Compile Include="IO\Decoder.fs" />
         <Compile Include="IO\Reader.fs" />
         <Compile Include="IO\Outgoing.fs" />
         <Compile Include="IO\Handshake.fs" />
-        <Compile Include="IO\Incoming\Packets.fs" />
-        <Compile Include="IO\Incoming\Observer.fs" />        
+        <Compile Include="IO\Packets.fs" />
+        <Compile Include="IO\Entrypoint.fs" />
+        <Compile Include="Observables.fs" />
+        <Compile Include="UI\WindowType.fs" />
+        <Compile Include="UI\StatusWindow.fs" />
+        <Compile Include="UI\EntityListWindow.fs" />
+        <Compile Include="UI\AttributeWindow.fs" />
+        <Compile Include="UI\UI.fs" />
     </ItemGroup>
 
     <ItemGroup>
@@ -32,9 +39,11 @@
 
     <ItemGroup>
       <PackageReference Include="dotnet-curses" Version="1.0.2" />
+      <PackageReference Include="Farango" Version="0.0.4" />
       <PackageReference Include="FSharp.Control.Reactive" Version="4.5.0" />
       <PackageReference Include="FSharpPlus" Version="1.2.0-CI01803" />
       <PackageReference Include="FSharpx.Collections" Version="2.1.3" />
+      <PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.6" />
       <PackageReference Include="NLog" Version="4.7.5" />
       <PackageReference Include="OptimizedPriorityQueue" Version="5.0.0" />
     </ItemGroup>
@@ -46,11 +55,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Compile Include="UI\WindowType.fs" />
-      <Compile Include="UI\StatusWindow.fs" />
-      <Compile Include="UI\EntityListWindow.fs" />
-      <Compile Include="UI\AttributeWindow.fs" />
-      <Compile Include="UI\UI.fs" />
+
     </ItemGroup>
-    
+
 </Project>
